@@ -30,7 +30,7 @@ function W.Header(parent, text)
   line:SetColorTexture(1, 0.82, 0, 0.25)
   line:SetHeight(1)
   line:SetPoint("LEFT", fs, "RIGHT", 6, 0)
-  line:SetWidth(240)
+  line:SetWidth(math.max(20, 320 - fs:GetStringWidth()))
   return fs
 end
 
@@ -99,8 +99,10 @@ function W.Slider(parent, text, minV, maxV, step, get, set, fmt, tip)
   return f
 end
 
--- A "< choice >" selector, used instead of dropdown menus.
+-- A "< choice >" selector, used instead of dropdown menus. `options` is a list of
+-- { value, label } or a function returning one (for lists that change, like sounds).
 function W.Cycle(parent, text, options, get, set, tip)
+  local function opts() return type(options) == "function" and options() or options end
   local f = CreateFrame("Frame", nil, parent)
   f:SetSize(230, 40)
   f.label = W.Label(f, text, "GameFontHighlightSmall")
@@ -116,23 +118,25 @@ function W.Cycle(parent, text, options, get, set, tip)
   f.value = W.Label(f, "", "GameFontHighlightSmall")
   f.value:SetPoint("CENTER", box)
 
-  local function index()
+  local function index(list)
     local cur = get()
-    for i, o in ipairs(options) do
+    for i, o in ipairs(list) do
       if o[1] == cur then return i end
     end
     return 1
   end
   local function step(d)
-    local i = (index() - 1 + d) % #options + 1
-    set(options[i][1])
+    local list = opts()
+    local i = (index(list) - 1 + d) % #list + 1
+    set(list[i][1])
     f:Refresh()
   end
   prev:SetScript("OnClick", function() step(-1) end)
   nextB:SetScript("OnClick", function() step(1) end)
   function f:Refresh()
-    local o = options[index()]
-    self.value:SetText(o[2] or o[1])
+    local list = opts()
+    local o = list[index(list)]
+    self.value:SetText(o[2] or tostring(o[1]))
   end
   Tooltip(prev, text, tip)
   Tooltip(nextB, text, tip)

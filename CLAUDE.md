@@ -14,8 +14,9 @@ original-Azeroth content (level 60, vanilla-era spells, ranks and talents) runni
 **modern Mainline addon API** (12.x family), TOC interface **16001**. It is *not* Classic Era and
 *not* TBC. The owner's old TBC WeakAuras were inspiration only.
 
-Status: 0.5.0, never run in a real client yet. All verification so far is syntax checks and a
-mocked API (see Testing).
+Status: 0.5.0 plus unreleased work. The addon loads in the Forever client and its options window
+opens, but bars, ticks and sounds haven't been confirmed in game; that verification is syntax checks
+and a mocked API (see Testing).
 
 ## Layout
 
@@ -30,6 +31,7 @@ Ticky/            the addon (this folder is what players copy into Interface\Add
 tools/
   gen_data.py     builds Ticky/Data.lua from wago.tools CSV exports
   check_lua.py    syntax-checks Ticky/*.lua and the TOC file list
+  install_beta.cmd  (Windows) git pull, then mirror Ticky/ into the beta client's AddOns folder
 README.md CHANGELOG.md ROADMAP.md SECURITY.md DEPLOY.md CLAUDE.md
 ```
 
@@ -43,7 +45,9 @@ python tools/gen_data.py <csv dir> <build> Ticky/Data.lua   # regenerate spell d
 
 There is no build step: the `Ticky` folder is the release. Manual testing means copying it into
 `World of Warcraft\_classic_beta_\Interface\AddOns\` (beta) or the live Forever AddOns folder and
-restarting the client.
+restarting the client. On the owner's Windows PC, `tools\install_beta.cmd` does the beta copy after
+a `git pull`, so changes must be pushed to GitHub before it picks them up. Its paths are hard-coded
+for that PC (variables at the top). `.gitattributes` keeps `*.cmd` files CRLF.
 
 ## Hard rules
 
@@ -74,14 +78,14 @@ call another file's `ns` functions at runtime, not at load time, unless that fil
 | File | Owns | Exposes on `ns` |
 |---|---|---|
 | `Data.lua` | Generated spell data | `ns.Data`, `ns.DataBuild` |
-| `Core.lua` | Defaults, lists (textures, fonts, sounds), aura and channel reading, alert watch, tick math, events, slash commands | `DEFAULTS`, `CHAR_DEFAULTS`, `TEXTURES`, `FONTS`, `OUTLINES`, `SOUNDS`, `CHANNELS`, `Secret`, `Lookup`, `SpellInfo`, `AuraPeriod`, `ComputeTicks`, `ActiveTimers`, `RefreshDisplay`, `SpellbookSpells`, `Track`, `Untrack`, `IsTracked`, `AddSpell`, `Describe`, `PlaySound`, `ResetSettings`, `CopyDefaults`, `SpellCfg`, `DB`, `CharDB`, `InCombat`, `TB` (event frame) |
-| `Bars.lua` | Anchor and bar frames, styling, drawing, preview | `CreateBars`, `ApplyStyle`, `UpdateBars`, `SetPreview`, `preview`, `ResetPosition` |
+| `Core.lua` | Defaults, lists (textures, fonts, sounds, sound events), aura and channel reading, alerts (sounds, speech, messages), missing-spell placeholders, display list, tick math, events, slash commands | `DEFAULTS`, `CHAR_DEFAULTS`, `TEXTURES`, `FONTS`, `OUTLINES`, `SOUNDS`, `SOUND_EVENTS`, `CHANNELS`, `SoundChoices`, `Secret`, `Lookup`, `SpellInfo`, `AuraPeriod`, `ComputeTicks`, `BuildDisplay`, `ActiveTimers`, `RefreshDisplay`, `HasTarget`, `SpellbookSpells`, `Track`, `Untrack`, `IsTracked`, `OrderedSpells`, `MoveSpell`, `AddSpell`, `Describe`, `SoundFor`, `WarnSeconds`, `PlaySound`, `TestSound`, `RemoveCustomSound`, `ResetSettings`, `CopyDefaults`, `SpellCfg`, `DB`, `CharDB`, `InCombat`, `TB` (event frame) |
+| `Bars.lua` | Anchor and bar frames, styling, drawing, missing bars, preview, on-screen messages | `CreateBars`, `ApplyStyle`, `UpdateBars`, `SetPreview`, `preview`, `ResetPosition`, `ShowMessage` |
 | `Widgets.lua` | Option controls | `ns.W` (`Label`, `Header`, `Button`, `Check`, `Slider`, `Cycle`, `Swatch`, `EditBox`, `Setting`) |
 | `Options.lua` | Options window, Settings-panel entry, shift-click link hook | `ToggleOptions`, `RefreshOptions` |
 
 Globals (keep this list short): `TickyDB`, `TickyCharDB`, `SLASH_TICKY1`, `SlashCmdList.TICKY`,
 `Ticky_OnAddonCompartmentClick`, and frame names `TickyAnchor`, `TickyOptions`,
-`TickyOptionsSpellScroll`.
+`TickyOptionsSpellScroll`, `TickyOptionsDetailScroll`.
 
 ### Data flow
 
@@ -91,43 +95,65 @@ UNIT_AURA (target/player/nameplateN), PLAYER_TARGET_CHANGED, NAME_PLATE_UNIT_ADD
        -> TimerFromAura(aura)                      skip secret; keep tracked spells you cast
                                                    (or any caster if cfg.anyCaster)
        -> timer { key, name, icon, start, expires, interval = AuraPeriod(spellID) }
-  -> Remember(unit, list)                          watch[guid][key] for alerts
+  -> Remember(unit, list)                          watch[guid][key]; apply / refresh sounds;
+                                                   vanished early -> gone[guid][key] (0.3s grace)
   -> targetTimers / selfTimers
 
 UNIT_SPELLCAST_CHANNEL_* (player) -> ReadChannel() -> channel timer (interval = ChannelPeriod)
 
-OnUpdate (every frame)  -> ns.UpdateBars(now) -> ActiveTimers(now) or preview -> UpdateBar
-         (every 0.1s)   -> CheckAlerts(now)   -> Warn / Expire -> PlaySound
+OnUpdate (every frame)  -> ns.UpdateBars(now) -> ActiveTimers(now) or PreviewTimers(now)
+                             -> BuildDisplay: channel, target group (+ missing placeholders), self
+                             -> UpdateBar / DrawMissing (a "space" placeholder hides its bar)
+         (every 0.1s)   -> CheckAlerts(now)   -> CheckTick / Warn / Expire / removed -> Alert
+                                                 -> PlaySound (SOUNDKIT, "SPEAK", "F:<file>")
+                                                    and ShowMessage
 ```
 
 - A timer's ticks are `ComputeTicks`: start + k * interval, plus a final tick at expiry.
 - `AuraPeriod(id)`: `Data[id].p` (divided by haste if `h`), `nil` for non-ticking data entries,
   tooltip "every N sec" for spells missing from the data.
-- Alerts: an aura that vanishes more than 0.5s before its expiry was removed early, so it's silent.
-  One that vanishes at expiry, or whose expiry passes while watched, plays the end sound once.
+- Alerts: each event (`SOUND_EVENTS`: apply, refresh, tick, warn, expire, remove) uses the spell's
+  own choice or the account default (`SoundFor`). Apply/refresh only fire for an aura that started
+  under 1s ago, so targeting something with your DoT already on it is silent. An aura that vanishes
+  more than 0.5s before expiry and doesn't come back within 0.3s (a refresh can drop it briefly)
+  was removed early; one that vanishes at expiry, or whose expiry passes while watched, has ended.
+  Tick sounds are only for your target, yourself and your channel.
+- Missing spells: with a target (alive, and in combat if `missingOnlyInCombat`), every tracked spell
+  not present gets a placeholder `{ missing = "space" | "show" }` unless its mode is "hide". In
+  "custom" order the channel sits in its spell's slot; otherwise it's on top.
 
 ### Saved variables
 
 `TickyDB` (account-wide, defaults in `ns.DEFAULTS`, filled by `CopyDefaults` on load): look,
-alerts and general settings as flat keys, plus `point` and `version`. Bump `DB_VERSION` in
-Core.lua and add a migration in `ADDON_LOADED` when changing the meaning of an existing key.
+layout, text, sound and general settings as flat keys, plus `point`, `version` and
+`customSounds` (list of file paths / IDs; kept by reset). Bump `DB_VERSION` (now 5) in Core.lua and
+add a migration in `ADDON_LOADED` when changing the meaning of an existing key (5 renamed
+`sortMode` "added" to "custom").
 
 `TickyCharDB` (per character): `spells[lowerCaseName] = { name, id, icon, color, order, label,
-expireSound, warnSound, anyCaster, isChannel }` and `nextOrder`. Spells are keyed by lower-case
-name so every rank matches; `id` is the rank that was added (used for data lookups in the UI).
+speech, missing, warnSeconds, anyCaster, isChannel, applySound, refreshSound, tickSound, warnSound,
+expireSound, removeSound }` and `nextOrder`. Unset per-spell fields mean "use the default". Spells
+are keyed by lower-case name so every rank matches; `id` is the rank that was added (used for data
+lookups in the UI). `order` is the "Your order" slot (`MoveSpell` renumbers 1..n).
+
+Sound values: a `SOUNDS` key, `"NONE"`, `"SPEAK"` (text to speech), or `"F:" .. file` (custom
+file path or file ID, played with `PlaySoundFile`). Per-spell `"DEFAULT"` is stored as nil.
 
 ### How to add a setting
 
 1. Add the key and default to `ns.DEFAULTS` in Core.lua.
 2. Use it where it matters (usually `LayoutBar` or `UpdateBar` in Bars.lua, or the alert code).
    Layout-affecting values are applied when `styleVersion` changes, which `ns.ApplyStyle()` does.
-3. Add a control on the right page in Options.lua: `local g, s = W.Setting("key")` then
+3. Add a control on the right page in Options.lua (Bars, Layout, Text & Ticks, Sounds, General):
+   `local g, s = W.Setting("key")` then
    `Place(p, W.Slider/Check/Cycle/Swatch(p, "Label", ..., g, s), x, y)`. `W.Setting` calls
-   `ApplyStyle` on change. Each page has two columns at x = 0 and x = `COL2`.
+   `ApplyStyle` on change. Each page is 688x480 with two columns at x = 0 and x = `COL2` (350).
+   `W.Cycle` takes a list or a function returning one (for lists that change).
 4. Document it in README.md's Options section and CHANGELOG.md.
 
 Per-spell settings live on the spell's `cfg` and get a control in the Spells page detail panel
-(`c.list` for refreshable controls).
+(`BuildSpellDetail`; `Keep(ctrl, x, y)` places it in the scrolling panel and registers it for
+refresh). Grow the scroll child's height if you add rows.
 
 ### UI templates that exist on Forever (verified on the forever branch)
 

@@ -1,4 +1,4 @@
--- Ticky options window: Spells, Bars, Text & Ticks, Alerts, General.
+-- Ticky options window: Spells, Bars, Layout, Text & Ticks, Sounds, General.
 -- Open with /ticky, the minimap addon menu, or Game Menu > Options > AddOns > Ticky.
 local ADDON, ns = ...
 
@@ -6,7 +6,7 @@ local W = ns.W
 local panel
 local pages, tabs = {}, {}
 local ROW_H = 26
-local COL2 = 300
+local COL2 = 350
 
 local function Choices(list)
   local out = {}
@@ -51,13 +51,6 @@ local spellsPage, list, content, detail
 local rows = {}
 local selected
 
-local function SoundChoices(withDefault)
-  local out = {}
-  if withDefault then out[1] = { "DEFAULT", "Use default (Alerts tab)" } end
-  for _, s in ipairs(ns.SOUNDS) do out[#out + 1] = { s[1], s[2] } end
-  return out
-end
-
 local function RefreshDetail()
   local cfg = selected and ns.CharDB().spells[selected.key]
   detail:SetShown(selected ~= nil)
@@ -66,10 +59,15 @@ local function RefreshDetail()
   detail.name:SetText(selected.name)
   detail.info:SetText(ns.Describe(selected.key, selected.id))
   detail.untracked:SetShown(cfg == nil)
-  detail.controls:SetShown(cfg ~= nil)
+  detail.scroll:SetShown(cfg ~= nil)
   if cfg then
+    local keys = ns.OrderedSpells()
+    for i, k in ipairs(keys) do
+      if k == selected.key then detail.position:SetText(("Position %d of %d"):format(i, #keys)) end
+    end
     for _, c in ipairs(detail.controls.list) do c:Refresh() end
     detail.labelBox:SetText(cfg.label or "")
+    detail.speechBox:SetText(cfg.speech or "")
   end
 end
 
@@ -77,7 +75,7 @@ local function GetRow(i)
   local r = rows[i]
   if r then return r end
   r = CreateFrame("Button", nil, content)
-  r:SetSize(270, ROW_H)
+  r:SetSize(280, ROW_H)
   r:SetPoint("TOPLEFT", 0, -(i - 1) * ROW_H)
   r:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight", "ADD")
   r.sel = r:CreateTexture(nil, "BACKGROUND")
@@ -143,6 +141,119 @@ local function RefreshSpellList()
   RefreshDetail()
 end
 
+-- The selected spell's settings: order, look, text, missing behaviour, warning and sounds.
+local function BuildSpellDetail(p)
+  detail = CreateFrame("Frame", nil, p)
+  detail:SetPoint("TOPLEFT", 310, 0)
+  detail:SetPoint("BOTTOMRIGHT")
+  detail.icon = detail:CreateTexture(nil, "ARTWORK")
+  detail.icon:SetSize(36, 36)
+  detail.icon:SetPoint("TOPLEFT")
+  detail.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+  detail.name = W.Label(detail, "", "GameFontNormalLarge")
+  detail.name:SetPoint("TOPLEFT", detail.icon, "TOPRIGHT", 8, -2)
+  detail.info = W.Label(detail, "", "GameFontHighlightSmall")
+  detail.info:SetPoint("TOPLEFT", detail.name, "BOTTOMLEFT", 0, -4)
+  detail.info:SetWidth(300)
+  detail.untracked = W.Label(detail, "Not tracked. Tick its box in the list to track it.", "GameFontDisable")
+  detail.untracked:SetPoint("TOPLEFT", detail.icon, "BOTTOMLEFT", 0, -16)
+
+  local scroll = CreateFrame("ScrollFrame", "TickyOptionsDetailScroll", detail, "UIPanelScrollFrameTemplate")
+  scroll:SetPoint("TOPLEFT", 0, -46)
+  scroll:SetPoint("BOTTOMRIGHT", -24, 0)
+  local c = CreateFrame("Frame", nil, scroll)
+  c:SetSize(330, 610)
+  scroll:SetScrollChild(c)
+  detail.scroll = scroll
+  c.list = {}
+  detail.controls = c
+  local function Keep(ctrl, x, y)
+    ctrl:SetPoint("TOPLEFT", c, "TOPLEFT", x, y)
+    if ctrl.Refresh then c.list[#c.list + 1] = ctrl end
+    return ctrl
+  end
+  -- These controls are only shown for a tracked spell; the fallback table just keeps them safe.
+  local function cfg() return selected and ns.CharDB().spells[selected.key] or {} end
+  local function changed()
+    ns.RefreshDisplay()
+    RefreshSpellList()
+  end
+
+  detail.position = Keep(W.Label(c, "", "GameFontHighlightSmall"), 4, -6)
+  local function move(dir)
+    if selected and ns.IsTracked(selected.key) then
+      ns.MoveSpell(selected.key, dir)
+      RefreshDetail()
+    end
+  end
+  local up = Keep(W.Button(c, "Move up", 80, function() move(-1) end), 156, 0)
+  Keep(W.Button(c, "Move down", 80, function() move(1) end), 240, 0)
+  local orderTip = "Sets this spell's place when bars are ordered by \"Your order\" (Layout tab)."
+  up:SetScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+    GameTooltip:SetText(orderTip, 1, 1, 1, 1, true)
+    GameTooltip:Show()
+  end)
+  up:SetScript("OnLeave", function() GameTooltip:Hide() end)
+
+  Keep(W.Swatch(c, "Bar color", function() return cfg().color end, function(v) cfg().color = v end), 4, -30)
+
+  local anyone = Keep(W.Check(c, "Track it from anyone, not just you", function() return cfg().anyCaster end,
+    function(v)
+      cfg().anyCaster = v or nil
+      changed()
+    end, "For example a buff another player puts on you, or a debuff a raid member applies to the boss."), 0, -56)
+  anyone.label:SetFontObject("GameFontHighlightSmall")
+
+  Keep(W.Label(c, "Bar text (blank = spell name)", "GameFontHighlightSmall"), 4, -86)
+  detail.labelBox = Keep(W.EditBox(c, 220), 10, -100)
+  detail.labelBox:SetScript("OnTextChanged", function(self, userInput)
+    if userInput then
+      local t = strtrim(self:GetText())
+      cfg().label = t ~= "" and t or nil
+    end
+  end)
+
+  Keep(W.Label(c, "Words for \"Say it\" sounds (blank = bar text)", "GameFontHighlightSmall"), 4, -128)
+  detail.speechBox = Keep(W.EditBox(c, 220), 10, -142)
+  detail.speechBox:SetScript("OnTextChanged", function(self, userInput)
+    if userInput then
+      local t = strtrim(self:GetText())
+      cfg().speech = t ~= "" and t or nil
+    end
+  end)
+
+  Keep(W.Cycle(c, "When it's not on your target", {
+    { "DEFAULT", "Use default (Layout tab)" }, { "hide", "Hide it (bars close up)" },
+    { "space", "Keep its slot empty" }, { "show", "Show a faded bar" },
+  }, function() return cfg().missing or "DEFAULT" end, function(v)
+    cfg().missing = v ~= "DEFAULT" and v or nil
+  end), 4, -172)
+
+  Keep(W.Slider(c, "Warning time", 0, 10, 0.5, function() return cfg().warnSeconds or 0 end,
+    function(v) cfg().warnSeconds = v > 0 and v or nil end,
+    function(v) return v == 0 and "Default (Sounds tab)" or ("%gs before it ends"):format(v) end,
+    "When the warning sound, message and flash happen for this spell."), 4, -220)
+
+  Keep(W.Header(c, "Sounds"), 0, -266)
+  local y = -288
+  for _, ev in ipairs(ns.SOUND_EVENTS) do
+    local field = ev[1]
+    local cyc = Keep(W.Cycle(c, ev[2], function() return ns.SoundChoices(true) end,
+      function() return cfg()[field] or "DEFAULT" end,
+      function(v) cfg()[field] = v ~= "DEFAULT" and v or nil end), 4, y)
+    W.Button(c, "Test", 50, function()
+      if selected then ns.TestSound(selected.key, field) end
+    end):SetPoint("LEFT", cyc, "RIGHT", 6, -8)
+    y = y - 46
+  end
+
+  Keep(W.Button(c, "Stop tracking", 120, function()
+    if selected then ns.Untrack(selected.key) end
+    RefreshSpellList()
+  end), 4, y - 6)
+end
+
 local function BuildSpellsPage()
   local p = NewPage("Spells")
   spellsPage = p
@@ -166,9 +277,9 @@ local function BuildSpellsPage()
 
   list = CreateFrame("ScrollFrame", "TickyOptionsSpellScroll", p, "UIPanelScrollFrameTemplate")
   list:SetPoint("TOPLEFT", 0, -28)
-  list:SetSize(270, 290)
+  list:SetSize(280, 360)
   content = CreateFrame("Frame", nil, list)
-  content:SetSize(270, 1)
+  content:SetSize(280, 1)
   list:SetScrollChild(content)
   local listBg = p:CreateTexture(nil, "BORDER")
   listBg:SetPoint("TOPLEFT", list, -2, 2)
@@ -196,87 +307,12 @@ local function BuildSpellsPage()
   addButton:SetScript("OnClick", doAdd)
   p.addBox:SetScript("OnEnterPressed", doAdd)
 
-  -- Detail panel for the selected spell.
-  detail = CreateFrame("Frame", nil, p)
-  detail:SetPoint("TOPLEFT", COL2, 0)
-  detail:SetPoint("BOTTOMRIGHT")
-  detail.icon = detail:CreateTexture(nil, "ARTWORK")
-  detail.icon:SetSize(36, 36)
-  detail.icon:SetPoint("TOPLEFT")
-  detail.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-  detail.name = W.Label(detail, "", "GameFontNormalLarge")
-  detail.name:SetPoint("TOPLEFT", detail.icon, "TOPRIGHT", 8, -2)
-  detail.info = W.Label(detail, "", "GameFontHighlightSmall")
-  detail.info:SetPoint("TOPLEFT", detail.name, "BOTTOMLEFT", 0, -4)
-  detail.info:SetWidth(240)
-  detail.untracked = W.Label(detail, "Not tracked. Tick its box in the list to track it.", "GameFontDisable")
-  detail.untracked:SetPoint("TOPLEFT", detail.icon, "BOTTOMLEFT", 0, -16)
-
-  local c = CreateFrame("Frame", nil, detail)
-  c:SetPoint("TOPLEFT", detail.icon, "BOTTOMLEFT", 0, -12)
-  c:SetPoint("BOTTOMRIGHT")
-  c.list = {}
-  detail.controls = c
-  -- These controls are only shown for a tracked spell; the fallback table just keeps them safe.
-  local function cfg() return selected and ns.CharDB().spells[selected.key] or {} end
-
-  local color = W.Swatch(c, "Bar color", function() return cfg().color end, function(v) cfg().color = v end)
-  color:SetPoint("TOPLEFT", 4, 0)
-  c.list[#c.list + 1] = color
-
-  local anyone = W.Check(c, "Track it from anyone, not just you", function() return cfg().anyCaster end,
-    function(v)
-      cfg().anyCaster = v or nil
-      ns.RefreshDisplay()
-      RefreshSpellList()
-    end, "For example a buff another player puts on you, or a debuff a raid member applies to the boss.")
-  anyone:SetPoint("TOPLEFT", color, "BOTTOMLEFT", -4, -8)
-  anyone.label:SetFontObject("GameFontHighlightSmall")
-  c.list[#c.list + 1] = anyone
-
-  local labelText = W.Label(c, "Bar text (blank = spell name)", "GameFontHighlightSmall")
-  labelText:SetPoint("TOPLEFT", anyone, "BOTTOMLEFT", 0, -8)
-  detail.labelBox = W.EditBox(c, 220)
-  detail.labelBox:SetPoint("TOPLEFT", labelText, "BOTTOMLEFT", 6, -4)
-  detail.labelBox:SetScript("OnTextChanged", function(self, userInput)
-    if userInput then
-      local t = strtrim(self:GetText())
-      cfg().label = t ~= "" and t or nil
-    end
-  end)
-
-  local function soundGetSet(field)
-    return function() return cfg()[field] or "DEFAULT" end,
-      function(v) cfg()[field] = v ~= "DEFAULT" and v or nil end
-  end
-  local g, s = soundGetSet("expireSound")
-  local expire = W.Cycle(c, "Sound when it ends", SoundChoices(true), g, s)
-  expire:SetPoint("TOPLEFT", detail.labelBox, "BOTTOMLEFT", -6, -12)
-  c.list[#c.list + 1] = expire
-  W.Button(c, "Test", 50, function()
-    local v = cfg().expireSound
-    ns.PlaySound(v or ns.DB().expireSound)
-  end):SetPoint("LEFT", expire, "RIGHT", 6, -8)
-
-  g, s = soundGetSet("warnSound")
-  local warn = W.Cycle(c, "Warning sound (Alerts tab sets when)", SoundChoices(true), g, s)
-  warn:SetPoint("TOPLEFT", expire, "BOTTOMLEFT", 0, -6)
-  c.list[#c.list + 1] = warn
-  W.Button(c, "Test", 50, function()
-    local v = cfg().warnSound
-    ns.PlaySound(v or ns.DB().warnSound)
-  end):SetPoint("LEFT", warn, "RIGHT", 6, -8)
-
-  W.Button(c, "Stop tracking", 120, function()
-    if selected then ns.Untrack(selected.key) end
-    RefreshSpellList()
-  end):SetPoint("TOPLEFT", warn, "BOTTOMLEFT", 0, -14)
-
+  BuildSpellDetail(p)
   p.OnRefresh = RefreshSpellList
 end
 
 ---------------------------------------------------------------------------
--- Bars page
+-- Shared helpers for the settings pages
 ---------------------------------------------------------------------------
 
 local function Place(page, ctrl, x, y)
@@ -284,7 +320,18 @@ local function Place(page, ctrl, x, y)
   return Add(page, ctrl)
 end
 
+local function Note(page, text, x, y, width)
+  local n = W.Label(page, text, "GameFontDisableSmall")
+  n:SetPoint("TOPLEFT", x, y)
+  n:SetWidth(width or 300)
+  return n
+end
+
 local function pct(v) return ("%d%%"):format(math.floor(v * 100 + 0.5)) end
+
+---------------------------------------------------------------------------
+-- Bars page
+---------------------------------------------------------------------------
 
 local function BuildBarsPage()
   local p = NewPage("Bars")
@@ -295,39 +342,85 @@ local function BuildBarsPage()
   Place(p, W.Slider(p, "Width", 80, 500, 5, g, s), 4, -22)
   g, s = S("height")
   Place(p, W.Slider(p, "Height", 8, 48, 1, g, s), 4, -62)
-  g, s = S("spacing")
-  Place(p, W.Slider(p, "Space between bars", 0, 20, 1, g, s), 4, -102)
   g, s = S("scale")
-  Place(p, W.Slider(p, "Scale", 0.5, 2, 0.05, g, s, pct), 4, -142)
+  Place(p, W.Slider(p, "Scale", 0.5, 2, 0.05, g, s, pct), 4, -102)
 
-  W.Header(p, "Layout"):SetPoint("TOPLEFT", 0, -188)
-  g, s = S("growUp")
-  Place(p, W.Cycle(p, "New bars stack", { { false, "Downward" }, { true, "Upward" } }, g, s), 4, -210)
-  g, s = S("sortMode")
-  Place(p, W.Cycle(p, "Order bars by", { { "name", "Spell name" }, { "remaining", "Time left" },
-    { "added", "Order you added them" } }, g, s), 4, -254)
+  W.Header(p, "Fill"):SetPoint("TOPLEFT", 0, -146)
   g, s = S("fillMode")
   Place(p, W.Cycle(p, "Bar fill", { { "drain", "Empties as time runs out" }, { "fill", "Fills as time passes" } },
-    g, s), 4, -298)
+    g, s), 4, -168)
+  g, s = S("reverse")
+  Place(p, W.Cycle(p, "Direction", { { false, "Full side on the left" }, { true, "Full side on the right" } },
+    g, s), 4, -212)
+  g, s = S("spark")
+  Place(p, W.Check(p, "Spark at the edge of the fill", g, s), 0, -258)
+
+  W.Header(p, "Running low"):SetPoint("TOPLEFT", 0, -294)
+  g, s = S("lowEnabled")
+  Place(p, W.Check(p, "Change color near the end", g, s,
+    "Recolor the bar in its last seconds, so you know when to reapply."), 0, -314)
+  g, s = S("lowSeconds")
+  Place(p, W.Slider(p, "Seconds left", 1, 10, 0.5, g, s), 4, -342)
+  g, s = S("lowColor")
+  Place(p, W.Swatch(p, "Low-time color", g, s), 4, -386)
 
   W.Header(p, "Look"):SetPoint("TOPLEFT", COL2, 0)
   g, s = S("texture")
   Place(p, W.Cycle(p, "Texture", Choices(ns.TEXTURES), g, s), COL2 + 4, -22)
+  g, s = S("bgColor")
+  Place(p, W.Swatch(p, "Background color", g, s), COL2 + 4, -70)
   g, s = S("bgAlpha")
-  Place(p, W.Slider(p, "Background opacity", 0, 1, 0.05, g, s, pct), COL2 + 4, -66)
-  g, s = S("showIcon")
-  Place(p, W.Check(p, "Show spell icon", g, s), COL2, -104)
-  g, s = S("iconSide")
-  Place(p, W.Cycle(p, "Icon side", { { "LEFT", "Left" }, { "RIGHT", "Right" } }, g, s), COL2 + 4, -132)
+  Place(p, W.Slider(p, "Background opacity", 0, 1, 0.05, g, s, pct), COL2 + 4, -98)
+  g, s = S("borderSize")
+  Place(p, W.Cycle(p, "Border", { { 0, "None" }, { 1, "Thin" }, { 2, "Medium" }, { 3, "Thick" } }, g, s),
+    COL2 + 4, -140)
+  g, s = S("borderColor")
+  Place(p, W.Swatch(p, "Border color", g, s), COL2 + 4, -188)
 
-  W.Header(p, "Running low"):SetPoint("TOPLEFT", COL2, -188)
-  g, s = S("lowEnabled")
-  Place(p, W.Check(p, "Change color near the end", g, s,
-    "Recolor the bar in its last seconds, so you know when to reapply."), COL2, -208)
-  g, s = S("lowSeconds")
-  Place(p, W.Slider(p, "Seconds left", 1, 10, 0.5, g, s), COL2 + 4, -236)
-  g, s = S("lowColor")
-  Place(p, W.Swatch(p, "Low-time color", g, s), COL2 + 4, -280)
+  W.Header(p, "Icon"):SetPoint("TOPLEFT", COL2, -226)
+  g, s = S("showIcon")
+  Place(p, W.Check(p, "Show spell icon", g, s), COL2, -246)
+  g, s = S("iconSide")
+  Place(p, W.Cycle(p, "Icon side", { { "LEFT", "Left" }, { "RIGHT", "Right" } }, g, s), COL2 + 4, -274)
+end
+
+---------------------------------------------------------------------------
+-- Layout page
+---------------------------------------------------------------------------
+
+local function BuildLayoutPage()
+  local p = NewPage("Layout")
+  local S = W.Setting
+
+  W.Header(p, "Stacking"):SetPoint("TOPLEFT", 0, 0)
+  local g, s = S("growUp")
+  Place(p, W.Cycle(p, "New bars stack", { { false, "Downward" }, { true, "Upward" } }, g, s), 4, -22)
+  g, s = S("sortMode")
+  Place(p, W.Cycle(p, "Order bars by", { { "name", "Spell name" }, { "remaining", "Time left" },
+    { "custom", "Your order (Spells tab)" } }, g, s), 4, -66)
+  g, s = S("spacing")
+  Place(p, W.Slider(p, "Space between bars", 0, 20, 1, g, s), 4, -112)
+  Note(p, "\"Your order\" gives every spell a fixed place: set it with Move up / Move down on the "
+    .. "Spells tab. Your channel takes its place too, instead of sitting on top.\n\nFor bars that never "
+    .. "move, pair it with \"Keep its slot empty\" or \"Show a faded bar\".", 4, -158, 300)
+
+  W.Header(p, "When a spell isn't on your target"):SetPoint("TOPLEFT", COL2, 0)
+  g, s = S("missingMode")
+  Place(p, W.Cycle(p, "Tracked spells that are missing", { { "hide", "Hide it (bars close up)" },
+    { "space", "Keep its slot empty" }, { "show", "Show a faded bar" } }, g, s), COL2 + 4, -22)
+  g, s = S("missingAlpha")
+  Place(p, W.Slider(p, "Faded bar opacity", 0.1, 1, 0.05, g, s, pct), COL2 + 4, -68)
+  g, s = S("missingColor")
+  Place(p, W.Swatch(p, "Faded bar color", g, s), COL2 + 4, -110)
+  g, s = S("missingDesaturate")
+  Place(p, W.Check(p, "Gray out its icon", g, s), COL2, -136)
+  g, s = S("missingOnlyInCombat")
+  Place(p, W.Check(p, "Only in combat", g, s), COL2, -162)
+  g, s = S("missingMatchTarget")
+  Place(p, W.Check(p, "Only on targets it can go on", g, s,
+    "Damage spells on enemies, heals and buffs on friends."), COL2, -188)
+  Note(p, "Missing bars only show while you have a living target. Each spell can override this on the "
+    .. "Spells tab.", COL2 + 4, -222, 300)
 end
 
 ---------------------------------------------------------------------------
@@ -345,49 +438,70 @@ local function BuildTextPage()
   Place(p, W.Check(p, "Show time left", g, s), 0, -46)
   g, s = S("showTickCount")
   Place(p, W.Check(p, "Show ticks left (x3)", g, s), 0, -72)
+  g, s = S("showStacks")
+  Place(p, W.Check(p, "Show stacks", g, s, "On the icon, or after the name if the icon is hidden."), 0, -98)
   g, s = S("font")
-  Place(p, W.Cycle(p, "Font", Choices(ns.FONTS), g, s), 4, -104)
+  Place(p, W.Cycle(p, "Font", Choices(ns.FONTS), g, s), 4, -128)
   g, s = S("fontSize")
-  Place(p, W.Slider(p, "Font size", 6, 24, 1, g, s), 4, -148)
+  Place(p, W.Slider(p, "Font size", 6, 24, 1, g, s), 4, -172)
   g, s = S("outline")
-  Place(p, W.Cycle(p, "Outline", ns.OUTLINES, g, s), 4, -188)
+  Place(p, W.Cycle(p, "Outline", ns.OUTLINES, g, s), 4, -212)
+  g, s = S("shadow")
+  Place(p, W.Check(p, "Text shadow", g, s), 0, -258)
 
-  W.Header(p, "Tick marks"):SetPoint("TOPLEFT", COL2, 0)
+  W.Header(p, "Colors and format"):SetPoint("TOPLEFT", COL2, 0)
+  g, s = S("nameColor")
+  Place(p, W.Swatch(p, "Name color", g, s), COL2 + 4, -24)
+  g, s = S("timeColor")
+  Place(p, W.Swatch(p, "Time color", g, s), COL2 + 4, -50)
+  g, s = S("timeSide")
+  Place(p, W.Cycle(p, "Time position", { { "RIGHT", "Right, name on the left" },
+    { "LEFT", "Left, name after it" } }, g, s), COL2 + 4, -76)
+  g, s = S("decimals")
+  Place(p, W.Cycle(p, "Tenths of a second", { { 10, "Under 10 seconds" }, { 3, "Under 3 seconds" },
+    { 0, "Never" } }, g, s), COL2 + 4, -120)
+
+  W.Header(p, "Tick marks"):SetPoint("TOPLEFT", COL2, -168)
   g, s = S("tickColor")
-  Place(p, W.Swatch(p, "Tick color", g, s), COL2 + 4, -24)
+  Place(p, W.Swatch(p, "Tick color", g, s), COL2 + 4, -192)
   g, s = S("tickWidth")
-  Place(p, W.Slider(p, "Tick width", 1, 6, 1, g, s), COL2 + 4, -52)
+  Place(p, W.Slider(p, "Tick width", 1, 6, 1, g, s), COL2 + 4, -218)
+  g, s = S("tickHeight")
+  Place(p, W.Slider(p, "Tick height", 0.2, 1, 0.05, g, s, pct), COL2 + 4, -258)
   g, s = S("pastTicks")
   Place(p, W.Cycle(p, "Ticks that already happened", { { "dim", "Dimmed" }, { "hide", "Hidden" }, { "show", "Shown" } },
-    g, s), COL2 + 4, -92)
+    g, s), COL2 + 4, -298)
   g, s = S("highlightNext")
-  Place(p, W.Check(p, "Highlight the next tick", g, s), COL2, -136)
+  Place(p, W.Check(p, "Highlight the next tick", g, s), COL2, -342)
   g, s = S("nextColor")
-  Place(p, W.Swatch(p, "Next-tick color", g, s), COL2 + 4, -166)
+  Place(p, W.Swatch(p, "Next-tick color", g, s), COL2 + 4, -370)
 end
 
 ---------------------------------------------------------------------------
--- Alerts page
+-- Sounds page
 ---------------------------------------------------------------------------
 
-local function BuildAlertsPage()
-  local p = NewPage("Alerts")
+local function BuildSoundsPage()
+  local p = NewPage("Sounds")
   local S = W.Setting
+  local db = ns.DB
   local secs = function(v) return v == 0 and "Off" or ("%gs"):format(v) end
 
-  W.Header(p, "When a timer ends"):SetPoint("TOPLEFT", 0, 0)
-  local g, s = S("expireSound")
-  local expire = Place(p, W.Cycle(p, "Sound", SoundChoices(false), g, s), 4, -22)
-  W.Button(p, "Test", 50, function() ns.PlaySound(ns.DB().expireSound) end):SetPoint("LEFT", expire, "RIGHT", 6, -8)
+  W.Header(p, "Default sounds"):SetPoint("TOPLEFT", 0, 0)
+  local y = -22
+  for _, ev in ipairs(ns.SOUND_EVENTS) do
+    local field = ev[1]
+    local g, s = S(field)
+    local cyc = Place(p, W.Cycle(p, ev[2], function() return ns.SoundChoices(false) end, g, s), 4, y)
+    W.Button(p, "Test", 50, function() ns.PlaySound(db()[field], "Test") end):SetPoint("LEFT", cyc, "RIGHT", 6, -8)
+    y = y - 44
+  end
 
-  W.Header(p, "Warning before it ends"):SetPoint("TOPLEFT", 0, -80)
-  g, s = S("warnSeconds")
-  Place(p, W.Slider(p, "Warn with this many seconds left", 0, 10, 0.5, g, s, secs), 4, -102)
-  g, s = S("warnSound")
-  local warn = Place(p, W.Cycle(p, "Warning sound", SoundChoices(false), g, s), 4, -142)
-  W.Button(p, "Test", 50, function() ns.PlaySound(ns.DB().warnSound) end):SetPoint("LEFT", warn, "RIGHT", 6, -8)
+  W.Header(p, "Warning"):SetPoint("TOPLEFT", 0, y - 6)
+  local g, s = S("warnSeconds")
+  Place(p, W.Slider(p, "Warn with this many seconds left", 0, 10, 0.5, g, s, secs), 4, y - 28)
   g, s = S("warnFlash")
-  Place(p, W.Check(p, "Flash the bar during the warning", g, s), 0, -188)
+  Place(p, W.Check(p, "Flash the bar during the warning", g, s), 0, y - 68)
 
   W.Header(p, "Options"):SetPoint("TOPLEFT", COL2, 0)
   g, s = S("soundChannel")
@@ -398,9 +512,53 @@ local function BuildAlertsPage()
     COL2, -66)
   g, s = S("alertOnlyInCombat")
   Place(p, W.Check(p, "Only alert in combat", g, s), COL2, -92)
-  local note = W.Label(p, "Each spell can have its own sounds: pick it on the Spells tab.", "GameFontDisableSmall")
-  note:SetPoint("TOPLEFT", COL2, -128)
-  note:SetWidth(270)
+
+  W.Header(p, "On-screen text"):SetPoint("TOPLEFT", COL2, -126)
+  g, s = S("msgWarn")
+  Place(p, W.Check(p, "\"Ends soon\" at the warning", g, s), COL2, -146)
+  g, s = S("msgExpire")
+  Place(p, W.Check(p, "\"Has ended\" when it ends", g, s), COL2, -172)
+  g, s = S("msgRemove")
+  Place(p, W.Check(p, "\"Was removed\" when removed early", g, s), COL2, -198)
+
+  W.Header(p, "Your own sound files"):SetPoint("TOPLEFT", COL2, -232)
+  Note(p, "A path inside the WoW folder, like Interface\\AddOns\\MySounds\\ding.ogg, or a sound file ID. "
+    .. "New files only load when the game starts.", COL2 + 4, -252, 320)
+  local box = W.EditBox(p, 220)
+  box:SetPoint("TOPLEFT", COL2 + 10, -284)
+  local chosen
+  local function files() return db().customSounds end
+  local fileCycle = Place(p, W.Cycle(p, "Added files", function()
+    local out = {}
+    for _, f in ipairs(files()) do out[#out + 1] = { f, f:match("([^\\/]+)$") or f } end
+    if #out == 0 then out[1] = { nil, "(none yet)" } end
+    return out
+  end, function() return chosen end, function(v) chosen = v end), COL2 + 4, -312)
+  local function add()
+    local f = strtrim(box:GetText() or "")
+    if f == "" then return end
+    for _, v in ipairs(files()) do if v == f then return end end
+    table.insert(files(), f)
+    chosen = f
+    box:SetText("")
+    box:ClearFocus()
+    p:Refresh()
+  end
+  W.Button(p, "Add", 60, add):SetPoint("LEFT", box, "RIGHT", 6, 0)
+  box:SetScript("OnEnterPressed", add)
+  W.Button(p, "Remove", 70, function()
+    if chosen then
+      ns.RemoveCustomSound(chosen)
+      chosen = files()[1]
+      p:Refresh()
+    end
+  end):SetPoint("LEFT", fileCycle, "RIGHT", 6, -8)
+  W.Button(p, "Test", 50, function()
+    if chosen then ns.PlaySound("F:" .. chosen) end
+  end):SetPoint("TOPLEFT", fileCycle, "BOTTOMLEFT", 0, -2)
+  Note(p, "\"Say it\" speaks with the game's text-to-speech voice. Each spell can pick its own sounds "
+    .. "and words on the Spells tab.", COL2 + 4, -386, 320)
+  p.OnRefresh = function() if not chosen then chosen = files()[1] end end
 end
 
 ---------------------------------------------------------------------------
@@ -421,10 +579,12 @@ local function BuildGeneralPage()
     "Your own buffs and HoTs (and debuffs on you) get bars too, below your target's."), 0, -72)
   g, s = S("hideOutOfCombat")
   Place(p, W.Check(p, "Hide bars out of combat", g, s), 0, -98)
+  g, s = S("hideNoTarget")
+  Place(p, W.Check(p, "Hide bars when you have no target", g, s), 0, -124)
   g, s = S("alpha")
-  Place(p, W.Slider(p, "Opacity in combat", 0.1, 1, 0.05, g, s, pct), 4, -132)
+  Place(p, W.Slider(p, "Opacity in combat", 0.1, 1, 0.05, g, s, pct), 4, -158)
   g, s = S("oocAlpha")
-  Place(p, W.Slider(p, "Opacity out of combat", 0.1, 1, 0.05, g, s, pct), 4, -172)
+  Place(p, W.Slider(p, "Opacity out of combat", 0.1, 1, 0.05, g, s, pct), 4, -198)
 
   W.Header(p, "Reset"):SetPoint("TOPLEFT", COL2, 0)
   W.Button(p, "Reset bar position", 160, ns.ResetPosition):SetPoint("TOPLEFT", COL2 + 4, -22)
@@ -445,9 +605,7 @@ local function BuildGeneralPage()
     self.armed = nil
     self:SetText("Reset all settings")
   end)
-  local resetNote = W.Label(p, "Resets look and alerts. Your tracked spells are kept.", "GameFontDisableSmall")
-  resetNote:SetPoint("TOPLEFT", COL2 + 4, -78)
-  resetNote:SetWidth(260)
+  Note(p, "Resets look, layout and sounds. Your tracked spells and sound files are kept.", COL2 + 4, -78, 280)
 
   W.Header(p, "Commands"):SetPoint("TOPLEFT", COL2, -110)
   local help = W.Label(p, "/ticky - this window\n/ticky lock | unlock\n/ticky preview\n/ticky add <spell>\n"
@@ -462,7 +620,7 @@ end
 
 local function Build()
   panel = CreateFrame("Frame", "TickyOptions", UIParent)
-  panel:SetSize(620, 520)
+  panel:SetSize(720, 600)
   panel:SetPoint("CENTER")
   panel:SetFrameStrata("DIALOG")
   panel:SetMovable(true)
@@ -499,8 +657,9 @@ local function Build()
 
   BuildSpellsPage()
   BuildBarsPage()
+  BuildLayoutPage()
   BuildTextPage()
-  BuildAlertsPage()
+  BuildSoundsPage()
   BuildGeneralPage()
 
   local x = 16

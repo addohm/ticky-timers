@@ -22,7 +22,11 @@ python tools/check_lua.py        # should pass on a clean checkout
 
 To run it in the game:
 
-1. Copy the `Ticky` folder into one of:
+1. Copy the `Ticky` folder into one of the folders below. On the owner's PC,
+   `tools\install_beta.cmd` does this for the beta: it runs `git pull --ff-only` on the local clone,
+   then mirrors `Ticky` into the beta AddOns folder with `robocopy /MIR` (files removed from the
+   repo are removed from the install too). It only installs what's pushed to GitHub. Edit the
+   `REPO` and `ADDON` paths at its top for another PC.
    - live: `World of Warcraft\<Forever folder>\Interface\AddOns\`
    - beta: `World of Warcraft\_classic_beta_\Interface\AddOns\`
 2. Restart the client (a `/reload` is enough for Lua changes once the addon is already installed;
@@ -50,9 +54,9 @@ can't read them, delete the `Ticky.lua` files listed under Configuration.
 
 No environment variables or secrets. Settings live in the game's saved variables:
 
-- `TickyDB` (account-wide look and alerts):
+- `TickyDB` (account-wide look, layout, sounds, and your list of sound files):
   `WTF\Account\<account>\SavedVariables\Ticky.lua`
-- `TickyCharDB` (per-character tracked spells):
+- `TickyCharDB` (per-character tracked spells, their order and per-spell settings):
   `WTF\Account\<account>\<realm>\<character>\SavedVariables\Ticky.lua`
 
 `/ticky reset` (or General > Reset all settings) restores defaults. Spell data is in the generated
@@ -61,6 +65,11 @@ No environment variables or secrets. Settings live in the game's saved variables
 
 ## Troubleshooting
 
+- **A sound file you added doesn't play**: the path is relative to the WoW folder (e.g.
+  `Interface\AddOns\MySounds\ding.ogg`), and the file must exist when the game starts; restart
+  after adding it. Keep your files outside `Interface\AddOns\Ticky`, which an update replaces.
+- **"Say it" is silent**: it uses the game's text-to-speech voice (Options > Accessibility > Text
+  to Speech); check a voice is installed and the volume there.
 - **Addon not listed or "out of date"**: interface number mismatch; see First-time setup step 3.
   Also check the folder is `AddOns\Ticky\Ticky.toc`, not nested one level deeper.
 - **Lua errors**: turn on `/console scriptErrors 1`, or use an error-catching addon, and note the

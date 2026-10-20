@@ -7,6 +7,28 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
 - CLAUDE.md: guidance for coding assistants (repo, addon code and tools in one file).
 - `tools/check_lua.py`: syntax-checks the addon's Lua and the TOC file list.
 - DEPLOY.md: installing, releasing, rolling back, saved variables and troubleshooting.
+- `tools/install_beta.cmd`: pulls the repo and mirrors the addon into the beta client (Windows).
+- Your own bar order: Move up / Move down on the Spells tab, and "Your order" under Layout >
+  "Order bars by". Your channel takes its slot in that order instead of sitting on top.
+- Missing spells: a tracked spell that isn't on your target can be hidden (as before), keep its slot
+  empty, or show as a faded bar (opacity, color, grayed icon). Set a default on the Layout tab and
+  override it per spell; optionally only in combat and only on targets the spell can go on.
+- Sounds for more events: put on, refreshed, every tick (DoTs, HoTs and channels), warning, ended,
+  and removed early (dispelled). Each has a default and a per-spell choice.
+- "Say it" sounds (the game's text-to-speech) with per-spell words, and your own sound files
+  (path or file ID).
+- Per-spell warning time.
+- On-screen text for warnings, endings and early removals.
+- Bars: background color, border (size and color), spark at the fill edge, full side left or right.
+- Text: stack counts, name and time colors, time on the left or right, when to show tenths of a
+  second, text shadow. Tick height.
+- "Hide bars when you have no target".
+### Changed
+- The options window is larger and has six tabs: Spells, Bars, Layout, Text & Ticks, Sounds
+  (was Alerts), General. The spell settings panel scrolls.
+- "Order you added them" is now "Your order" and can be rearranged; existing settings carry over.
+- Preview bars use all your tracked spells (up to 8), including your channel, and show missing
+  spells between runs.
 
 ## [0.5.0] - 2026-10-20
 ### Added
