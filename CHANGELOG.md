@@ -3,6 +3,10 @@
 All notable changes are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
+### Added
+- CLAUDE.md guidance for the whole repo, the addon (`Ticky/CLAUDE.md`) and the tools
+  (`tools/CLAUDE.md`).
+- `tools/check_lua.py`: syntax-checks the addon's Lua and the TOC file list.
 
 ## [0.5.0] - 2026-10-20
 ### Added

@@ -67,4 +67,10 @@ SpellDuration, SpellClassOptions, SkillLineAbility, SkillLine, SpellName. Then:
 python tools/gen_data.py <csv folder> 1.60.1.70245 Ticky/Data.lua
 ```
 
+## Development
+
+Coding guidance is in [CLAUDE.md](CLAUDE.md), [Ticky/CLAUDE.md](Ticky/CLAUDE.md) and
+[tools/CLAUDE.md](tools/CLAUDE.md). Check the Lua after changes with `python tools/check_lua.py`
+(needs `pip install lupa`).
+
 See [ROADMAP.md](ROADMAP.md), [CHANGELOG.md](CHANGELOG.md), [SECURITY.md](SECURITY.md).
