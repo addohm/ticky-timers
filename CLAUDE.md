@@ -30,7 +30,7 @@ Ticky/            the addon (this folder is what players copy into Interface\Add
 tools/
   gen_data.py     builds Ticky/Data.lua from wago.tools CSV exports
   check_lua.py    syntax-checks Ticky/*.lua and the TOC file list
-README.md CHANGELOG.md ROADMAP.md SECURITY.md CLAUDE.md
+README.md CHANGELOG.md ROADMAP.md SECURITY.md DEPLOY.md CLAUDE.md
 ```
 
 ## Commands
@@ -94,7 +94,9 @@ Game data (spell tables) for Forever is on wago.tools under product `wowf`; see
 ## Every change
 
 - Update in the same change: README.md (user-visible behaviour), CHANGELOG.md (Unreleased, Keep a
-  Changelog), ROADMAP.md (move items to Done), and these CLAUDE.md files if layout or rules change.
+  Changelog), ROADMAP.md (move items to Done), DEPLOY.md (install, release or saved-variable
+  changes), SECURITY.md (what the addon accesses or stores), and these CLAUDE.md files if layout
+  or rules change.
 - Releases: bump `## Version:` in `Ticky/Ticky.toc`, turn Unreleased into a dated version section.
 - Before committing, confirm no secret-looking file is staged (`.gitignore` covers the usual ones).
   Never print credentials from git remotes.

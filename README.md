@@ -73,4 +73,5 @@ Coding guidance is in [CLAUDE.md](CLAUDE.md), [Ticky/CLAUDE.md](Ticky/CLAUDE.md)
 [tools/CLAUDE.md](tools/CLAUDE.md). Check the Lua after changes with `python tools/check_lua.py`
 (needs `pip install lupa`).
 
-See [ROADMAP.md](ROADMAP.md), [CHANGELOG.md](CHANGELOG.md), [SECURITY.md](SECURITY.md).
+See [ROADMAP.md](ROADMAP.md), [CHANGELOG.md](CHANGELOG.md), [SECURITY.md](SECURITY.md),
+[DEPLOY.md](DEPLOY.md) (installing, releasing, troubleshooting).

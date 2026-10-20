@@ -7,6 +7,7 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
 - CLAUDE.md guidance for the whole repo, the addon (`Ticky/CLAUDE.md`) and the tools
   (`tools/CLAUDE.md`).
 - `tools/check_lua.py`: syntax-checks the addon's Lua and the TOC file list.
+- DEPLOY.md: installing, releasing, rolling back, saved variables and troubleshooting.
 
 ## [0.5.0] - 2026-10-20
 ### Added
