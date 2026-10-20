@@ -38,8 +38,9 @@ To run it in the game:
    into `## [x.y.z] - YYYY-MM-DD`, commit, and push to `main`.
 4. Test in the Forever client (ROADMAP item 1 is the checklist).
 
-TODO: should releases be tagged (`vX.Y.Z`) and packaged as a zip? If so, the zip should contain
-only the `Ticky` folder, without `Ticky/CLAUDE.md`.
+TODO: should releases be tagged (`vX.Y.Z`) and packaged as a zip of the `Ticky` folder?
+
+Keep non-addon files (docs, tools, CLAUDE.md) out of `Ticky/`: players copy that folder whole.
 
 Rolling back: copy the `Ticky` folder from an earlier commit (`git checkout <commit> -- Ticky`)
 over the installed one and restart the client. Saved settings carry over; if an older version
