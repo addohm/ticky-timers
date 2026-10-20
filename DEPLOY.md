@@ -57,7 +57,7 @@ No environment variables or secrets. Settings live in the game's saved variables
 
 `/ticky reset` (or General > Reset all settings) restores defaults. Spell data is in the generated
 `Ticky/Data.lua`; regenerate it for a new Forever build as described in
-[tools/CLAUDE.md](tools/CLAUDE.md).
+[README.md](README.md#regenerating-the-spell-data) and CLAUDE.md ("The tools").
 
 ## Troubleshooting
 

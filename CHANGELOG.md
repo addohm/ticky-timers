@@ -4,7 +4,7 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
 
 ## [Unreleased]
 ### Added
-- CLAUDE.md guidance for the repo and the addon, and `tools/CLAUDE.md` for the tools.
+- CLAUDE.md: guidance for coding assistants (repo, addon code and tools in one file).
 - `tools/check_lua.py`: syntax-checks the addon's Lua and the TOC file list.
 - DEPLOY.md: installing, releasing, rolling back, saved variables and troubleshooting.
 
