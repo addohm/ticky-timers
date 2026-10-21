@@ -10,7 +10,7 @@ it); "dev" or an older commit means the game is still running an old copy.
 
 ## To test
 
-1. **Shading holds still on the target frame** (this push). Smooth on nameplates since 04a1cf5, not
+1. **Shading holds still on the target frame** (93042ba). Smooth on nameplates since 04a1cf5, not
    on EllesmereUI's target frame. Send what jumps (the spark end, the end by the health, or the
    whole shading) and `/ticky debug`'s "Health bar shading on" line (its re-anchor count, taken
    twice a few seconds apart). Then try Health bar tab, frame name
