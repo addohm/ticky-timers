@@ -90,8 +90,8 @@ Ticky read about your target's auras and your casts right now; run it in combat)
   what Ticky last read from that spell's aura (talents such as Improved Shadow Word: Pain's 18s →
   24s included), or, until it has seen one, the spell's tooltip ("over 18 sec"). Whenever the game
   does let Ticky read the aura (usually out of combat), the exact times and stacks replace the
-  estimate, and a spell that was dispelled or never landed is removed. A resist or immunity right
-  after the cast drops it too.
+  estimate, and a spell that was dispelled or never landed is removed. A miss, dodge, parry, resist
+  or immunity right after the cast drops it too (a missed recast leaves the old timer running).
 - **Health bar amounts.** What's left is the ticks still to come times the size of one tick: what
   the spell's ticks actually did on your target (Ticky watches the damage and healing the game
   reports on it, matched by timing and school, crits left out), or, until it has seen some, the

@@ -39,6 +39,10 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
   Finds a unit frame addon's target frame or Blizzard's, or takes a frame name. Amounts
   come from the tooltip until Ticky has seen the spell's ticks land, then from the real ticks.
 ### Fixed
+- A missed, dodged or parried cast (and a reflected or deflected one) restarted the timer; only
+  resists, immunities and evades were caught. All of them now cancel the cast (a missed refresh
+  leaves the old timer running). A miss in a different school than the spell's, such as your pet's
+  melee being dodged as you cast a Shadow DoT, is ignored.
 - DoTs on a mob that died out of sight (not your target, no nameplate) kept their timers and played
   their "ended" sound after the fight. When combat ends, your debuffs on mobs Ticky can't see, or
   that are dead, are now dropped silently; mobs it can still see are re-read (so DoTs survive a

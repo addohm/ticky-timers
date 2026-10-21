@@ -722,18 +722,26 @@ local function OnCast(castGUID, spellID)
   recentCast[mob] = { t = t, prev = prev, at = now }
 end
 
--- A resist or immunity right after a tracked cast means it never landed.
-local AVOIDED = { RESIST = true, IMMUNE = true, EVADE = true }
+-- A miss, dodge, parry, resist, immunity, evade, reflect or deflect right after a tracked cast
+-- means it never landed.
+local AVOIDED = {
+  RESIST = true, IMMUNE = true, EVADE = true, MISS = true, DODGE = true, PARRY = true,
+  REFLECT = true, DEFLECT = true,
+}
 local AVOID_WINDOW = 0.6
 
-local function OnAvoided(mob)
+-- `school`: the avoided attack's school, if the game said. One that doesn't match the spell's
+-- (your pet's melee being dodged as you cast a Shadow DoT) wasn't the spell.
+local function OnAvoided(mob, school)
   local c = recentCast[mob]
   if not c or GetTime() - c.at > AVOID_WINDOW or SpellKind(c.t.spellID) == "help" then return end
+  local info = DescriptionInfo(c.t.spellID)
+  if school and school > 0 and info and info.school and info.school ~= school then return end
   recentCast[mob] = nil
   local list = timers[mob]
   if not list or list[c.t.key] ~= c.t then return end
   if c.prev and c.prev.expires > GetTime() then
-    list[c.t.key] = c.prev -- a resisted refresh leaves the old one running
+    list[c.t.key] = c.prev -- a refresh that missed leaves the old one running
   else
     list[c.t.key] = nil
     Removed(c.t)
@@ -1342,14 +1350,14 @@ function TB:UNIT_SPELLCAST_SUCCEEDED(_, castGUID, spellID)
   if not Secret(spellID) then OnCast(castGUID, spellID) end
 end
 
--- Resists and immunities on a mob, to drop a cast that didn't land.
--- Resists and immunities drop a cast that didn't land; hits and heals that land on a tick teach
--- the spell's real tick size (tooltips leave out spell power).
+-- Misses, dodges, parries, resists and the like drop a cast that didn't land; hits and heals that
+-- land on a tick teach the spell's real tick size (tooltips leave out spell power).
 function TB:UNIT_COMBAT(unit, action, flag, amount, school)
   if Secret(unit) or Secret(action) then return end
   if AVOIDED[action] then
     local mob = MobKey(unit)
-    if mob then OnAvoided(mob) end
+    local sc = not Secret(school) and type(school) == "number" and school or nil
+    if mob then OnAvoided(mob, sc) end
   elseif action == "WOUND" or action == "HEAL" then
     if Secret(amount) or Secret(school) or Secret(flag) or type(amount) ~= "number" then return end
     local mob = MobKey(unit)
