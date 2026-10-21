@@ -768,7 +768,7 @@ local function BuildGeneralPage()
 
   W.Header(p, "Commands"):SetPoint("TOPLEFT", COL2, -110)
   local help = W.Label(p, "/ticky - this window\n/ticky lock | unlock\n/ticky preview\n/ticky add <spell>\n"
-    .. "/ticky remove <spell>\n/ticky list\n/ticky reset\n/ticky debug", "GameFontHighlightSmall")
+    .. "/ticky remove <spell>\n/ticky list\n/ticky reset\n/ticky debug [all]", "GameFontHighlightSmall")
   help:SetPoint("TOPLEFT", COL2 + 4, -132)
   help:SetSpacing(3)
 end

@@ -80,8 +80,10 @@ by" to "Your order", and pick "Show a faded bar" (or "Keep its slot empty") for 
 Your channel then sits in its own slot instead of on top.
 
 Commands: `/ticky`, `/ticky lock | unlock`, `/ticky preview`, `/ticky add <spell>`,
-`/ticky remove <spell>`, `/ticky list`, `/ticky reset`, `/ticky debug` (prints what the game lets
-Ticky read about your target's auras and your casts right now; run it in combat).
+`/ticky remove <spell>`, `/ticky list`, `/ticky reset`, `/ticky debug` (a short report, small
+enough to paste into a chat message: build, combat state, each spell's learned length and tick,
+the timers on your target, your last casts, and the last misses/resists and what Ticky did with
+them) and `/ticky debug all` (the long version, with what the game is hiding).
 
 ## How tick placement is worked out
 

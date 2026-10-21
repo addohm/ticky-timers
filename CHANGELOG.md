@@ -11,7 +11,9 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
 - Build stamp: `install_beta.cmd` writes the installed commit into `Build.lua`; `/ticky debug` and
   the options window show it ("dev" for a copy taken straight from the repo).
 - `tools/install_beta.cmd`: pulls the repo and mirrors the addon into the beta client (Windows).
-- `/ticky debug`: prints what the game lets Ticky read right now (restriction state, each tracked
+- `/ticky debug`: a five-line report that fits in a chat message (build, combat, learned lengths and
+  ticks, target timers, casts, misses); `/ticky debug all` prints the long one: what the game lets
+  Ticky read right now (restriction state, each tracked
   spell's aura secrecy, your target's auras, aura instance IDs and durations, your recent casts).
 - Your own bar order: Move up / Move down on the Spells tab, and "Your order" under Layout >
   "Order bars by". Your channel takes its slot in that order instead of sitting on top.

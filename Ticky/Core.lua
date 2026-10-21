@@ -1478,7 +1478,58 @@ end
 
 local SECRECY = { [0] = "never", [1] = "always", [2] = "in combat/restricted" }
 
-function ns.Debug()
+-- The short report: everything that's been needed so far, small enough to paste into a chat
+-- message whole (Discord's limit is 2000 characters).
+local function ShortDebug()
+  local now = GetTime()
+  local out = {}
+  local function L(s) out[#out + 1] = s end
+  local function ago(t) return ("%.1fs"):format(now - t) end
+  local RA, R, CS = C_RestrictedActions, Enum.AddOnRestrictionType, C_Secrets
+  local restricted = RA and R and pcall(RA.IsAddOnRestrictionActive, R.Combat)
+    and RA.IsAddOnRestrictionActive(R.Combat)
+  local secret = CS and CS.ShouldAurasBeSecret and CS.ShouldAurasBeSecret()
+  L(("Ticky build %s | combat %s%s | auras secret %s"):format(tostring(ns.Build), Show(inCombat),
+    restricted == true and " (restricted)" or "", Show(secret)))
+
+  local spells = {}
+  for _, key in ipairs(ns.OrderedSpells()) do
+    local cfg = cdb.spells[key]
+    local id = cfg.id
+    local tick = id and (tickSizes[id] and (tickSizes[id] .. " seen") or (ExpectedTick(id)
+      and (floor(ExpectedTick(id) + 0.5) .. " tip")))
+    spells[#spells + 1] = ("%s %s/%s"):format(cfg.name, id and learned[id] and (learned[id] .. "s") or "-",
+      tick or "-")
+  end
+  L("Spells (lasts/tick): " .. (#spells > 0 and table.concat(spells, ", ") or "none tracked"))
+
+  local tm = HasTarget() and MobKey("target")
+  local parts = {}
+  for _, t in pairs(tm and timers[tm] or {}) do
+    parts[#parts + 1] = ("%s %.0fs%s"):format(t.name, t.expires - now, t.castAt and "" or " (aura)")
+  end
+  local hostile = tm and UnitCanAttack("player", "target")
+  hostile = not Secret(hostile) and hostile == true
+  L(("Target: %s, key %s | timers: %s%s"):format(tm and (hostile and "enemy" or "friend") or "none", tm and (tm:sub(1, 6) == "plate:" and tm or tm == "target" and "target" or "GUID") or "-",
+    #parts > 0 and table.concat(parts, ", ") or "none", channel and (" | channel " .. channel.name) or ""))
+
+  local casts = {}
+  for _, c in ipairs(seen.casts) do
+    casts[#casts + 1] = (type(c[2]) == "number" and SpellInfo(c[2]) or tostring(c[2])) .. " " .. ago(c[1])
+  end
+  L("Casts: " .. (#casts > 0 and table.concat(casts, ", ") or "-"))
+
+  local avoids = {}
+  for _, a in ipairs(avoidLog) do
+    avoids[#avoids + 1] = ("%s(%s) %s %s: %s"):format(a.action, tostring(a.school), tostring(a.unit), ago(a.at),
+      a.result or "?")
+  end
+  L("Misses etc: " .. (#avoids > 0 and table.concat(avoids, "; ") or "-"))
+  for _, line in ipairs(out) do print("|cff99ccffTicky|r " .. line) end
+end
+
+function ns.Debug(all)
+  if not all then return ShortDebug() end
   local function V(...)
     local parts = {}
     for i = 1, select("#", ...) do parts[i] = tostring((select(i, ...))) end
@@ -1597,7 +1648,7 @@ SlashCmdList.TICKY = function(msg)
     ns.ResetSettings()
     Print("Appearance, layout and sound settings reset. Your spells are unchanged.")
   elseif cmd == "debug" then
-    ns.Debug()
+    ns.Debug(rest:lower() == "all")
   else
     Print("/ticky [options | lock | unlock | add <spell> | remove <spell> | list | preview | reset | debug]")
   end

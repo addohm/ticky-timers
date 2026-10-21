@@ -4,8 +4,8 @@ What needs checking in the Forever client, newest first. Each item names the com
 it. When something is confirmed, move it to Confirmed with the date; when a change lands, add what
 it needs checked here in the same commit.
 
-If something's off: a screenshot plus `/ticky debug`, taken right then (in combat if possible).
-First check `/ticky debug`'s first line says the build you just installed (`install_beta.cmd` prints
+If something's off: a screenshot plus `/ticky debug`, taken right then (in combat if possible). It's
+five lines, short enough to paste whole. Its first line says the build you just installed (`install_beta.cmd` prints
 it); "dev" or an older commit means the game is still running an old copy.
 
 ## To test
