@@ -19,11 +19,12 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
   build and `/ticky debug` output.
 - Build stamp: `install_beta.cmd` writes the installed commit into `Build.lua`; `/ticky debug` and
   the options window show it ("dev" for a copy taken straight from the repo).
-- `/ticky sparktest`: a big test bar in the middle of the screen, built like the health bar
-  shading, runs six variants of a tick (eased or instant; plain values, a hidden health and max
-  like a mob's, or everything hidden, made with a flat curve on your own hidden health) and prints
-  how far the spark strayed with plain values, frame by frame. Hidden values can only be watched.
-  The shading is hidden while it goes back to the start.
+- `/ticky sparktest`: a test bar in the middle of the screen, the size of your target's health
+  bar, built like the health bar shading, runs six variants of a tick (eased or instant; as now,
+  without the game's pixel snapping, or with a hidden health like a mob's, made with a flat curve
+  on your own hidden health) three times each and prints how far the spark strayed with plain
+  values, frame by frame, to a hundredth of a pixel. Hidden values can only be watched. The
+  shading is hidden while it goes back to the start.
 - `/ticky debug`'s last-tick line also shows the hit's size and how much the shading shrank for
   it.
 - `tools/install_beta.cmd`: pulls the repo and mirrors the addon into the beta client (Windows).

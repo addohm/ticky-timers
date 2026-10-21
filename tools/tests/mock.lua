@@ -166,7 +166,7 @@ for _, n in ipairs({ "SetClipsChildren", "SetMovable", "SetClampedToScreen", "Re
   "EnableMouse", "SetTexCoord", "SetBlendMode", "SetJustifyH", "SetWordWrap", "SetShadowColor",
   "SetShadowOffset", "SetOrientation", "SetValueStep", "SetObeyStepOnDrag", "EnableMouseWheel",
   "SetThumbTexture", "SetHighlightTexture", "SetAutoFocus", "SetSpacing", "StartMoving",
-  "StopMovingOrSizing", "LockHighlight", "UnlockHighlight" }) do
+  "StopMovingOrSizing", "LockHighlight", "UnlockHighlight", "SetSnapToPixelGrid", "SetTexelSnappingBias" }) do
   methods[n] = function() end
 end
 

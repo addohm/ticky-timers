@@ -478,24 +478,27 @@ end
 -- /ticky sparktest
 ---------------------------------------------------------------------------
 
--- How does the far end behave when the health and the shading change together? A big test bar
--- in the middle of the screen, built like the real shading. The health drops by 100 of 1000 and
--- the shading shrinks by 100, so the spark should hold still. With plain values (tests 1-2) the
--- spark's position is measured every frame; tests 3-6 use hidden values like a mob's health
--- (made with a flat curve, see Hidden), which can only be watched. Each runs twice. The shading is
--- hidden while it's put back to the start, so only the tick itself is seen moving.
--- Tests in cc0d069/442456f: plain values held still eased or instant, set once or every 0.1s,
--- with the shading set the same frame as the health (a frame or two later, it bounced).
+-- How does the far end behave when the health and the shading change together? A test bar in the
+-- middle of the screen, the size of your target's health bar (123 wide if there's none), built
+-- like the real shading. Each tick takes 25 of 1500 health and shrinks the shading by 25, so the
+-- spark should hold still. With plain values its position is measured every frame (in screen
+-- pixels); hidden values, like a mob's health (made with a flat curve, see Hidden), can only be
+-- watched. Each test runs three times. The shading is hidden while it's put back to the start, so
+-- only the tick itself is seen moving.
+-- Results so far (in game, 2026-10-21): on a 600-wide bar, plain or hidden, eased or instant, set
+-- once or every 0.1s, it held still if both ends were set in the same frame (a frame or two apart,
+-- it bounced). The real shading still hopped, by about a pixel: the size is what's left.
 local TEST_VARIANTS = {
-  { "smooth, plain values", true },
-  { "instant, plain values", false },
-  { "smooth, hidden health and max (like a mob)", true, "health" },
-  { "instant, hidden health and max (like a mob)", false, "health" },
-  { "smooth, everything hidden", true, "all" },
-  { "instant, everything hidden", false, "all" },
+  { "smooth" , true },
+  { "instant", false },
+  { "smooth, no pixel snapping", true, nil, true },
+  { "instant, no pixel snapping", false, nil, true },
+  { "smooth, hidden health (like a mob)", true, "health" },
+  { "instant, hidden health (like a mob)", false, "health" },
 }
+local TEST_MAX, TEST_HEALTH, TEST_AMOUNT, TEST_TICK = 1500, 900, 150, 25
 local TEST_SHOW = 12 -- the frame the shading shows again after going back to the start
-local TEST_SETTLE, TEST_WATCH, TEST_REST, TEST_REPS = 30, 40, 20, 2
+local TEST_SETTLE, TEST_WATCH, TEST_REST, TEST_REPS = 30, 40, 20, 3
 local test
 
 local function TestPrint(msg) print("|cff99ccffTicky|r: " .. msg) end
@@ -519,6 +522,21 @@ local function Hidden(v)
   return h
 end
 
+-- Turn off the game's pixel snapping on an overlay's textures, so they're drawn where they are
+-- rather than rounded to whole pixels one by one.
+local function NoSnap(o)
+  local list = { o.mirror:GetStatusBarTexture() }
+  for _, c in ipairs({ o.damage, o.heal }) do
+    for _, seg in ipairs(c.segs) do list[#list + 1] = seg.bar:GetStatusBarTexture() end
+    list[#list + 1] = c.trim.spark
+    for _, line in ipairs(c.trim.lines) do list[#list + 1] = line end
+  end
+  for _, t in ipairs(list) do
+    pcall(t.SetSnapToPixelGrid, t, false)
+    pcall(t.SetTexelSnappingBias, t, 0)
+  end
+end
+
 local function TestSparkX()
   local spark = test.o.damage.trim.spark
   local ok, x = pcall(spark.GetCenter, spark)
@@ -530,7 +548,7 @@ local function TestSet(v, health, amount, interp, reset)
   local o, hide = test.o, v[3]
   if health then
     if reset then
-      local max = hide and Hidden(1000) or 1000
+      local max = hide and Hidden(TEST_MAX) or TEST_MAX
       o.mirror:SetMinMaxValues(0, max)
       test.bar:SetMinMaxValues(0, max)
       test.max = max
@@ -540,15 +558,8 @@ local function TestSet(v, health, amount, interp, reset)
     test.bar:SetValue(h, interp)
   end
   if amount then
-    local seg = o.damage.segs[1]
-    if reset or hide ~= "all" then
-      seg.amount = nil -- the real shading's Fill skips values it already set
-      Fill(o.damage, { { amount = amount } }, true, true, db.overlayDamageColor, test.max, interp, 30, reset)
-    end
-    if hide == "all" then
-      seg.amount = nil
-      seg.bar:SetValue(Hidden(amount), interp)
-    end
+    o.damage.segs[1].amount = nil -- the real shading's Fill skips values it already set
+    Fill(o.damage, { { amount = amount } }, true, true, db.overlayDamageColor, test.max, interp, test.height, reset)
   end
 end
 
@@ -556,9 +567,11 @@ local function TestFinish()
   test.running = false
   test.driver:SetScript("OnUpdate", nil)
   test.bar:Hide()
-  test.o.holder:Hide()
+  test.snapped.holder:Hide()
+  test.free.holder:Hide()
   db.overlaySpark = test.sparkWas
-  TestPrint("spark test (how far the spark strayed, in screen pixels; it should stay at 0):")
+  TestPrint(("spark test on a %dx%d bar (how far the spark strayed, in screen pixels; it should stay "
+    .. "at 0):"):format(test.width, test.height))
   for i, v in ipairs(TEST_VARIANTS) do
     local r = test.results[i]
     if v[3] then
@@ -569,9 +582,9 @@ local function TestFinish()
     else
       local steps = {}
       for k = 1, 8 do
-        if r.frames[k] then steps[#steps + 1] = ("%+.1f"):format(r.frames[k]) end
+        if r.frames[k] then steps[#steps + 1] = ("%+.2f"):format(r.frames[k]) end
       end
-      TestPrint(("%d) %s: up to %.1f | frames: %s"):format(i, v[1], r.max, table.concat(steps, " ")))
+      TestPrint(("%d) %s: up to %.2f | frames: %s"):format(i, v[1], r.max, table.concat(steps, " ")))
     end
   end
 end
@@ -584,14 +597,16 @@ local function TestStep()
   local how = v[2] and interp.ExponentialEaseOut or interp.Immediate
   local f = s.f
   if f == 1 then -- back to the start at once, out of sight
-    s.o.holder:Hide()
-    TestSet(v, 600, 300, interp.Immediate, true)
+    s.snapped.holder:Hide()
+    s.free.holder:Hide()
+    s.o = v[4] and s.free or s.snapped
+    TestSet(v, TEST_HEALTH, TEST_AMOUNT, interp.Immediate, true)
     s.label:SetText(("Ticky spark test %d of %d: %s"):format(s.variant, #TEST_VARIANTS, v[1]))
   elseif f == TEST_SHOW then
     s.o.holder:Show()
   elseif f == TEST_SETTLE then -- the tick: both in the same frame, as the real shading does
     s.x0 = TestSparkX()
-    TestSet(v, 500, 200, how)
+    TestSet(v, TEST_HEALTH - TEST_TICK, TEST_AMOUNT - TEST_TICK, how)
   end
   if f >= TEST_SETTLE and f < TEST_SETTLE + TEST_WATCH then
     local x = TestSparkX()
@@ -613,19 +628,36 @@ local function TestStep()
   end
 end
 
+-- The size and scale of your target's health bar, if Ticky can find it.
+local function RealBarSize()
+  local ok, w, h, sc = pcall(function()
+    local bar = ns.FindHealthBar()
+    return bar:GetWidth(), bar:GetHeight(), bar:GetEffectiveScale() / UIParent:GetEffectiveScale()
+  end)
+  if ok and not Secret(w) and not Secret(h) and not Secret(sc) and type(w) == "number" and w > 10
+    and type(h) == "number" and h > 1 and type(sc) == "number" and sc > 0 then
+    return floor(w + 0.5), floor(h + 0.5), sc
+  end
+  return 123, 12, 1
+end
+
 function ns.SparkTest()
   if not db or (test and test.running) then return end
   -- New frames every run: a bar that has shown a hidden value may stay unmeasurable.
   if test then
     test.bar:Hide()
-    test.o.holder:Hide()
+    test.snapped.holder:Hide()
+    test.free.holder:Hide()
   end
   local driver = test and test.driver or CreateFrame("Frame")
   test = { driver = driver, curves = {} }
+  local width, height, scale = RealBarSize()
+  test.width, test.height = width, height
   local bar = CreateFrame("StatusBar", nil, UIParent)
   bar.tickyOwned = true
-  bar:SetSize(600, 30)
-  bar:SetPoint("CENTER", UIParent, "CENTER", 0, 150)
+  bar:SetScale(scale)
+  bar:SetSize(width, height)
+  bar:SetPoint("CENTER", UIParent, "CENTER", 0, 150 / scale)
   bar:SetFrameStrata("DIALOG")
   bar:SetStatusBarTexture("Interface\\Buttons\\WHITE8X8")
   bar:SetStatusBarColor(0.1, 0.55, 0.1, 1)
@@ -635,21 +667,25 @@ function ns.SparkTest()
   test.label = bar:CreateFontString(nil, "OVERLAY", "GameFontNormal")
   test.label:SetPoint("BOTTOM", bar, "TOP", 0, 6)
   test.bar = bar
-  test.o = NewOverlay(UIParent)
-  if not Attach(test.o, test.bar) then return TestPrint("spark test: couldn't set up the test bar.") end
-  test.o.layerAt = 0
-  Layer(test.o, GetTime())
-  test.o.holder:Show()
+  test.snapped, test.free = NewOverlay(UIParent), NewOverlay(UIParent)
+  NoSnap(test.free)
+  for _, o in ipairs({ test.snapped, test.free }) do
+    if not Attach(o, bar) then return TestPrint("spark test: couldn't set up the test bar.") end
+    o.layerAt = 0
+    Layer(o, GetTime())
+  end
+  test.o = test.snapped
   -- Screen pixels per unit at the spark, to report in pixels.
   local ok, _, h = pcall(GetPhysicalScreenSize)
-  local sok, scale = pcall(test.o.top.GetEffectiveScale, test.o.top)
-  test.px = (ok and type(h) == "number" and h > 0 and h / 768 or 1) * (sok and type(scale) == "number" and scale or 1)
+  local sok, sc = pcall(test.snapped.top.GetEffectiveScale, test.snapped.top)
+  test.px = (ok and type(h) == "number" and h > 0 and h / 768 or 1) * (sok and type(sc) == "number" and sc or 1)
   test.running, test.variant, test.rep, test.f, test.results = true, 1, 1, 0, {}
   for i in ipairs(TEST_VARIANTS) do test.results[i] = { frames = {} } end
   test.sparkWas, db.overlaySpark = db.overlaySpark, true
   test.driver:SetScript("OnUpdate", TestStep)
-  TestPrint("spark test: watch the bar in the middle of the screen (about 20 seconds). Note which "
-    .. "numbered tests keep their spark still, then paste the lines it prints.")
+  TestPrint("spark test: watch the small bar in the middle of the screen (about 30 seconds; it's the "
+    .. "size of your target's health bar). Note which numbered tests keep their spark still, then "
+    .. "paste the lines it prints.")
 end
 
 function ns.CreateOverlay()
