@@ -42,7 +42,7 @@ tools/
 README.md CHANGELOG.md ROADMAP.md SECURITY.md DEPLOY.md CLAUDE.md
 .github/ISSUE_TEMPLATE/  bug report (asks for build and /ticky debug) and idea templates; the repo is public
 TESTING.md        running list of what to check in the client (to test / confirmed / gaps)
-docs/health-shading-spark.md  the spark-hop investigation: evidence, every attempt, what's open
+docs/health-shading-spark.md  the spark-hop investigation: evidence, every attempt, the fix
 ```
 
 ## Commands
@@ -369,9 +369,10 @@ Game data (spell tables) for Forever is on wago.tools under product `wowf`; see
   API.
 - Chasing the health shading's spark hop (2026-10-21) by guessing a cause and shipping a fix per
   round: about fifteen builds, several built on wrong premises (an anchor lag, a stale health
-  value). What finally narrowed it down was measuring: `/ticky sparktest`, the live copy, the debug
-  trace. It's accepted as is (3e3c896); read docs/health-shading-spark.md before touching the
-  shading's timing, and measure first.
+  value). What finally found it was measuring live data: the debug line's "25 hit, shading -31"
+  and `/ticky log` (the shading's tick estimate was re-made on every hit, and crits were taken
+  off as normal ticks; fixed in f5dc0fd). Read docs/health-shading-spark.md before touching the
+  shading's timing or amounts, and measure first.
 - Copying from or crediting other addons. The owner wants Ticky's code and docs to be its own: no
   code, patterns or frame names taken from other addons, and no references to them. Work from
   Blizzard's UI source and API docs, and from tests in the client.

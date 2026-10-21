@@ -11,9 +11,16 @@ this (owner or coding assistant).
   often. Good enough to move on; not solved.
 - After that, 55e6ce4 added `/ticky log` (logging only, no change to what's drawn). Its output
   hasn't been seen from the game yet: that's the first thing to collect when coming back.
-- **Then a cause was found and fixed (see "Found: the tick size estimate" below).** On b388b30
-  `/ticky debug` showed "25 hit, shading -31": the shading shrank 6 more than the tick did. Whether
-  that was all of the hop still needs the owner's eye.
+- **Then the cause was found and fixed (see "Found: the tick size estimate" below).** On b388b30
+  `/ticky debug` showed "25 hit, shading -31": the shading shrank 6 more than the tick did, and
+  the first `/ticky log` showed a critical tick taken off as a normal one.
+- **Owner on e3394b8 (code of f5dc0fd), 2026-10-21: "the most stable it's been. It doesn't really
+  hop around anymore", it only "drops to the left a bit every once in a while".** The log at one
+  of those drops: `hit 25 (not a tick), health, drew health (changed)`, with Shoot (the wand)
+  among the casts. Damage that isn't your DoT's tick lowers the health the DoTs will leave, so the
+  spark moving left by it is correct. The last SW:P tick showed "26 hit, shading -24": the summed
+  deviation showing at the DoT's end (2 health, about 0.16 pixel), the expected trade-off.
+  Treated as solved; the rest of this file is the record.
 
 ## What the shading is
 
