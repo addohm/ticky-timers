@@ -10,7 +10,7 @@ it); "dev" or an older commit means the game is still running an old copy.
 
 ## To test
 
-1. **The spark holds still as DoTs tick** (this push), on the unit frame and nameplates. On 150577c it
+1. **The spark holds still as DoTs tick** (e50ddf3), on the unit frame and nameplates. On 150577c it
    moved with the health first and the shading caught up after (the one-frame delay, now removed).
    Try "Smooth changes" on and off. If it still moves, send ~10 frames around one tick and say which
    way it goes first.
