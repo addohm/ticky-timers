@@ -149,7 +149,9 @@ UNIT_COMBAT WOUND/HEAL            -> OnTickAmount: match to a timer on that mob 
                                      far off the learned size (<0.4x or >3x: another spell): moves
                                      the timer's start/expiry half way to where it landed (tick
                                      marks); non-crits teach tickSizes[spellID] (60/40 running
-                                     average, unrounded; /ticky debug, totals without a tooltip)
+                                     average, unrounded; /ticky debug, totals without a tooltip);
+                                     a crit -> PlanCrit: the spark moves by amount - planTotal /
+                                     ticks (the owner: crits are the one thing that should move it)
 
 Health bar shading (the owner's model): plan[mob] = { health, parts[key] = { amount, heal,
 expires }, expires, version }
@@ -166,7 +168,7 @@ expires }, expires, version }
                                      plan.health when plan.version changed; segments = parts'
                                      amounts (set only on change), chained from the frozen fill
                                      end, clipped at the mirror's fill end; spark and outline
-                                     (Trim). Ticks never move the spark.
+                                     (Trim). Ticks never move the spark, except a crit's extra.
 
 UNIT_AURA (target/player/nameplateN), PLAYER_TARGET_CHANGED, NAME_PLATE_UNIT_ADDED,
 PLAYER_REGEN_ENABLED, and each cast timer once it's 1.1s old

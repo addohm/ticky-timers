@@ -804,6 +804,21 @@ local function PlanAdd(mob, t, prev, now)
   ns.ShadeLog(("%s on: spark %s%d"):format(Initials(t.name), part.heal and "+" or "-", floor(delta + 0.5)), mob)
 end
 
+-- A tick that crit did more than the plan counted on (its total over its ticks): the spark moves
+-- by the extra (the owner: the only thing besides a spell going on that should move it).
+local function PlanCrit(t, amount)
+  local p = t.planMob and plan[t.planMob]
+  local part = p and p.parts[t.key]
+  local ticks = part and t.planTotal and t.interval and t.interval >= 0.1 and TicksPassed(t, t.expires)
+  if not ticks or ticks <= 0 then return end
+  local extra = amount - t.planTotal / ticks
+  if extra < 0.5 then return end
+  part.amount = part.amount + extra
+  PlanChanged(p)
+  ns.ShadeLog(("%s crit: spark %s%d"):format(Initials(t.name), part.heal and "+" or "-", floor(extra + 0.5)),
+    t.planMob)
+end
+
 -- Take `amount` of what `t` added back off (its cast missed; it was removed or stopped early).
 -- `expires`: when the spell now ends (the timer a missed refresh leaves running).
 local function PlanTake(t, why, amount, expires)
@@ -1028,7 +1043,7 @@ local function OnTickAmount(mob, isHeal, amount, school, crit)
   if mob == (HasTarget() and MobKey("target")) then
     trace = { name = best.name, hit = now, off = off, amount = amount, crit = crit }
   end
-  if crit then return end
+  if crit then return PlanCrit(best, amount) end
   local id, old = best.spellID, tickSizes[best.spellID]
   -- Kept unrounded: rounded, ticks of 26 never moved an average of 25 (25.9 rounds down).
   tickSizes[id] = old and (old * 0.6 + amount * 0.4) or amount

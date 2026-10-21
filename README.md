@@ -62,7 +62,8 @@ then goes missing for a few seconds, so you can see how missing spells look too.
   When a DoT goes on, the spark (where the health should end up) goes at the health at that
   moment less the DoT's total, from its tooltip (with your talents and spell power); each DoT you
   add moves it by its own total, a refresh by its total less what the old one still had to do,
-  and a miss or resist takes it back. Ticks and other hits don't move it.
+  and a miss or resist takes it back. A tick that crits moves it by what it did beyond a normal
+  tick. Other ticks and other hits don't move it.
   Off by default. One segment with the total (dark for damage, green for healing; colors are
   yours to pick) or one segment per spell in its bar color, with a line between them; opacity;
   texture; a spark where the shading ends (where the health should end up) and its color; an

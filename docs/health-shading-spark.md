@@ -12,7 +12,9 @@ devouring plague is cast the spark should be moved an additional 160 damage, rig
 Yes. The shading was rebuilt on that model: when a DoT goes on, the spark goes at the mob's health
 at that moment minus the DoT's total (its tooltip's amount, read at the cast); each further DoT
 moves it by its own total; a refresh by its total less what the old one still had to do; a miss
-or resist takes it back. Ticks and other hits never move it: the shading is just the part between
+or resist takes it back. A tick that crits moves it by its extra over a normal tick (the owner's
+call: "the only time moving the spark could be considered"; recasts move it by the new total
+less what the old one still had to do, also the owner's choice). Other ticks and hits never move it: the shading is just the part between
 the health now and the spark (a clipping frame ending at the live health). The frozen health is a
 second invisible StatusBar holding the secret health from when the plan was made. No tick
 matching, holds, pending counts, folds or per-tick estimates are involved any more; all of that

@@ -678,7 +678,8 @@ local function BuildHealthPage()
 
   Note(p, "When a DoT goes on, the spark goes at the health then, less what the DoT does in total (its "
     .. "tooltip's amount, with your talents and spell power); each DoT you add moves it by its own total. "
-    .. "Ticks don't move it: the shading is what's left between the health now and the spark.\n\n"
+    .. "Ticks don't move it (a crit, by its extra): the shading is what's left between the health now and "
+    .. "the spark.\n\n"
     .. "The health bar has to be horizontal. Nothing shows while your target has none of your DoTs "
     .. "or HoTs.", COL2 + 4, -330, 320)
   p.OnRefresh = function()

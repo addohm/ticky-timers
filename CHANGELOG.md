@@ -63,8 +63,8 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
   bar's scale. When a DoT goes on, the spark (where the health should end up) goes at the health
   at that moment less the DoT's total from its tooltip (talents, gear, spell power); each DoT you
   add moves it by its own total, a refresh by its total less what the old one still had to do, a
-  miss or resist takes it back. Ticks and other hits don't move it; the shading is the part
-  between the health now and the spark.
+  miss or resist takes it back, and a tick that crits moves it by its extra. Other ticks and hits
+  don't move it; the shading is the part between the health now and the spark.
 ### Added
 - Health bar shading style: a spark where the shading ends (on by default) and its color, an
   outline (none, thin, thick) and its color, and "Smooth changes".
