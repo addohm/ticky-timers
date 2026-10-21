@@ -67,13 +67,28 @@ local function LargestBar(plate)
   return best
 end
 
-local searched = {} -- [plate] = { bar, at }: kept while the bar stays visible, else retried each second
+-- Is `frame` inside `plate`? Blizzard pools the frames inside nameplates (the health bar
+-- included) and moves them between plates as mobs come and go, so a bar found on one plate can
+-- later belong to another.
+local function IsUnder(frame, plate)
+  local f = frame
+  for _ = 1, 8 do
+    local ok, parent = pcall(f.GetParent, f)
+    if not ok or parent == nil or Secret(parent) then return false end
+    if parent == plate then return true end
+    f = parent
+  end
+  return false
+end
+
+local searched = {} -- [plate] = { bar, at }: kept while the bar is still visible on this plate
 
 -- The health bar the plate shows (nil: use the whole plate).
 local function PlateBar(plate)
   local s = searched[plate]
   local now = GetTime()
-  if s and ((s.bar and Visible(s.bar)) or (not s.bar and now - s.at < 1)) then return s.bar end
+  if s and s.bar and Visible(s.bar) and IsUnder(s.bar, plate) then return s.bar end
+  if s and not s.bar and now - s.at < 1 then return end
   local ok, bar = pcall(LargestBar, plate)
   s = { bar = ok and bar or nil, at = now }
   searched[plate] = s

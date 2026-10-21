@@ -39,6 +39,9 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
   Finds a unit frame addon's target frame or Blizzard's, or takes a frame name. Amounts
   come from the tooltip until Ticky has seen the spell's ticks land, then from the real ticks.
 ### Fixed
+- Nameplate bars could all pile up on one mob. Blizzard reuses the frames inside nameplates (the
+  health bar included) and moves them between plates; Ticky now checks every frame that the bar it
+  sits on still belongs to that plate.
 - Your own sound files: a pasted full path (C:\...\Interface\...), quotes or forward slashes are
   cleaned up, and Add/Test now say whether the game played the file and, if not, what to check.
 - The warning sound never played while the warning time was Off (the default). Picking a warning
