@@ -1811,7 +1811,7 @@ SlashCmdList.TICKY = function(msg)
   elseif cmd == "debug" then
     ns.Debug(rest:lower() == "all")
   elseif cmd == "sparktest" then
-    ns.SparkTest()
+    ns.SparkTest(rest:lower())
   elseif cmd == "report" then
     Print("report a problem or ask for a feature at " .. ns.ISSUES_URL
       .. " (include what /ticky debug shows right after it happens).")

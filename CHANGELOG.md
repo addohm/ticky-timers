@@ -24,7 +24,9 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
   without the game's pixel snapping, or with a hidden health like a mob's, made with a flat curve
   on your own hidden health) three times each and prints how far the spark strayed with plain
   values, frame by frame, to a hundredth of a pixel. Hidden values can only be watched. The
-  shading is hidden while it goes back to the start.
+  shading is hidden while it goes back to the start. `/ticky sparktest copy` shows a live copy of
+  your target's shading on a plain bar in the middle of the screen, drawn by the same code at the
+  same moments, to tell a unit frame's part from Ticky's.
 - `/ticky debug`'s last-tick line also shows the hit's size and how much the shading shrank for
   it.
 - `tools/install_beta.cmd`: pulls the repo and mirrors the addon into the beta client (Windows).

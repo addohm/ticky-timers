@@ -397,7 +397,7 @@ local function Draw(o, bar, unit, now)
     -- second while nothing moves, in case a change went unreported.
     local held = not newMob and not setMax and ns.HoldHealth(unit, now)
     local changed = ns.HealthAt(mob)
-    local tr = unit == "target" and ns.TickTrace()
+    local tr = o.traced and ns.TickTrace()
     if not held and (newMob or setMax or changed ~= o.healthAt or now - (o.mirrorAt or 0) > 1) then
       o.mirror:SetValue(UnitHealth(unit), smooth)
       o.heldMob, o.healthAt, o.mirrorAt = mob, changed, now
@@ -470,8 +470,12 @@ function ns.UpdateOverlay(now)
   UpdatePlateOverlays(now, on and db.overlayPlates)
   local bar = on and ns.HasTarget() and ns.FindHealthBar()
   if not bar then return HideOverlay(targetOverlay) end
-  if not targetOverlay then targetOverlay = NewOverlay(UIParent) end
+  if not targetOverlay then
+    targetOverlay = NewOverlay(UIParent)
+    targetOverlay.traced = true -- the one /ticky debug's last tick follows
+  end
   Draw(targetOverlay, bar, "target", now)
+  if ns.DrawCopy then ns.DrawCopy(now) end
 end
 
 ---------------------------------------------------------------------------
@@ -641,7 +645,50 @@ local function RealBarSize()
   return 123, 12, 1
 end
 
-function ns.SparkTest()
+-- /ticky sparktest copy: a second copy of your target's shading, on a plain bar of Ticky's own in
+-- the middle of the screen (the size of your target's health bar), drawn by the same code at the
+-- same moments. If the copy's spark holds still while the one on your unit frame hops, the unit
+-- frame is the cause; if both hop, it's the data or timing.
+local copy
+
+function ns.DrawCopy(now)
+  if not copy or not copy.on then return end
+  if not ns.HasTarget() then return HideOverlay(copy.o) end
+  pcall(function() -- the bar under it: your target's health, as a plain reference
+    copy.bar:SetMinMaxValues(0, UnitHealthMax("target"))
+    copy.bar:SetValue(UnitHealth("target"))
+  end)
+  Draw(copy.o, copy.bar, "target", now)
+end
+
+local function ToggleCopy()
+  if not copy then
+    local width, height, scale = RealBarSize()
+    local bar = CreateFrame("StatusBar", nil, UIParent)
+    bar.tickyOwned = true
+    bar:SetScale(scale)
+    bar:SetSize(width, height)
+    bar:SetPoint("CENTER", UIParent, "CENTER", 0, 150 / scale)
+    bar:SetStatusBarTexture("Interface\\Buttons\\WHITE8X8")
+    bar:SetStatusBarColor(0.1, 0.55, 0.1, 1)
+    local bg = bar:CreateTexture(nil, "BACKGROUND")
+    bg:SetAllPoints(bar)
+    bg:SetColorTexture(0.15, 0.15, 0.15, 0.9)
+    local label = bar:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    label:SetPoint("BOTTOM", bar, "TOP", 0, 6)
+    label:SetText("Ticky: copy of your target's shading")
+    copy = { bar = bar, o = NewOverlay(UIParent) }
+  end
+  copy.on = not copy.on
+  copy.bar:SetShown(copy.on)
+  if not copy.on then HideOverlay(copy.o) end
+  TestPrint(copy.on and "a copy of your target's shading is in the middle of the screen. Watch it and the "
+    .. "one on your unit frame as your DoTs tick. /ticky sparktest copy again hides it."
+    or "copy hidden.")
+end
+
+function ns.SparkTest(arg)
+  if arg == "copy" then return ToggleCopy() end
   if not db or (test and test.running) then return end
   -- New frames every run: a bar that has shown a hidden value may stay unmeasurable.
   if test then

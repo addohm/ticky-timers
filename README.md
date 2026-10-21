@@ -95,7 +95,8 @@ the timers on your target, your last casts, the timing and size of the last tick
 last misses/resists and what Ticky did with them), `/ticky debug all` (the long version, with what the game is hiding), `/ticky report`
 (the link for reporting a problem, ready to copy) and `/ticky sparktest` (a 30-second test of the
 health bar shading's spark on a test bar the size of your target's health bar; it prints how far
-the spark strayed where it can be measured).
+the spark strayed where it can be measured; `/ticky sparktest copy` shows a live copy of your
+target's shading on a plain bar instead, to compare with the one on your unit frame).
 
 ## Reporting problems
 
