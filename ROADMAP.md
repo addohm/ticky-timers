@@ -8,21 +8,22 @@
    in combat, `StatusBar:SetTimerDuration` could draw exact bars even for secret auras.
 2. Test the health bar overlay in the client: on Blizzard's and EllesmereUI's target frames, both
    directions, layering above the frame, learned tick sizes (`/ticky debug` could list them).
-   Then maybe the same on nameplates and the focus frame, as Does It Die does.
+   Then maybe the same on nameplates and the focus frame, as Does It Die does. Also test bars on
+   nameplates: placement with Blizzard's and EllesmereUI's plates, layering, plates after /reload.
 3. Detect DoTs dispelled in combat: their ticks stop. `UNIT_COMBAT` shows tick amounts and schools;
    match them to DoTs as Does It Die does, and drop a DoT after missed ticks.
 4. Check how Forever handles refreshing a DoT (does the tick timer restart?) and adjust tick phase.
-5. Nameplate bars for DoTs on non-target enemies.
-6. Profiles (copy settings between characters).
-7. Regenerate Data.lua when Forever's launch build lands (Nov 4, 2026).
-8. In the client, confirm: `PlaySoundFile` (not in the generated API docs) plays custom files and
+5. Profiles (copy settings between characters).
+6. Regenerate Data.lua when Forever's launch build lands (Nov 4, 2026).
+7. In the client, confirm: `PlaySoundFile` (not in the generated API docs) plays custom files and
    file IDs; text-to-speech works in combat; apply/refresh/removed sounds fire once each (refresh
-   timing, ROADMAP item 2); `C_Spell.IsSpellHarmful`/`IsSpellHelpful` classify spells correctly.
-9. More WeakAuras-style options: vertical bars, glow effects, missing bars for your own buffs,
+   timing, item 4); `C_Spell.IsSpellHarmful`/`IsSpellHelpful` classify spells correctly.
+8. More WeakAuras-style options: vertical bars, glow effects, missing bars for your own buffs,
    a movable on-screen message, per-spell "only show in the last N seconds", per-spell text color.
 
 ## Done
-- Unreleased: timers from your casts (bars in combat), health bar overlay for DoTs and HoTs.
+- Unreleased: timers from your casts (bars in combat), health bar overlay for DoTs and HoTs, bars on
+  nameplates.
 - Unreleased: your own bar order (fixed slots, channel in its slot), missing-spell bars, sounds for
   every event (apply, refresh, tick, warning, end, removed) per spell, text to speech, custom sound
   files, on-screen messages, and more bar/text styling.

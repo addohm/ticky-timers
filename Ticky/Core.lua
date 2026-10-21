@@ -48,6 +48,10 @@ ns.DEFAULTS = {
   overlayDamage = false, overlayHeal = false, overlayColors = "each",
   overlayDamageColor = { 0.9, 0.1, 0.1 }, overlayHealColor = { 0.2, 1, 0.3 }, overlayAlpha = 0.6,
   overlayTexture = "Flat", overlayDividers = true, overlayFrame = "",
+  -- Nameplates
+  plateEnabled = false, plateWhich = "others", plateAnchor = "TOP", plateOffsetX = 0, plateOffsetY = 4,
+  plateWidth = 100, plateHeight = 8, plateSpacing = 1, plateShowIcon = true, plateShowName = false,
+  plateShowTime = true, plateShowTickCount = false, plateFontSize = 8,
   -- General
   showChannel = true, showSelf = true, hideOutOfCombat = false, hideNoTarget = false,
   alpha = 1, oocAlpha = 1, showAll = false, previewInOptions = true,
@@ -55,7 +59,7 @@ ns.DEFAULTS = {
 
 ns.CHAR_DEFAULTS = {
   -- [lower-case name] = { name, id, icon, color, order, label, speech, missing, warnSeconds,
-  --   anyCaster, noOverlay, isChannel, applySound, refreshSound, tickSound, warnSound, expireSound, removeSound }
+  --   anyCaster, noOverlay, noPlate, isChannel, applySound, refreshSound, tickSound, warnSound, expireSound, removeSound }
   spells = {},
   nextOrder = 1,
   durations = {}, -- [spellID] = seconds the aura lasted when last read (so talents are included)
@@ -356,7 +360,8 @@ local function PlateToken(unit)
   if not (C_NamePlate and C_NamePlate.GetNamePlateForUnit) then return end
   local ok, plate = pcall(C_NamePlate.GetNamePlateForUnit, unit)
   if not ok or not plate or Secret(plate) or type(plate) ~= "table" then return end
-  local token = plate.namePlateUnitToken or (plate.UnitFrame and plate.UnitFrame.unit)
+  local uf = rawget(plate, "UnitFrame")
+  local token = rawget(plate, "namePlateUnitToken") or (type(uf) == "table" and rawget(uf, "unit"))
   if type(token) == "string" and not Secret(token) and token:match("^nameplate%d+$") then return token end
 end
 
@@ -915,6 +920,22 @@ function ns.ActiveTimers(now)
   return ns.BuildDisplay(now, ListOf(targetMob, targetList), mine, channel, missingTest, hasTarget)
 end
 
+-- A unit's timers for its nameplate, in bar order (into `out`), and its mob key.
+function ns.UnitTimers(unit, now, out)
+  wipe(out)
+  local mob = MobKey(unit)
+  local list = mob and timers[mob]
+  if list then
+    for _, t in pairs(list) do
+      local cfg = cdb.spells[t.key]
+      if t.expires > now and cfg and not cfg.noPlate then out[#out + 1] = t end
+    end
+    table.sort(out, byMode)
+  end
+  return out, mob
+end
+ns.MobKey = MobKey
+
 -- What your DoTs and HoTs on the target will still deal and heal, for the health bar overlay:
 -- two lists of { key, amount, color } in bar order (reused tables), or nil when there's no target.
 local damageList, healList, amountsSrc = {}, {}, {}
@@ -1135,6 +1156,7 @@ function TB:ADDON_LOADED(name)
 
   ns.CreateBars()
   ns.CreateOverlay()
+  ns.CreatePlates()
 
   self:RegisterEvent("PLAYER_TARGET_CHANGED")
   self:RegisterEvent("PLAYER_REGEN_DISABLED")
@@ -1155,6 +1177,7 @@ function TB:ADDON_LOADED(name)
   self:SetScript("OnUpdate", function(_, elapsed)
     local now = GetTime()
     ns.UpdateBars(now)
+    ns.UpdatePlates(now)
     elapsedSinceCheck = elapsedSinceCheck + elapsed
     if elapsedSinceCheck > 0.1 then
       elapsedSinceCheck = 0
@@ -1166,6 +1189,12 @@ end
 
 function TB:PLAYER_LOGIN()
   playerGUID = GuidOf("player")
+  -- Nameplates already up after a /reload don't fire NAME_PLATE_UNIT_ADDED again.
+  for i = 1, 40 do
+    local unit = "nameplate" .. i
+    local exists = UnitExists(unit)
+    if not Secret(exists) and exists then ns.plateUnits[unit] = true end
+  end
   local c = UnitAffectingCombat("player")
   inCombat = not Secret(c) and c or false
   RefreshDisplay()
@@ -1238,12 +1267,18 @@ function TB:UNIT_COMBAT(unit, action, flag, amount, school)
   end
 end
 
+ns.plateUnits = {} -- nameplate unit tokens that are up, for Plates.lua
+
 function TB:NAME_PLATE_UNIT_ADDED(unit)
+  if Secret(unit) then return end
+  ns.plateUnits[unit] = true
   ForgetMob("plate:" .. unit) -- the token now shows another mob
   ReadUnit(unit)
 end
 
 function TB:NAME_PLATE_UNIT_REMOVED(unit)
+  if Secret(unit) then return end
+  ns.plateUnits[unit] = nil
   ForgetMob("plate:" .. unit)
   local g = GuidOf(unit)
   if g and IsDead(unit) then ForgetMob(g) end

@@ -18,11 +18,13 @@ local function Path(list, key) return ns.Lookup(list, key)[2] end
 -- Layout
 ---------------------------------------------------------------------------
 
-local function IconSpace() return db.showIcon and (db.height + 2) or 0 end
+-- Every bar function takes a style `st`: the settings table for the main bars, or the nameplate
+-- style (Plates.lua), which swaps in its own size and text keys.
+local function IconSpace(st) return st.showIcon and (st.height + 2) or 0 end
 
 local function LayoutAnchor()
   anchor:SetScale(db.scale)
-  anchor:SetSize(db.width + IconSpace(), db.height)
+  anchor:SetSize(db.width + IconSpace(db), db.height)
   anchor:ClearAllPoints()
   anchor:SetPoint(db.point[1], UIParent, db.point[1], db.point[2], db.point[3])
   local unlocked = not db.locked
@@ -32,8 +34,8 @@ local function LayoutAnchor()
 end
 
 -- A border drawn just outside the bar; size 0 hides it.
-local function LayoutBorder(b)
-  local s, c = db.borderSize, db.borderColor
+local function LayoutBorder(b, st)
+  local s, c = st.borderSize, st.borderColor
   local e = b.edges
   for _, t in ipairs(e) do
     t:SetShown(s > 0)
@@ -55,49 +57,49 @@ local function LayoutBorder(b)
   e[4]:SetWidth(s)
 end
 
-local function StyleText(fs, font, color)
-  fs:SetFont(font, db.fontSize, db.outline)
+local function StyleText(fs, font, color, st)
+  fs:SetFont(font, st.fontSize, st.outline)
   fs:SetTextColor(color[1], color[2], color[3], 1)
   fs:SetShadowColor(0, 0, 0, 1)
-  if db.shadow then fs:SetShadowOffset(1, -1) else fs:SetShadowOffset(0, 0) end
+  if st.shadow then fs:SetShadowOffset(1, -1) else fs:SetShadowOffset(0, 0) end
 end
 
-local function LayoutBar(b, i)
-  local h, w = db.height, db.width
+local function LayoutBar(b, i, st, parent)
+  local h, w = st.height, st.width
   b:SetSize(w, h)
   b:ClearAllPoints()
-  local x = (db.showIcon and db.iconSide == "LEFT") and IconSpace() or 0
-  local y = (i - 1) * (h + db.spacing)
-  if db.growUp then
-    b:SetPoint("BOTTOMLEFT", anchor, "BOTTOMLEFT", x, y)
+  local x = (st.showIcon and st.iconSide == "LEFT") and IconSpace(st) or 0
+  local y = (i - 1) * (h + st.spacing)
+  if st.growUp then
+    b:SetPoint("BOTTOMLEFT", parent, "BOTTOMLEFT", x, y)
   else
-    b:SetPoint("TOPLEFT", anchor, "TOPLEFT", x, -y)
+    b:SetPoint("TOPLEFT", parent, "TOPLEFT", x, -y)
   end
-  b:SetStatusBarTexture(Path(ns.TEXTURES, db.texture))
-  b:SetReverseFill(db.reverse)
-  local bg = db.bgColor
-  b.bg:SetColorTexture(bg[1], bg[2], bg[3], db.bgAlpha)
-  LayoutBorder(b)
+  b:SetStatusBarTexture(Path(ns.TEXTURES, st.texture))
+  b:SetReverseFill(st.reverse)
+  local bg = st.bgColor
+  b.bg:SetColorTexture(bg[1], bg[2], bg[3], st.bgAlpha)
+  LayoutBorder(b, st)
   b.spark:SetSize(12, h * 2)
 
-  b.icon:SetShown(db.showIcon)
+  b.icon:SetShown(st.showIcon)
   b.icon:SetSize(h, h)
   b.icon:ClearAllPoints()
-  if db.iconSide == "LEFT" then
+  if st.iconSide == "LEFT" then
     b.icon:SetPoint("RIGHT", b, "LEFT", -2, 0)
   else
     b.icon:SetPoint("LEFT", b, "RIGHT", 2, 0)
   end
 
-  local font = Path(ns.FONTS, db.font)
-  StyleText(b.name, font, db.nameColor)
-  StyleText(b.time, font, db.timeColor)
+  local font = Path(ns.FONTS, st.font)
+  StyleText(b.name, font, st.nameColor, st)
+  StyleText(b.time, font, st.timeColor, st)
   b.stacks:SetFont(font, max(8, floor(h * 0.6)), "OUTLINE")
-  b.name:SetShown(db.showName)
-  b.time:SetShown(db.showTime or db.showTickCount)
+  b.name:SetShown(st.showName)
+  b.time:SetShown(st.showTime or st.showTickCount)
   b.name:ClearAllPoints()
   b.time:ClearAllPoints()
-  if db.timeSide == "LEFT" then
+  if st.timeSide == "LEFT" then
     b.time:SetPoint("LEFT", 4, 0)
     b.name:SetPoint("LEFT", b.time, "RIGHT", 4, 0)
     b.name:SetPoint("RIGHT", -4, 0)
@@ -107,13 +109,13 @@ local function LayoutBar(b, i)
     b.name:SetPoint("RIGHT", b.time, "LEFT", -4, 0)
   end
 
-  local th = max(1, floor(h * db.tickHeight + 0.5))
-  for _, tk in ipairs(b.ticks) do tk:SetSize(db.tickWidth, th) end
+  local th = max(1, floor(h * st.tickHeight + 0.5))
+  for _, tk in ipairs(b.ticks) do tk:SetSize(st.tickWidth, th) end
   b.version = styleVersion
 end
 
-local function NewBar(i)
-  local b = CreateFrame("StatusBar", nil, anchor)
+local function NewBar(parent)
+  local b = CreateFrame("StatusBar", nil, parent)
   b:SetMinMaxValues(0, 1)
   b.bg = b:CreateTexture(nil, "BACKGROUND")
   b.bg:SetAllPoints()
@@ -131,21 +133,25 @@ local function NewBar(i)
   b.name:SetJustifyH("LEFT")
   b.name:SetWordWrap(false)
   b.ticks = {}
-  bars[i] = b
   return b
 end
 
-local function GetBar(i)
-  local b = bars[i] or NewBar(i)
-  if b.version ~= styleVersion then LayoutBar(b, i) end
+-- Bar i of a pool (main bars, or one nameplate's), laid out again after any style change.
+local function GetBar(pool, i, st, parent)
+  local b = pool[i]
+  if not b then
+    b = NewBar(parent)
+    pool[i] = b
+  end
+  if b.version ~= styleVersion then LayoutBar(b, i, st, parent) end
   return b
 end
 
-local function GetTick(b, i)
+local function GetTick(b, i, st)
   local tk = b.ticks[i]
   if not tk then
     tk = b:CreateTexture(nil, "OVERLAY")
-    tk:SetSize(db.tickWidth, max(1, floor(db.height * db.tickHeight + 0.5)))
+    tk:SetSize(st.tickWidth, max(1, floor(st.height * st.tickHeight + 0.5)))
     b.ticks[i] = tk
   end
   return tk
@@ -154,6 +160,7 @@ end
 function ns.ApplyStyle()
   styleVersion = styleVersion + 1
   if anchor then LayoutAnchor() end
+  if ns.LayoutPlates then ns.LayoutPlates() end
 end
 
 ---------------------------------------------------------------------------
@@ -163,19 +170,19 @@ end
 local fracs = {}
 local DEFAULT_COLOR = { 0.8, 0.35, 1 }
 
--- Tenths under db.decimals seconds (4.2), whole seconds under a minute (37),
+-- Tenths under st.decimals seconds (4.2), whole seconds under a minute (37),
 -- then 4:05 under 10 minutes, then 25m / 2h.
-local function FormatTime(t)
-  if t < db.decimals then return ("%.1f"):format(t) end
+local function FormatTime(t, st)
+  if t < st.decimals then return ("%.1f"):format(t) end
   if t < 60 then return ("%d"):format(floor(t)) end
   if t < 600 then return ("%d:%02d"):format(floor(t / 60), floor(t % 60)) end
   if t < 3600 then return ("%dm"):format(floor(t / 60)) end
   return ("%dh"):format(floor(t / 3600))
 end
 
-local function Label(e, cfg)
+local function Label(e, cfg, st)
   local label = (cfg and cfg.label and cfg.label ~= "") and cfg.label or e.name
-  if e.stacks and e.stacks > 1 and db.showStacks and not db.showIcon then
+  if e.stacks and e.stacks > 1 and st.showStacks and not st.showIcon then
     label = ("%s (%d)"):format(label, e.stacks)
   end
   if e.youTag then label = label .. " |cff999999(you)|r" end
@@ -183,41 +190,41 @@ local function Label(e, cfg)
 end
 
 -- A tracked spell that isn't on the target: a faded, empty-looking bar in its slot.
-local function DrawMissing(b, e, cfg)
-  local c = db.missingColor
+local function DrawMissing(b, e, cfg, st)
+  local c = st.missingColor
   b:SetStatusBarColor(c[1], c[2], c[3])
   b:SetValue(1)
   b.icon:SetTexture(e.icon or (cfg and cfg.icon))
-  b.icon:SetDesaturated(db.missingDesaturate)
-  b.name:SetText(Label(e, cfg))
+  b.icon:SetDesaturated(st.missingDesaturate)
+  b.name:SetText(Label(e, cfg, st))
   b.time:SetText("")
   b.stacks:Hide()
   b.spark:Hide()
   for _, tk in ipairs(b.ticks) do tk:Hide() end
-  b:SetAlpha(db.missingAlpha)
+  b:SetAlpha(st.missingAlpha)
   b:Show()
 end
 
-local function UpdateBar(b, e, now)
+local function UpdateBar(b, e, now, st)
   local cfg = ns.SpellCfg(e.key)
-  if e.missing then return DrawMissing(b, e, cfg) end
+  if e.missing then return DrawMissing(b, e, cfg, st) end
   local span = e.expires - e.start
   local remain = max(0, e.expires - now)
-  local drain = db.fillMode == "drain"
+  local drain = st.fillMode == "drain"
 
-  local c = (db.lowEnabled and remain <= db.lowSeconds) and db.lowColor or (cfg and cfg.color) or DEFAULT_COLOR
+  local c = (st.lowEnabled and remain <= st.lowSeconds) and st.lowColor or (cfg and cfg.color) or DEFAULT_COLOR
   b:SetStatusBarColor(c[1], c[2], c[3])
   local value = drain and remain / span or 1 - remain / span
   b:SetValue(value)
   b.icon:SetTexture(e.icon or (cfg and cfg.icon))
   b.icon:SetDesaturated(false)
-  b.name:SetText(Label(e, cfg))
-  b.stacks:SetShown(db.showStacks and db.showIcon and e.stacks ~= nil and e.stacks > 1)
+  b.name:SetText(Label(e, cfg, st))
+  b.stacks:SetShown(st.showStacks and st.showIcon and e.stacks ~= nil and e.stacks > 1)
   if e.stacks then b.stacks:SetText(e.stacks) end
 
   -- Where along the bar (0..1 from the left) the fill edge is at a given fill value.
-  local function EdgeX(v) return (db.reverse and (1 - v) or v) * db.width end
-  if db.spark and value > 0 and value < 1 then
+  local function EdgeX(v) return (st.reverse and (1 - v) or v) * st.width end
+  if st.spark and value > 0 and value < 1 then
     b.spark:ClearAllPoints()
     b.spark:SetPoint("CENTER", b, "LEFT", EdgeX(value), 0)
     b.spark:Show()
@@ -228,54 +235,57 @@ local function UpdateBar(b, e, now)
   -- A tick at time t sits where the fill edge will be at time t.
   ns.ComputeTicks(e, fracs)
   local shown, left, nextDone = 0, 0, false
-  local tc, nc = db.tickColor, db.nextColor
+  local tc, nc = st.tickColor, st.nextColor
   for _, f in ipairs(fracs) do
     local upcoming = e.start + f * span > now
     if upcoming then left = left + 1 end
-    local visible = f < 0.999 and (upcoming or db.pastTicks ~= "hide")
+    local visible = f < 0.999 and (upcoming or st.pastTicks ~= "hide")
     if visible then
       shown = shown + 1
-      local tk = GetTick(b, shown)
+      local tk = GetTick(b, shown, st)
       tk:ClearAllPoints()
       tk:SetPoint("CENTER", b, "LEFT", EdgeX(drain and (1 - f) or f), 0)
-      if upcoming and db.highlightNext and not nextDone then
+      if upcoming and st.highlightNext and not nextDone then
         nextDone = true
         tk:SetColorTexture(nc[1], nc[2], nc[3], 1)
-        tk:SetWidth(db.tickWidth + 1)
+        tk:SetWidth(st.tickWidth + 1)
         tk:SetAlpha(1)
       else
         tk:SetColorTexture(tc[1], tc[2], tc[3], 1)
-        tk:SetWidth(db.tickWidth)
-        tk:SetAlpha((upcoming or db.pastTicks == "show") and 0.95 or 0.25)
+        tk:SetWidth(st.tickWidth)
+        tk:SetAlpha((upcoming or st.pastTicks == "show") and 0.95 or 0.25)
       end
       tk:Show()
     end
   end
   for i = shown + 1, #b.ticks do b.ticks[i]:Hide() end
 
-  local timeText = FormatTime(remain)
-  if db.showTickCount and #fracs > 0 and db.showTime then
-    if db.timeSide == "LEFT" then
+  local timeText = FormatTime(remain, st)
+  if st.showTickCount and #fracs > 0 and st.showTime then
+    if st.timeSide == "LEFT" then
       b.time:SetFormattedText("%s  |cffbbbbbbx%d|r", timeText, left)
     else
       b.time:SetFormattedText("|cffbbbbbbx%d|r  %s", left, timeText)
     end
-  elseif db.showTickCount and #fracs > 0 then
+  elseif st.showTickCount and #fracs > 0 then
     b.time:SetFormattedText("x%d", left)
-  elseif db.showTime then
+  elseif st.showTime then
     b.time:SetText(timeText)
   else
     b.time:SetText("")
   end
 
   local warn = ns.WarnSeconds(e.key)
-  if db.warnFlash and warn > 0 and remain <= warn then
+  if st.warnFlash and warn > 0 and remain <= warn then
     b:SetAlpha(0.55 + 0.45 * abs(sin(now * 6)))
   else
     b:SetAlpha(1)
   end
   b:Show()
 end
+
+-- For Plates.lua: the same bars on nameplates.
+ns.GetBar, ns.UpdateBar, ns.IconSpace = GetBar, UpdateBar, IconSpace
 
 ---------------------------------------------------------------------------
 -- Preview: looping sample timers so styling can be seen out of combat
@@ -397,7 +407,7 @@ function ns.UpdateBars(now)
     if e.missing == "space" then
       if bars[i] then bars[i]:Hide() end
     else
-      UpdateBar(GetBar(i), e, now)
+      UpdateBar(GetBar(bars, i, db, anchor), e, now, db)
     end
   end
   for i = #list + 1, #bars do bars[i]:Hide() end

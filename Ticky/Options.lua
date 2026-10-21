@@ -1,4 +1,4 @@
--- Ticky options window: Spells, Bars, Layout, Text & Ticks, Sounds, Health bar, General.
+-- Ticky options window: Spells, Bars, Layout, Text & Ticks, Sounds, Health bar, Nameplates, General.
 -- Open with /ticky, the minimap addon menu, or Game Menu > Options > AddOns > Ticky.
 local ADDON, ns = ...
 
@@ -162,7 +162,7 @@ local function BuildSpellDetail(p)
   scroll:SetPoint("TOPLEFT", 0, -46)
   scroll:SetPoint("BOTTOMRIGHT", -24, 0)
   local c = CreateFrame("Frame", nil, scroll)
-  c:SetSize(330, 610)
+  c:SetSize(330, 640)
   scroll:SetScrollChild(c)
   detail.scroll = scroll
   c.list = {}
@@ -201,17 +201,21 @@ local function BuildSpellDetail(p)
     function(v) cfg().noOverlay = not v or nil end,
     "Include this spell in the health bar overlay (Health bar tab), if it's a DoT or HoT."), 120, -28)
   onBar.label:SetFontObject("GameFontHighlightSmall")
+  local onPlate = Keep(W.Check(c, "On nameplates", function() return not cfg().noPlate end,
+    function(v) cfg().noPlate = not v or nil end,
+    "Show this spell's bar on nameplates too (Nameplates tab)."), 120, -52)
+  onPlate.label:SetFontObject("GameFontHighlightSmall")
 
   local anyone = Keep(W.Check(c, "Track it from anyone, not just you", function() return cfg().anyCaster end,
     function(v)
       cfg().anyCaster = v or nil
       changed()
     end, "For example a buff another player puts on you, or a debuff a raid member applies to the boss. "
-      .. "Only while the game lets addons read auras (usually out of combat)."), 0, -56)
+      .. "Only while the game lets addons read auras (usually out of combat)."), 0, -80)
   anyone.label:SetFontObject("GameFontHighlightSmall")
 
-  Keep(W.Label(c, "Bar text (blank = spell name)", "GameFontHighlightSmall"), 4, -86)
-  detail.labelBox = Keep(W.EditBox(c, 220), 10, -100)
+  Keep(W.Label(c, "Bar text (blank = spell name)", "GameFontHighlightSmall"), 4, -110)
+  detail.labelBox = Keep(W.EditBox(c, 220), 10, -124)
   detail.labelBox:SetScript("OnTextChanged", function(self, userInput)
     if userInput then
       local t = strtrim(self:GetText())
@@ -219,8 +223,8 @@ local function BuildSpellDetail(p)
     end
   end)
 
-  Keep(W.Label(c, "Words for \"Say it\" sounds (blank = bar text)", "GameFontHighlightSmall"), 4, -128)
-  detail.speechBox = Keep(W.EditBox(c, 220), 10, -142)
+  Keep(W.Label(c, "Words for \"Say it\" sounds (blank = bar text)", "GameFontHighlightSmall"), 4, -152)
+  detail.speechBox = Keep(W.EditBox(c, 220), 10, -166)
   detail.speechBox:SetScript("OnTextChanged", function(self, userInput)
     if userInput then
       local t = strtrim(self:GetText())
@@ -233,15 +237,15 @@ local function BuildSpellDetail(p)
     { "space", "Keep its slot empty" }, { "show", "Show a faded bar" },
   }, function() return cfg().missing or "DEFAULT" end, function(v)
     cfg().missing = v ~= "DEFAULT" and v or nil
-  end), 4, -172)
+  end), 4, -196)
 
   Keep(W.Slider(c, "Warning time", 0, 10, 0.5, function() return cfg().warnSeconds or 0 end,
     function(v) cfg().warnSeconds = v > 0 and v or nil end,
     function(v) return v == 0 and "Default (Sounds tab)" or ("%gs before it ends"):format(v) end,
-    "When the warning sound, message and flash happen for this spell."), 4, -220)
+    "When the warning sound, message and flash happen for this spell."), 4, -244)
 
-  Keep(W.Header(c, "Sounds"), 0, -266)
-  local y = -288
+  Keep(W.Header(c, "Sounds"), 0, -290)
+  local y = -312
   for _, ev in ipairs(ns.SOUND_EVENTS) do
     local field = ev[1]
     local cyc = Keep(W.Cycle(c, ev[2], function() return ns.SoundChoices(true) end,
@@ -634,6 +638,52 @@ local function BuildHealthPage()
 end
 
 ---------------------------------------------------------------------------
+-- Nameplates page
+---------------------------------------------------------------------------
+
+local function BuildPlatesPage()
+  local p = NewPage("Nameplates")
+  local S = W.Setting
+
+  W.Header(p, "Bars on nameplates"):SetPoint("TOPLEFT", 0, 0)
+  local g, s = S("plateEnabled")
+  Place(p, W.Check(p, "Show timer bars on nameplates", g, s,
+    "Your tracked buffs and debuffs on each mob, on its nameplate. Needs nameplates turned on."), 0, -20)
+  g, s = S("plateWhich")
+  Place(p, W.Cycle(p, "Which nameplates", { { "others", "All but your target's" }, { "all", "All" },
+    { "target", "Only your target's" } }, g, s), 4, -52)
+  g, s = S("plateAnchor")
+  Place(p, W.Cycle(p, "Where", { { "TOP", "Above the nameplate" }, { "BOTTOM", "Below the nameplate" } }, g, s),
+    4, -98)
+  g, s = S("plateOffsetY")
+  Place(p, W.Slider(p, "Distance from the nameplate", -20, 60, 1, g, s), 4, -144)
+  g, s = S("plateOffsetX")
+  Place(p, W.Slider(p, "Left / right", -60, 60, 1, g, s), 4, -184)
+  Note(p, "Colors, texture, background, border, ticks and font follow the Bars and Text & Ticks tabs. "
+    .. "Each spell can be left off nameplates on the Spells tab.\n\n"
+    .. "A mob only gets bars for what Ticky knows is on it: your casts on it, or its auras when the game "
+    .. "lets addons read them.", 4, -228, 320)
+
+  W.Header(p, "Size and text"):SetPoint("TOPLEFT", COL2, 0)
+  g, s = S("plateWidth")
+  Place(p, W.Slider(p, "Width", 30, 200, 5, g, s), COL2 + 4, -22)
+  g, s = S("plateHeight")
+  Place(p, W.Slider(p, "Height", 3, 24, 1, g, s), COL2 + 4, -62)
+  g, s = S("plateSpacing")
+  Place(p, W.Slider(p, "Space between bars", 0, 6, 1, g, s), COL2 + 4, -102)
+  g, s = S("plateFontSize")
+  Place(p, W.Slider(p, "Font size", 6, 16, 1, g, s), COL2 + 4, -142)
+  g, s = S("plateShowIcon")
+  Place(p, W.Check(p, "Show spell icon", g, s), COL2, -184)
+  g, s = S("plateShowName")
+  Place(p, W.Check(p, "Show spell name", g, s), COL2, -210)
+  g, s = S("plateShowTime")
+  Place(p, W.Check(p, "Show time left", g, s), COL2, -236)
+  g, s = S("plateShowTickCount")
+  Place(p, W.Check(p, "Show ticks left", g, s), COL2, -262)
+end
+
+---------------------------------------------------------------------------
 -- General page
 ---------------------------------------------------------------------------
 
@@ -692,7 +742,7 @@ end
 
 local function Build()
   panel = CreateFrame("Frame", "TickyOptions", UIParent)
-  panel:SetSize(720, 600)
+  panel:SetSize(800, 600)
   panel:SetPoint("CENTER")
   panel:SetFrameStrata("DIALOG")
   panel:SetMovable(true)
@@ -733,13 +783,14 @@ local function Build()
   BuildTextPage()
   BuildSoundsPage()
   BuildHealthPage()
+  BuildPlatesPage()
   BuildGeneralPage()
 
   local x = 16
   for i, p in ipairs(pages) do
-    local t = W.Button(panel, p.title, 96, function() ShowPage(i) end)
+    local t = W.Button(panel, p.title, 92, function() ShowPage(i) end)
     t:SetPoint("TOPLEFT", x, -42)
-    x = x + 100
+    x = x + 96
     tabs[i] = t
   end
 

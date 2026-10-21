@@ -25,6 +25,10 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
 - Text: stack counts, name and time colors, time on the left or right, when to show tenths of a
   second, text shadow. Tick height.
 - "Hide bars when you have no target".
+- Bars on nameplates (new Nameplates tab, off by default): your tracked buffs and debuffs on each mob,
+  as small bars above or below its nameplate. All plates but your target's, all, or only your
+  target's; position, offset, size, spacing, font size, icon/name/time/ticks; per-spell opt-out.
+  The options window is wider for the eighth tab.
 - Health bar overlay (new Health bar tab, off by default): on your target's health bar, the part your
   DoTs and channel will still take off, ending at its current health, and the part your HoTs will
   still heal. Per-spell colors or one color each, opacity, texture, dividers; per-spell opt-out.

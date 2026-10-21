@@ -22,11 +22,12 @@ and a mocked API (see Testing).
 
 ```
 Ticky/            the addon (this folder is what players copy into Interface\AddOns)
-  Ticky.toc       manifest; load order Data, Core, Bars, Overlay, Widgets, Options
+  Ticky.toc       manifest; load order Data, Core, Bars, Overlay, Plates, Widgets, Options
   Data.lua        GENERATED spell data; never hand-edit
   Core.lua        settings, aura/channel reading, alerts, tick math, events, slash commands
   Bars.lua        bar frames, styling, drawing, preview
   Overlay.lua     DoT/HoT shading on the target frame's health bar
+  Plates.lua      timer bars on nameplates
   Widgets.lua     option controls (check, slider, cycle, color swatch)
   Options.lua     tabbed options window, Settings-panel entry
 tools/
@@ -91,9 +92,10 @@ call another file's `ns` functions at runtime, not at load time, unless that fil
 | File | Owns | Exposes on `ns` |
 |---|---|---|
 | `Data.lua` | Generated spell data | `ns.Data`, `ns.DataBuild` |
-| `Core.lua` | Defaults, lists (textures, fonts, sounds, sound events), aura and channel reading, alerts (sounds, speech, messages), missing-spell placeholders, display list, tick math, events, slash commands | `DEFAULTS`, `CHAR_DEFAULTS`, `TEXTURES`, `FONTS`, `OUTLINES`, `SOUNDS`, `SOUND_EVENTS`, `CHANNELS`, `SoundChoices`, `Secret`, `Lookup`, `SpellInfo`, `AuraPeriod`, `ComputeTicks`, `BuildDisplay`, `ActiveTimers`, `RefreshDisplay`, `HasTarget`, `SpellbookSpells`, `Track`, `Untrack`, `IsTracked`, `OrderedSpells`, `MoveSpell`, `AddSpell`, `Describe`, `SoundFor`, `WarnSeconds`, `PlaySound`, `TestSound`, `RemoveCustomSound`, `RemainingAmount`, `TargetAmounts`, `Debug` (`/ticky debug`), `ResetSettings`, `CopyDefaults`, `SpellCfg`, `DB`, `CharDB`, `InCombat`, `TB` (event frame) |
-| `Bars.lua` | Anchor and bar frames, styling, drawing, missing bars, preview, on-screen messages | `CreateBars`, `ApplyStyle`, `UpdateBars`, `SetPreview`, `preview`, `ResetPosition`, `ShowMessage` |
+| `Core.lua` | Defaults, lists (textures, fonts, sounds, sound events), aura and channel reading, alerts (sounds, speech, messages), missing-spell placeholders, display list, tick math, events, slash commands | `DEFAULTS`, `CHAR_DEFAULTS`, `TEXTURES`, `FONTS`, `OUTLINES`, `SOUNDS`, `SOUND_EVENTS`, `CHANNELS`, `SoundChoices`, `Secret`, `Lookup`, `SpellInfo`, `AuraPeriod`, `ComputeTicks`, `BuildDisplay`, `ActiveTimers`, `RefreshDisplay`, `HasTarget`, `SpellbookSpells`, `Track`, `Untrack`, `IsTracked`, `OrderedSpells`, `MoveSpell`, `AddSpell`, `Describe`, `SoundFor`, `WarnSeconds`, `PlaySound`, `TestSound`, `RemoveCustomSound`, `RemainingAmount`, `TargetAmounts`, `UnitTimers`, `MobKey`, `plateUnits`, `Debug` (`/ticky debug`), `ResetSettings`, `CopyDefaults`, `SpellCfg`, `DB`, `CharDB`, `InCombat`, `TB` (event frame) |
+| `Bars.lua` | Anchor and bar frames, styling, drawing, missing bars, preview, on-screen messages. Bar functions take a style `st` (the settings, or the nameplate style) | `CreateBars`, `ApplyStyle`, `UpdateBars`, `SetPreview`, `preview`, `ResetPosition`, `ShowMessage`, `GetBar`, `UpdateBar`, `IconSpace` |
 | `Overlay.lua` | Health bar overlay: finding the target health bar (custom path, EllesmereUI, Blizzard), clipped running-total StatusBars anchored to its fill edge, scaled to secret max health | `FindHealthBar`, `UpdateOverlay`, `CreateOverlay` |
+| `Plates.lua` | Bars on nameplates: a holder per (recycled) nameplate frame, parented to it; Bars.lua's bars drawn with a style proxy (`PLATE_KEYS` swap in the `plate*` size/text settings, `growUp` from `plateAnchor`) | `UpdatePlates`, `LayoutPlates`, `CreatePlates` |
 | `Widgets.lua` | Option controls | `ns.W` (`Label`, `Header`, `Button`, `Check`, `Slider`, `Cycle`, `Swatch`, `EditBox`, `Setting`) |
 | `Options.lua` | Options window, Settings-panel entry, shift-click link hook | `ToggleOptions`, `RefreshOptions` |
 
@@ -132,7 +134,8 @@ target dead                       -> ForgetMob(target's key), silently
 
 UNIT_SPELLCAST_CHANNEL_* (player) -> ReadChannel() -> channel timer (interval = ChannelPeriod)
 
-OnUpdate (every frame)  -> ns.UpdateBars(now) -> ActiveTimers(now) or PreviewTimers(now)
+OnUpdate (every frame)  -> ns.UpdatePlates(now) -> per ns.plateUnits token: UnitTimers -> bars
+                        -> ns.UpdateBars(now) -> ActiveTimers(now) or PreviewTimers(now)
                              -> BuildDisplay: channel, target group (+ missing placeholders), self
                              -> UpdateBar / DrawMissing (a "space" placeholder hides its bar)
          (every 0.1s)   -> CheckAlerts(now)   -> CheckTick / Warn / Expire / removed -> Alert
@@ -163,7 +166,7 @@ add a migration in `ADDON_LOADED` when changing the meaning of an existing key (
 
 `TickyCharDB` (per character): `spells[lowerCaseName] = { name, id, icon, color, order, label,
 speech, missing, warnSeconds, anyCaster, isChannel, applySound, refreshSound, tickSound, warnSound,
-expireSound, removeSound, noOverlay }`, `nextOrder`, `durations[spellID]` (seconds, learned from
+expireSound, removeSound, noOverlay, noPlate }`, `nextOrder`, `durations[spellID]` (seconds, learned from
 your own readable auras; used to time casts in combat) and `tickSizes[spellID]` (damage or healing
 per tick seen on `UNIT_COMBAT`; used by the health bar overlay). Unset per-spell fields mean "use the default". Spells
 are keyed by lower-case name so every rank matches; `id` is the rank that was added (used for data

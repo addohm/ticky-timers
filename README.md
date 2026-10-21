@@ -28,7 +28,8 @@ then goes missing for a few seconds, so you can see how missing spells look too.
   spells"). Tick to track. Add any other spell by name, ID or shift-click. Select a tracked spell
   to set, for that spell only:
   - its place in your own order (Move up / Move down);
-  - bar color and bar text; whether it's part of the health bar overlay; whether to track it from anyone (e.g. another priest's Fortitude on
+  - bar color and bar text; whether it's part of the health bar overlay and shown on nameplates;
+    whether to track it from anyone (e.g. another priest's Fortitude on
     you, or a raid member's debuff on the boss);
   - what happens while it's not on your target (hide, keep its slot empty, or show a faded bar);
   - its warning time;
@@ -58,6 +59,11 @@ then goes missing for a few seconds, so you can see how missing spells look too.
   Off by default. Each spell in its own bar color (with a line between them) or one color for damage
   and one for healing; opacity; texture. It finds EllesmereUI's target frame or Blizzard's by
   itself; for another addon's, enter its health bar's frame name (find it with `/fstack`).
+- **Nameplates**: small timer bars on each mob's nameplate for your tracked buffs and debuffs on
+  it. Off by default. On every nameplate but your target's (your target has the main bars), on all,
+  or only your target's; above or below the plate, with an offset; width, height, spacing, font
+  size, icon, name, time and ticks left. Colors, texture, ticks and font follow the main bars.
+  Needs nameplates turned on.
 - **General**: lock/unlock (drag the blue handle), channel bar, tracked auras on yourself,
   hide out of combat, hide with no target, in/out of combat opacity, reset position, reset all
   settings.
