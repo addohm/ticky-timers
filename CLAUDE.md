@@ -22,10 +22,11 @@ and a mocked API (see Testing).
 
 ```
 Ticky/            the addon (this folder is what players copy into Interface\AddOns)
-  Ticky.toc       manifest; load order Data, Core, Bars, Widgets, Options
+  Ticky.toc       manifest; load order Data, Core, Bars, Overlay, Widgets, Options
   Data.lua        GENERATED spell data; never hand-edit
   Core.lua        settings, aura/channel reading, alerts, tick math, events, slash commands
   Bars.lua        bar frames, styling, drawing, preview
+  Overlay.lua     DoT/HoT shading on the target frame's health bar
   Widgets.lua     option controls (check, slider, cycle, color swatch)
   Options.lua     tabbed options window, Settings-panel entry
 tools/
@@ -73,8 +74,9 @@ for that PC (variables at the top). `.gitattributes` keeps `*.cmd` files CRLF.
    last read for that spell (`TickyCharDB.durations`), else the spell's tooltip; tick periods come
    from `Ticky/Data.lua`. Don't hard-code intervals and don't add "tick every N" settings: the owner
    wants nothing configured by hand.
-5. **Display and sound only.** Never automate combat decisions, call protected functions, or touch
-   Blizzard unit frames.
+5. **Display and sound only.** Never automate combat decisions, call protected functions, or
+   modify Blizzard unit frames. The health bar overlay only anchors our own frames to the target
+   frame's health bar; re-anchor only when the bar, its width or fill direction changes.
 6. **Lua 5.1, no libraries.** No `goto`, `//`, bitwise operators, `require`. No Ace/LibStub.
    Every file starts `local ADDON, ns = ...`; shared state goes on `ns`.
 7. **Data.lua is generated.** Change `tools/gen_data.py` and regenerate; never edit values by hand.
@@ -89,8 +91,9 @@ call another file's `ns` functions at runtime, not at load time, unless that fil
 | File | Owns | Exposes on `ns` |
 |---|---|---|
 | `Data.lua` | Generated spell data | `ns.Data`, `ns.DataBuild` |
-| `Core.lua` | Defaults, lists (textures, fonts, sounds, sound events), aura and channel reading, alerts (sounds, speech, messages), missing-spell placeholders, display list, tick math, events, slash commands | `DEFAULTS`, `CHAR_DEFAULTS`, `TEXTURES`, `FONTS`, `OUTLINES`, `SOUNDS`, `SOUND_EVENTS`, `CHANNELS`, `SoundChoices`, `Secret`, `Lookup`, `SpellInfo`, `AuraPeriod`, `ComputeTicks`, `BuildDisplay`, `ActiveTimers`, `RefreshDisplay`, `HasTarget`, `SpellbookSpells`, `Track`, `Untrack`, `IsTracked`, `OrderedSpells`, `MoveSpell`, `AddSpell`, `Describe`, `SoundFor`, `WarnSeconds`, `PlaySound`, `TestSound`, `RemoveCustomSound`, `Debug` (`/ticky debug`), `ResetSettings`, `CopyDefaults`, `SpellCfg`, `DB`, `CharDB`, `InCombat`, `TB` (event frame) |
+| `Core.lua` | Defaults, lists (textures, fonts, sounds, sound events), aura and channel reading, alerts (sounds, speech, messages), missing-spell placeholders, display list, tick math, events, slash commands | `DEFAULTS`, `CHAR_DEFAULTS`, `TEXTURES`, `FONTS`, `OUTLINES`, `SOUNDS`, `SOUND_EVENTS`, `CHANNELS`, `SoundChoices`, `Secret`, `Lookup`, `SpellInfo`, `AuraPeriod`, `ComputeTicks`, `BuildDisplay`, `ActiveTimers`, `RefreshDisplay`, `HasTarget`, `SpellbookSpells`, `Track`, `Untrack`, `IsTracked`, `OrderedSpells`, `MoveSpell`, `AddSpell`, `Describe`, `SoundFor`, `WarnSeconds`, `PlaySound`, `TestSound`, `RemoveCustomSound`, `RemainingAmount`, `TargetAmounts`, `Debug` (`/ticky debug`), `ResetSettings`, `CopyDefaults`, `SpellCfg`, `DB`, `CharDB`, `InCombat`, `TB` (event frame) |
 | `Bars.lua` | Anchor and bar frames, styling, drawing, missing bars, preview, on-screen messages | `CreateBars`, `ApplyStyle`, `UpdateBars`, `SetPreview`, `preview`, `ResetPosition`, `ShowMessage` |
+| `Overlay.lua` | Health bar overlay: finding the target health bar (custom path, EllesmereUI, Blizzard), clipped running-total StatusBars anchored to its fill edge, scaled to secret max health | `FindHealthBar`, `UpdateOverlay`, `CreateOverlay` |
 | `Widgets.lua` | Option controls | `ns.W` (`Label`, `Header`, `Button`, `Check`, `Slider`, `Cycle`, `Swatch`, `EditBox`, `Setting`) |
 | `Options.lua` | Options window, Settings-panel entry, shift-click link hook | `ToggleOptions`, `RefreshOptions` |
 
@@ -109,6 +112,11 @@ UNIT_SPELLCAST_SUCCEEDED (player) -> OnCast: tracked, not a channel -> Store(mob
                                      start = now, length = CastDuration (learned, else tooltip);
                                      apply / refresh sound; recentCast[mob] for resists
 UNIT_COMBAT RESIST/IMMUNE/EVADE   -> OnAvoided: drop that cast (or restore the one it refreshed)
+UNIT_COMBAT WOUND/HEAL            -> OnTickAmount: match to a timer on that mob (or the channel) by
+                                     school and tick time (+-0.35s, each tick once); non-crits
+                                     teach tickSizes[spellID] (60/40 running average)
+every 0.1s                        -> ns.UpdateOverlay: TargetAmounts (ticks left x ExpectedTick:
+                                     learned, else tooltip total / tick count) -> segment values
 
 UNIT_AURA (target/player/nameplateN), PLAYER_TARGET_CHANGED, NAME_PLATE_UNIT_ADDED,
 PLAYER_REGEN_ENABLED, and each cast timer once it's 1.1s old
@@ -155,8 +163,9 @@ add a migration in `ADDON_LOADED` when changing the meaning of an existing key (
 
 `TickyCharDB` (per character): `spells[lowerCaseName] = { name, id, icon, color, order, label,
 speech, missing, warnSeconds, anyCaster, isChannel, applySound, refreshSound, tickSound, warnSound,
-expireSound, removeSound }`, `nextOrder`, and `durations[spellID]` (seconds, learned from your own
-readable auras; used to time casts in combat). Unset per-spell fields mean "use the default". Spells
+expireSound, removeSound, noOverlay }`, `nextOrder`, `durations[spellID]` (seconds, learned from
+your own readable auras; used to time casts in combat) and `tickSizes[spellID]` (damage or healing
+per tick seen on `UNIT_COMBAT`; used by the health bar overlay). Unset per-spell fields mean "use the default". Spells
 are keyed by lower-case name so every rank matches; `id` is the rank that was added (used for data
 lookups in the UI). `order` is the "Your order" slot (`MoveSpell` renumbers 1..n).
 

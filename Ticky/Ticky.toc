@@ -11,5 +11,6 @@
 Data.lua
 Core.lua
 Bars.lua
+Overlay.lua
 Widgets.lua
 Options.lua

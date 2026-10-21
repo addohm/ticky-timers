@@ -25,6 +25,11 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
 - Text: stack counts, name and time colors, time on the left or right, when to show tenths of a
   second, text shadow. Tick height.
 - "Hide bars when you have no target".
+- Health bar overlay (new Health bar tab, off by default): on your target's health bar, the part your
+  DoTs and channel will still take off, ending at its current health, and the part your HoTs will
+  still heal. Per-spell colors or one color each, opacity, texture, dividers; per-spell opt-out.
+  Works on EllesmereUI's or Blizzard's target frame, or another addon's by frame name. Amounts
+  come from the tooltip until Ticky has seen the spell's ticks land, then from the real ticks.
 ### Fixed
 - Bars now show in combat. Forever hides aura details from addons in combat, so Ticky starts each
   timer from your cast instead (on the mob you targeted when casting, so tab-dotting works). Its

@@ -1,4 +1,4 @@
--- Ticky options window: Spells, Bars, Layout, Text & Ticks, Sounds, General.
+-- Ticky options window: Spells, Bars, Layout, Text & Ticks, Sounds, Health bar, General.
 -- Open with /ticky, the minimap addon menu, or Game Menu > Options > AddOns > Ticky.
 local ADDON, ns = ...
 
@@ -197,6 +197,10 @@ local function BuildSpellDetail(p)
   up:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
   Keep(W.Swatch(c, "Bar color", function() return cfg().color end, function(v) cfg().color = v end), 4, -30)
+  local onBar = Keep(W.Check(c, "On the target's health bar", function() return not cfg().noOverlay end,
+    function(v) cfg().noOverlay = not v or nil end,
+    "Include this spell in the health bar overlay (Health bar tab), if it's a DoT or HoT."), 120, -28)
+  onBar.label:SetFontObject("GameFontHighlightSmall")
 
   local anyone = Keep(W.Check(c, "Track it from anyone, not just you", function() return cfg().anyCaster end,
     function(v)
@@ -563,6 +567,73 @@ local function BuildSoundsPage()
 end
 
 ---------------------------------------------------------------------------
+-- Health bar page
+---------------------------------------------------------------------------
+
+local function BuildHealthPage()
+  local p = NewPage("Health bar")
+  local S = W.Setting
+  local db = ns.DB
+
+  W.Header(p, "On your target's health bar"):SetPoint("TOPLEFT", 0, 0)
+  local g, s = S("overlayDamage")
+  Place(p, W.Check(p, "Damage your DoTs will still do", g, s,
+    "Covers the part of your target's health that your DoTs (and your channel) will still take off, "
+    .. "ending at its current health."), 0, -20)
+  g, s = S("overlayHeal")
+  Place(p, W.Check(p, "Healing your HoTs will still do", g, s,
+    "Covers the part your HoTs will still heal, starting at your target's current health."), 0, -46)
+  g, s = S("overlayColors")
+  Place(p, W.Cycle(p, "Colors", { { "each", "Each spell's bar color" },
+    { "single", "One for damage, one for healing" } }, g, s), 4, -80)
+  g, s = S("overlayDamageColor")
+  Place(p, W.Swatch(p, "Damage color (one-color mode)", g, s), 4, -128)
+  g, s = S("overlayHealColor")
+  Place(p, W.Swatch(p, "Healing color (one-color mode)", g, s), 4, -154)
+  g, s = S("overlayAlpha")
+  Place(p, W.Slider(p, "Opacity", 0.1, 1, 0.05, g, s, pct), 4, -182)
+  g, s = S("overlayTexture")
+  Place(p, W.Cycle(p, "Texture", Choices(ns.TEXTURES), g, s), 4, -222)
+  g, s = S("overlayDividers")
+  Place(p, W.Check(p, "Line between spells", g, s), 0, -268)
+  Note(p, "Any spell can be left out with \"On the target's health bar\" on the Spells tab.", 4, -298, 300)
+
+  W.Header(p, "Which health bar"):SetPoint("TOPLEFT", COL2, 0)
+  local status = W.Label(p, "", "GameFontHighlightSmall")
+  status:SetPoint("TOPLEFT", COL2 + 4, -24)
+  status:SetWidth(320)
+  W.Label(p, "Another addon's target health bar (frame name):", "GameFontHighlightSmall")
+    :SetPoint("TOPLEFT", COL2 + 4, -50)
+  local box = W.EditBox(p, 220)
+  box:SetPoint("TOPLEFT", COL2 + 10, -66)
+  local function use()
+    db().overlayFrame = strtrim(box:GetText() or "")
+    box:ClearFocus()
+    p:Refresh()
+  end
+  W.Button(p, "Use", 60, use):SetPoint("LEFT", box, "RIGHT", 6, 0)
+  box:SetScript("OnEnterPressed", use)
+  Note(p, "For example MyUnitFrames_Target.Health. Leave empty to find it automatically "
+    .. "(EllesmereUI's target frame, else Blizzard's). Use /fstack to find a frame's name.",
+    COL2 + 4, -94, 320)
+  Note(p, "How much is left comes from each spell's tooltip at first, which leaves out spell power. "
+    .. "Once Ticky has seen the spell's ticks land on your target, it uses what they actually did.\n\n"
+    .. "The health bar has to be horizontal. Nothing shows while your target has none of your DoTs "
+    .. "or HoTs.", COL2 + 4, -146, 320)
+  p.OnRefresh = function()
+    box:SetText(db().overlayFrame or "")
+    local bar, what = ns.FindHealthBar()
+    local custom = db().overlayFrame ~= ""
+    if bar then
+      status:SetText("Drawing on: |cff66ff66" .. what .. "|r"
+        .. ((custom and what ~= db().overlayFrame) and " (|cffff6666your frame name wasn't found|r)" or ""))
+    else
+      status:SetText("|cffff6666No target health bar found.|r Is a target frame shown?")
+    end
+  end
+end
+
+---------------------------------------------------------------------------
 -- General page
 ---------------------------------------------------------------------------
 
@@ -661,13 +732,14 @@ local function Build()
   BuildLayoutPage()
   BuildTextPage()
   BuildSoundsPage()
+  BuildHealthPage()
   BuildGeneralPage()
 
   local x = 16
   for i, p in ipairs(pages) do
-    local t = W.Button(panel, p.title, 110, function() ShowPage(i) end)
+    local t = W.Button(panel, p.title, 96, function() ShowPage(i) end)
     t:SetPoint("TOPLEFT", x, -42)
-    x = x + 114
+    x = x + 100
     tabs[i] = t
   end
 

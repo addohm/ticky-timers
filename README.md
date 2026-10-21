@@ -28,7 +28,7 @@ then goes missing for a few seconds, so you can see how missing spells look too.
   spells"). Tick to track. Add any other spell by name, ID or shift-click. Select a tracked spell
   to set, for that spell only:
   - its place in your own order (Move up / Move down);
-  - bar color and bar text; whether to track it from anyone (e.g. another priest's Fortitude on
+  - bar color and bar text; whether it's part of the health bar overlay; whether to track it from anyone (e.g. another priest's Fortitude on
     you, or a raid member's debuff on the boss);
   - what happens while it's not on your target (hide, keep its slot empty, or show a faded bar);
   - its warning time;
@@ -53,6 +53,11 @@ then goes missing for a few seconds, so you can see how missing spells look too.
   endings and early removals. Sounds can be any of the built-in ones, "Say it" (the game's
   text-to-speech, e.g. "Pain ending"), or your own sound files (a path such as
   `Interface\AddOns\MySounds\ding.ogg`, or a sound file ID; new files load when the game starts).
+- **Health bar**: on your target's health bar, shade the part your DoTs (and channel) will still
+  take off, ending at its current health, and the part your HoTs will still heal, starting there.
+  Off by default. Each spell in its own bar color (with a line between them) or one color for damage
+  and one for healing; opacity; texture. It finds EllesmereUI's target frame or Blizzard's by
+  itself; for another addon's, enter its health bar's frame name (find it with `/fstack`).
 - **General**: lock/unlock (drag the blue handle), channel bar, tracked auras on yourself,
   hide out of combat, hide with no target, in/out of combat opacity, reset position, reset all
   settings.
@@ -75,6 +80,11 @@ Ticky read about your target's auras and your casts right now; run it in combat)
   does let Ticky read the aura (usually out of combat), the exact times and stacks replace the
   estimate, and a spell that was dispelled or never landed is removed. A resist or immunity right
   after the cast drops it too.
+- **Health bar amounts.** What's left is the ticks still to come times the size of one tick: what
+  the spell's ticks actually did on your target (Ticky watches the damage and healing the game
+  reports on it, matched by timing and school, crits left out), or, until it has seen some, the
+  tooltip's total over its tick count, which leaves out spell power. The game hides your target's
+  health, so the shading is drawn by bars the game scales to it; Ticky never sees the numbers.
 - Mobs are remembered by their ID in the open world, so switching targets and back keeps their
   timers. In dungeons, where mob IDs are hidden, Ticky uses the mob's nameplate instead (turn
   enemy nameplates on), or only your current target.

@@ -44,6 +44,10 @@ ns.DEFAULTS = {
   soundChannel = "Master", alertOtherTargets = true, alertOnlyInCombat = false,
   msgWarn = false, msgExpire = false, msgRemove = false,
   customSounds = {}, -- sound file paths or file IDs the player added
+  -- Health bar overlay
+  overlayDamage = false, overlayHeal = false, overlayColors = "each",
+  overlayDamageColor = { 0.9, 0.1, 0.1 }, overlayHealColor = { 0.2, 1, 0.3 }, overlayAlpha = 0.6,
+  overlayTexture = "Flat", overlayDividers = true, overlayFrame = "",
   -- General
   showChannel = true, showSelf = true, hideOutOfCombat = false, hideNoTarget = false,
   alpha = 1, oocAlpha = 1, showAll = false, previewInOptions = true,
@@ -51,10 +55,11 @@ ns.DEFAULTS = {
 
 ns.CHAR_DEFAULTS = {
   -- [lower-case name] = { name, id, icon, color, order, label, speech, missing, warnSeconds,
-  --   anyCaster, isChannel, applySound, refreshSound, tickSound, warnSound, expireSound, removeSound }
+  --   anyCaster, noOverlay, isChannel, applySound, refreshSound, tickSound, warnSound, expireSound, removeSound }
   spells = {},
   nextOrder = 1,
   durations = {}, -- [spellID] = seconds the aura lasted when last read (so talents are included)
+  tickSizes = {}, -- [spellID] = average non-crit tick (damage or healing) seen on UNIT_COMBAT
 }
 
 -- The alert events a spell can play a sound for, in the order the options show them.
@@ -190,8 +195,33 @@ local function DescriptionDuration(d)
   return n and Seconds(n, u:gsub("s$", ""))
 end
 
--- What a spell's tooltip says: "every N sec" ticks, whether it's timed, and for how long.
--- Also the fallback for spells missing from Data.lua.
+-- School masks by the word a tooltip uses ("30 Shadow damage over 18 sec").
+local SCHOOLS = { physical = 1, holy = 2, fire = 4, nature = 8, frost = 16, shadow = 32, arcane = 64 }
+
+-- The periodic amount in a tooltip: total and school (nil school: a heal or unnamed). Takes the
+-- last "N <school> damage over" clause, so Holy Fire's direct part is skipped; then heals
+-- ("heals the target for 32 over 12 sec"); then "N damage every X sec ... lasts Y sec".
+-- Pattern idea from Does It Die's parseDot (MIT).
+local function DescriptionAmount(d)
+  local total, school
+  for n, words in d:gmatch("(%d+)%s*([%a ]-)%s*damage over [%d%.]+ %a+") do
+    total, school = tonumber(n), 1
+    for w in words:gmatch("%a+") do school = SCHOOLS[w] or school end
+  end
+  if total then return total, school end
+  for n in d:gmatch("(%d+)[%a ]-over [%d%.]+ %a+") do total = tonumber(n) end
+  if total then return total end
+  local n, words, every = d:match("(%d+)%s*([%a ]-)%s*damage every ([%d%.]+) sec")
+  local lasts = DescriptionDuration(d)
+  if n and tonumber(every) and lasts then
+    school = 1
+    for w in words:gmatch("%a+") do school = SCHOOLS[w] or school end
+    return tonumber(n) * floor(lasts / tonumber(every) + 0.5), school
+  end
+end
+
+-- What a spell's tooltip says: "every N sec" ticks, whether it's timed, for how long, and how
+-- much it deals or heals over that time. Also the fallback for spells missing from Data.lua.
 local descCache = {}
 local function DescriptionInfo(id)
   if not id then return end
@@ -202,7 +232,7 @@ local function DescriptionInfo(id)
     C_Spell.RequestLoadSpellData(id) -- SPELL_DATA_LOAD_RESULT refreshes the options list
     return
   end
-  d = d:lower()
+  d = d:lower():gsub("(%d),(%d)", "%1%2")
   local every = tonumber(d:match("every ([%d%.]+) sec")) or ((d:find("every sec") or d:find("per sec")) and 1) or nil
   local periodic = every ~= nil or d:find("over [%d%.]+ sec") ~= nil or d:find("over [%d%.]+ min") ~= nil
   c = {
@@ -212,6 +242,7 @@ local function DescriptionInfo(id)
     timed = periodic or d:find("for [%d%.]+ sec") ~= nil or d:find("for [%d%.]+ min") ~= nil
       or d:find("lasts [%d%.]+ sec") ~= nil or d:find("lasts [%d%.]+ min") ~= nil,
   }
+  c.amount, c.school = DescriptionAmount(d)
   descCache[id] = c
   return c
 end
@@ -484,6 +515,7 @@ end
 
 local timers = {}
 local learned -- cdb.durations: [spellID] = seconds, from aura reads (talents and ranks included)
+local tickSizes -- cdb.tickSizes: [spellID] = damage or healing per tick, seen on UNIT_COMBAT
 
 -- Auras that vanished early (seen by an aura read) wait a moment before counting as removed:
 -- a refresh can briefly drop the aura before the new one arrives.
@@ -638,6 +670,66 @@ local function OnAvoided(mob)
 end
 
 local toRead = {}
+-- Tick amounts --------------------------------------------------------------
+--
+-- For the health bar overlay: how much a DoT or HoT will still deal or heal. Per tick, that's
+-- what its ticks actually did (UNIT_COMBAT on the unit, matched to the timer by school and
+-- timing, crits left out), else the tooltip's total over its tick count (no spell power).
+
+local function ExpectedTick(spellID)
+  local size = tickSizes[spellID]
+  if size then return size end
+  local info = DescriptionInfo(spellID)
+  local d = ns.Data[spellID]
+  if not (info and info.amount and d and d.p) then return end
+  local span = d.d and d.d / 1000 or info.duration
+  if not span then return end
+  return info.amount / math.max(1, floor(span / (d.p / 1000) + 0.5))
+end
+
+-- How much the timer will still deal or heal, or nil if unknown.
+function ns.RemainingAmount(t, now)
+  if not t.spellID or not t.interval or t.interval < 0.1 or t.expires <= now then return end
+  local size = ExpectedTick(t.spellID)
+  if not size then return end
+  return (TicksPassed(t, t.expires) - TicksPassed(t, now)) * size
+end
+
+local TICK_WINDOW = 0.35
+local lastHit
+
+local function OnTickAmount(mob, isHeal, amount, school, crit)
+  local now = GetTime()
+  local sig = mob .. ":" .. amount .. ":" .. school .. ":" .. now
+  if sig == lastHit then return end -- the same hit arrives for target, nameplateN, focus
+  lastHit = sig
+  local best, bestK, bestDist
+  local function consider(t)
+    if not t.spellID or not t.interval or t.interval < 0.1 then return end
+    local helpful = SpellKind(t.spellID) == "help"
+    if helpful ~= isHeal then return end
+    local info = DescriptionInfo(t.spellID)
+    if not isHeal and info and info.school and info.school ~= school then return end
+    local k = floor((now - t.start) / t.interval + 0.5)
+    local dist = abs(now - (t.start + k * t.interval))
+    local last = TicksPassed(t, t.expires)
+    if abs(now - t.expires) < dist then k, dist = last, abs(now - t.expires) end
+    if k >= 1 and k <= last and dist <= TICK_WINDOW and k > (t.lastTick or 0)
+      and (not bestDist or dist < bestDist) then
+      best, bestK, bestDist = t, k, dist
+    end
+  end
+  for _, t in pairs(timers[mob] or {}) do consider(t) end
+  if channel and not isHeal and mob == MobKey("target") then consider(channel) end
+  if not best then return end
+  best.lastTick = bestK
+  if crit then return end
+  local id, old = best.spellID, tickSizes[best.spellID]
+  -- Something else's hit that happened to line up: far off what this spell has been doing.
+  if old and (amount < old * 0.4 or amount > old * 3) then return end
+  tickSizes[id] = old and floor(old * 0.6 + amount * 0.4 + 0.5) or amount
+end
+
 local function CheckAlerts(now)
   local targetMob = HasTarget() and MobKey("target")
   if targetMob and IsDead("target") then ForgetMob(targetMob) end
@@ -715,7 +807,7 @@ local function ReadChannel()
   end
   local start, finish = startMS / 1000, endMS / 1000
   local t = {
-    key = key, name = name, icon = icon, channel = true, mob = playerGUID,
+    key = key, name = name, icon = icon, channel = true, mob = playerGUID, spellID = spellID,
     start = start, expires = finish, interval = ChannelPeriod(spellID, finish - start),
   }
   if channel and channel.key == key and abs(channel.start - start) < 0.1 then t.tickN = channel.tickN end
@@ -821,6 +913,30 @@ function ns.ActiveTimers(now)
   end
   local mine = (db.showSelf and targetMob ~= playerGUID) and ListOf(playerGUID, selfList) or nil
   return ns.BuildDisplay(now, ListOf(targetMob, targetList), mine, channel, missingTest, hasTarget)
+end
+
+-- What your DoTs and HoTs on the target will still deal and heal, for the health bar overlay:
+-- two lists of { key, amount, color } in bar order (reused tables), or nil when there's no target.
+local damageList, healList, amountsSrc = {}, {}, {}
+function ns.TargetAmounts(now)
+  if not HasTarget() or IsDead("target") then return end
+  local mob = MobKey("target")
+  ListOf(mob, amountsSrc)
+  if channel and channel.expires > now and SpellKind(channel.spellID or 0) ~= "help" then
+    amountsSrc[#amountsSrc + 1] = channel
+  end
+  table.sort(amountsSrc, byMode)
+  wipe(damageList)
+  wipe(healList)
+  for _, t in ipairs(amountsSrc) do
+    local cfg = cdb.spells[t.key]
+    local amount = cfg and not cfg.noOverlay and ns.RemainingAmount(t, now)
+    if amount and amount > 0 then
+      local out = SpellKind(t.spellID) == "help" and healList or damageList
+      out[#out + 1] = { key = t.key, amount = amount, color = cfg.color }
+    end
+  end
+  return damageList, healList
 end
 
 ---------------------------------------------------------------------------
@@ -1015,8 +1131,10 @@ function TB:ADDON_LOADED(name)
   db = ns.CopyDefaults(ns.DEFAULTS, TickyDB)
   cdb = TickyCharDB
   learned = cdb.durations
+  tickSizes = cdb.tickSizes
 
   ns.CreateBars()
+  ns.CreateOverlay()
 
   self:RegisterEvent("PLAYER_TARGET_CHANGED")
   self:RegisterEvent("PLAYER_REGEN_DISABLED")
@@ -1041,6 +1159,7 @@ function TB:ADDON_LOADED(name)
     if elapsedSinceCheck > 0.1 then
       elapsedSinceCheck = 0
       CheckAlerts(now)
+      ns.UpdateOverlay(now)
     end
   end)
 end
@@ -1058,6 +1177,7 @@ end
 function TB:PLAYER_TARGET_CHANGED()
   ForgetMob("target") -- only used while the target's GUID is secret and it has no nameplate
   RefreshDisplay()
+  ns.UpdateOverlay(GetTime())
 end
 function TB:PLAYER_REGEN_DISABLED() inCombat = true end
 function TB:PLAYER_REGEN_ENABLED()
@@ -1104,10 +1224,18 @@ function TB:UNIT_SPELLCAST_SUCCEEDED(_, castGUID, spellID)
 end
 
 -- Resists and immunities on a mob, to drop a cast that didn't land.
-function TB:UNIT_COMBAT(unit, action)
-  if Secret(unit) or Secret(action) or not AVOIDED[action] then return end
-  local mob = MobKey(unit)
-  if mob then OnAvoided(mob) end
+-- Resists and immunities drop a cast that didn't land; hits and heals that land on a tick teach
+-- the spell's real tick size (tooltips leave out spell power).
+function TB:UNIT_COMBAT(unit, action, flag, amount, school)
+  if Secret(unit) or Secret(action) then return end
+  if AVOIDED[action] then
+    local mob = MobKey(unit)
+    if mob then OnAvoided(mob) end
+  elseif action == "WOUND" or action == "HEAL" then
+    if Secret(amount) or Secret(school) or Secret(flag) or type(amount) ~= "number" then return end
+    local mob = MobKey(unit)
+    if mob then OnTickAmount(mob, action == "HEAL", amount, school, flag == "CRITICAL") end
+  end
 end
 
 function TB:NAME_PLATE_UNIT_ADDED(unit)
@@ -1182,7 +1310,9 @@ function ns.Debug()
     if cfg.id then
       local ok, level = pcall(CS and CS.GetSpellAuraSecrecy, cfg.id)
       V(cfg.name .. " (" .. cfg.id .. "):", "aura secrecy", ok and (SECRECY[level] or Show(level)) or "n/a",
-        "secret now", Try(CS and CS.ShouldSpellAuraBeSecret, cfg.id))
+        "secret now", Try(CS and CS.ShouldSpellAuraBeSecret, cfg.id),
+        "| lasts", Show(learned[cfg.id]), "| tick", Show(tickSizes[cfg.id] or ExpectedTick(cfg.id)),
+        tickSizes[cfg.id] and "(seen)" or "(tooltip)")
     end
   end
 

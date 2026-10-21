@@ -68,6 +68,9 @@ No environment variables or secrets. Settings live in the game's saved variables
 - **A sound file you added doesn't play**: the path is relative to the WoW folder (e.g.
   `Interface\AddOns\MySounds\ding.ogg`), and the file must exist when the game starts; restart
   after adding it. Keep your files outside `Interface\AddOns\Ticky`, which an update replaces.
+- **No health bar shading**: turn it on in the Health bar tab, and check its "Drawing on" line. For a
+  unit frame addon other than EllesmereUI, enter its target health bar's frame name (`/fstack`
+  while hovering it). Nothing shows while your target has none of your DoTs or HoTs.
 - **"Say it" is silent**: it uses the game's text-to-speech voice (Options > Accessibility > Text
   to Speech); check a voice is installed and the volume there.
 - **Addon not listed or "out of date"**: interface number mismatch; see First-time setup step 3.
