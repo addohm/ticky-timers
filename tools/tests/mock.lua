@@ -52,7 +52,6 @@ function methods:GetWidth()
   return self.w
 end
 function methods:GetHeight() return self.h end
-function methods:GetCenter() return nil end -- no layout here: positions can't be measured
 function methods:SetScale(sc) self.scale = sc end
 function methods:GetEffectiveScale()
   local sc, f = 1, self
@@ -166,7 +165,7 @@ for _, n in ipairs({ "SetClipsChildren", "SetMovable", "SetClampedToScreen", "Re
   "EnableMouse", "SetTexCoord", "SetBlendMode", "SetJustifyH", "SetWordWrap", "SetShadowColor",
   "SetShadowOffset", "SetOrientation", "SetValueStep", "SetObeyStepOnDrag", "EnableMouseWheel",
   "SetThumbTexture", "SetHighlightTexture", "SetAutoFocus", "SetSpacing", "StartMoving",
-  "StopMovingOrSizing", "LockHighlight", "UnlockHighlight", "SetSnapToPixelGrid", "SetTexelSnappingBias" }) do
+  "StopMovingOrSizing", "LockHighlight", "UnlockHighlight" }) do
   methods[n] = function() end
 end
 
@@ -227,17 +226,6 @@ end
 function UnitSpellHaste() return 0 end
 function UnitAffectingCombat() return false end
 function UnitHealthMax() return { __secret = true } end
--- Curves (C_CurveUtil): a curve evaluated on a hidden percentage gives a hidden value.
-C_CurveUtil = {
-  CreateCurve = function()
-    local c = { points = {} }
-    function c:AddPoint(x, y) self.points[#self.points + 1] = { x, y } end
-    return c
-  end,
-}
-function UnitHealthPercent(unit, usePredicted, curve)
-  return { __secret = true, curveY = curve and curve.points[1] and curve.points[1][2] }
-end
 function UnitHealth()
   M.healthN = M.healthN + 1 -- a new (secret) value per read, so tests can see when it's read
   return { __secret = true, n = M.healthN }

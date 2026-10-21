@@ -11,6 +11,7 @@ files you add yourself, which the game plays (it never reads or writes them).
 
 ## Data and secrets
 Settings are saved locally in `WTF\Account\<account>\SavedVariables\Ticky.lua` (look and alerts)
-and per character in `WTF\Account\<account>\<realm>\<character>\SavedVariables\Ticky.lua` (tracked spells and their settings).
+and per character in `WTF\Account\<account>\<realm>\<character>\SavedVariables\Ticky.lua` (tracked spells and their settings,
+and the spell lengths and tick sizes Ticky learned from the game).
 No credentials or personal data are stored. The addon plays built-in game sounds, sound files you
 choose, and the game's text-to-speech voice for words you set.

@@ -187,15 +187,11 @@ local function NewOverlay(parent)
   o.holder.tickyOwned = true -- not a health bar to anchor to (see Plates.lua's search)
   o.holder:SetClipsChildren(true)
   o.holder:Hide()
-  local function Invisible()
-    local b = CreateFrame("StatusBar", nil, o.holder)
-    b:SetAllPoints(o.holder)
-    b:SetStatusBarTexture("Interface\\Buttons\\WHITE8X8")
-    b:SetStatusBarColor(0, 0, 0, 0)
-    b:SetMinMaxValues(0, 1)
-    return b
-  end
-  o.mirror = Invisible() -- the health now
+  o.mirror = CreateFrame("StatusBar", nil, o.holder) -- the health now, invisible
+  o.mirror:SetAllPoints(o.holder)
+  o.mirror:SetStatusBarTexture("Interface\\Buttons\\WHITE8X8")
+  o.mirror:SetStatusBarColor(0, 0, 0, 0)
+  o.mirror:SetMinMaxValues(0, 1)
   o.damage = NewChain(o.holder)
   o.heal = NewChain(o.holder)
   o.top = CreateFrame("Frame", nil, o.holder)
@@ -260,7 +256,6 @@ local function Attach(o, bar)
   o.edge = edge
   LayChain(o.damage, live, edge, not reverse, width)
   LayChain(o.heal, live, edge, reverse, width)
-  o.damage.trimmed, o.heal.trimmed = nil, nil
   o.layerAt = 0
   return true
 end

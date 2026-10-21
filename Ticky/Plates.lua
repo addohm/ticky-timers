@@ -41,8 +41,6 @@ function ns.LayoutPlates() layoutVersion = layoutVersion + 1 end
 -- Finding the nameplate's health bar
 ---------------------------------------------------------------------------
 
-local function IsBar(f) return type(f) == "table" and type(f.GetStatusBarTexture) == "function" end
-
 local function Visible(f)
   local ok, v = pcall(f.IsVisible, f)
   return ok and not Secret(v) and v == true

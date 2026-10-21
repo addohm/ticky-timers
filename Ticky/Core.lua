@@ -669,7 +669,7 @@ local function ReadUnit(unit)
     if prev and abs(prev.expires - t.expires) < 0.1 then
       t.warned, t.expired, t.tickN = prev.warned, prev.expired, prev.tickN
       -- The same aura: keep which ticks were seen, and its part in the health bar shading.
-      t.matchedTick, t.planTotal, t.perTick = prev.matchedTick, prev.planTotal, prev.perTick
+      t.matchedTick, t.total, t.perTick = prev.matchedTick, prev.total, prev.perTick
     elseif not (prev and prev.castAt and now - prev.castAt < CAST_SETTLE + 0.5) and now - t.start < 1 then
       -- Applied just now and not by a cast we saw (out of combat someone else's, for example).
       Alert(t, (prev or lost) and "refreshSound" or "applySound")
@@ -708,10 +708,7 @@ end
 -- half a second past their time. A tick that crits takes the health down by more than a tick, so
 -- the spark moves by the extra; one that does less, the other way. A refresh's total replaces
 -- what the old one still had to do; a miss or resist drops the timer and its part.
---
--- (Before: the remaining damage re-worked out from learned tick sizes, then a spark fixed at the
--- health when the first DoT went on, moved by other damage only as far as UNIT_COMBAT reported it,
--- which missed other players' damage. docs/health-shading-spark.md.)
+-- How it got here, and what didn't work: docs/health-shading-spark.md.
 local UNSEEN_TICK_GRACE = 0.5
 local healthAt = {}      -- [mob] = when its health last changed
 local healthAtAny = 0    -- the last health message for a unit Ticky couldn't tell apart
@@ -719,8 +716,9 @@ local healthAtAny = 0    -- the last health message for a unit Ticky couldn't te
 -- tick it's due, and the next frame draws it, so a tick and its health change are drawn together.
 local drawDue = false
 
--- /ticky log: what happened around your target's shading in the last few seconds (hits, health
--- messages, spells going on or being taken back, and what the shading drew).
+-- /ticky log: what happened around your target's shading in the last few seconds (hits and whether
+-- they were your ticks, health messages, your spells going on, missing and ending, and how much
+-- the shading changed).
 local shadeLog = {}
 local SHADE_LOG_MAX, SHADE_LOG_SPAN = 60, 4
 local lastHealthLog
@@ -765,15 +763,15 @@ end
 -- What a timer will still deal or heal (nil: unknown, or none left).
 function ns.RemainingAmount(t, now)
   if not t.interval or t.interval < 0.1 or not t.spellID then return end
-  local total = TicksPassed(t, t.expires)
+  local ticks = TicksPassed(t, t.expires)
   if not t.perTick then -- fixed for the timer (a channel cut short has fewer ticks, not bigger ones)
-    t.planTotal = t.planTotal or SpellTotal(t.spellID, t.expires - t.start, t.interval)
-    if not t.planTotal or total <= 0 then return end
-    t.perTick = t.planTotal / total
+    t.total = t.total or SpellTotal(t.spellID, t.expires - t.start, t.interval)
+    if not t.total or ticks <= 0 then return end
+    t.perTick = t.total / ticks
   end
   local done = math.max(t.matchedTick or 0, TicksPassed(t, now - UNSEEN_TICK_GRACE))
-  if done >= total then return end
-  return (total - done) * t.perTick
+  if done >= ticks then return end
+  return (ticks - done) * t.perTick
 end
 
 -- Casts ----------------------------------------------------------------------
@@ -872,8 +870,9 @@ local function OnCast(castGUID, spellID)
   else
     Alert(t, "applySound")
   end
-  t.planTotal = SpellTotal(spellID, duration, t.interval) -- read now: talents, gear, spell power
+  t.total = SpellTotal(spellID, duration, t.interval) -- read now: talents, gear, spell power
   drawDue = true
+  ns.ShadeLog(("%s on: %d"):format(Initials(name), floor((t.total or 0) + 0.5)), mob)
   recentCast[mob] = { t = t, prev = prev, at = now }
 end
 
@@ -912,6 +911,7 @@ local function OnAvoided(mob, action, school, unit)
   end
   entry.result = "cancelled " .. c.t.name
   drawDue = true
+  ns.ShadeLog(Initials(c.t.name) .. " missed", mob)
   if c.prev and c.prev.expires > now then
     list[c.t.key] = c.prev -- a refresh that missed leaves the old one running
   else
@@ -921,12 +921,16 @@ local function OnAvoided(mob, action, school, unit)
 end
 
 local toRead = {}
--- Tick amounts --------------------------------------------------------------
+-- Your ticks landing ----------------------------------------------------------
 --
--- For the health bar overlay: how much a DoT or HoT will still deal or heal. Per tick, that's
--- what its ticks actually did (UNIT_COMBAT on the unit, matched to the timer by school and
--- timing, crits left out), else the tooltip's total over its tick count (no spell power).
+-- UNIT_COMBAT reports damage and healing on a unit (not whose). Hits that fit one of your timers
+-- (its school, its next tick's time, its usual size) are taken as its ticks: a seen tick counts
+-- as done for the health bar shading at once (RemainingAmount), the timer's tick times move
+-- toward where they really land (the tick marks), and non-crits teach the spell's tick size
+-- (/ticky debug; a spell's total when its tooltip gives none).
 
+-- One tick of a spell: what its ticks have done, else its tooltip's total over its ticks. For
+-- /ticky debug.
 local function ExpectedTick(spellID)
   local size = tickSizes[spellID]
   if size then return size end
@@ -948,7 +952,8 @@ function ns.TickTrace() return trace end
 local function TickWindow(t) return math.min(0.5, t.interval * 0.25) end
 local lastHit
 -- Timers that just ended, kept half a second for their last tick, due at the expiry, which can
--- land a moment late: unmatched, it would count as other damage and move the spark.
+-- land a moment late: unmatched, the health would drop with the tick's part of the shading still
+-- there until half a second past its time, and the spark would hop.
 local ended, endedChannel = {}, nil
 local ENDED_KEEP = 0.5
 
@@ -1645,7 +1650,7 @@ function TB:UNIT_SPELLCAST_CHANNEL_START()
   channel = ReadChannel()
   if channel then
     channel.targetMob = HasTarget() and MobKey("target")
-    channel.planTotal = SpellTotal(channel.spellID, channel.expires - channel.start, channel.interval)
+    channel.total = SpellTotal(channel.spellID, channel.expires - channel.start, channel.interval)
     drawDue = true
   end
 end
@@ -1654,7 +1659,7 @@ function TB:UNIT_SPELLCAST_CHANNEL_UPDATE()
   local old = channel
   channel = ReadChannel()
   if channel then
-    channel.targetMob, channel.planTotal, channel.perTick = old.targetMob, old.planTotal, old.perTick
+    channel.targetMob, channel.total, channel.perTick = old.targetMob, old.total, old.perTick
     channel.matchedTick = old.matchedTick
     drawDue = true
   end

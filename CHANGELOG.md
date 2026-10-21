@@ -22,8 +22,8 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
 - Build stamp: `install_beta.cmd` writes the installed commit into `Build.lua`; `/ticky debug` and
   the options window show it ("dev" for a copy taken straight from the repo).
 - `/ticky log`: the last four seconds around your target's health bar shading (hits and whether
-  they were one of your ticks, health changes, spells going on or taken back, what the shading
-  drew; the same number for the same frame).
+  they were one of your ticks, health changes, your spells going on and ending, how much the
+  shading changed; the same number for the same frame).
 - `tools/install_beta.cmd`: pulls the repo and mirrors the addon into the beta client (Windows).
 - `/ticky debug`: a five-line report that fits in a chat message (build, combat, learned lengths and
   ticks, target timers, casts, misses); `/ticky debug all` prints the long one: what the game lets
@@ -56,31 +56,28 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
   The options window is wider for the eighth tab.
 - "Hide the main bars" (General and Nameplates tabs), e.g. to use only nameplate bars. Sounds,
   nameplate bars and the health bar overlay keep working; the options preview still shows them.
-- Health bar overlay (new Health bar tab, off by default): on your target's health bar, the part your
-  DoTs and channel will still take off, ending at its current health, and the part your HoTs will
-  still heal. Per-spell colors or one color each, opacity, texture, dividers; per-spell opt-out.
-  Finds a unit frame addon's target frame or Blizzard's, or takes any frame by name, at the health
-  bar's scale. When a DoT goes on, the spark (where the health should end up) goes at the health
-  at that moment less the DoT's total from its tooltip (talents, gear, spell power); each DoT you
-  add moves it by its own total, a refresh by its total less what the old one still had to do, a
-  miss or resist takes it back, a tick that crits moves it by its extra, and other damage on the
-  mob (your wand, Mind Blast, others) by its amount, as the health bar does; healing on it the
-  other way. Your other ticks don't move it; the shading is the part between the health now and
-  the spark. A DoT's last tick landing just after its expiry is still taken as its tick.
-### Added
-- Health bar shading style: a spark where the shading ends (on by default) and its color, an
-  outline (none, thin, thick) and its color, and "Smooth changes".
+- Health bar overlay (new Health bar tab, off by default; "Also on nameplates" for each mob's
+  plate): on your target's health bar, the part your DoTs and channel will still take off, ending
+  at its current health, and the part your HoTs will still heal, starting there, with a spark at
+  the far end: where the health should end up. Each spell's part is its tooltip's total (read at
+  the cast: talents, gear, spell power) over its ticks, times the ticks still to come. Your ticks
+  shrink it as they land, so the spark holds still through them; a tick that crits moves it by
+  its extra; anything else that changes the health (other damage, healing on the mob) moves it
+  with the health bar. One segment with the total (dark, by default) or one per spell in its
+  color with dividers; opacity, texture, spark and its color, outline (none, thin, thick) and its
+  color, "Smooth changes"; per-spell opt-out. Finds a unit frame addon's target frame (the bar
+  named like a health bar) or Blizzard's, or takes any frame by name, at the health bar's scale.
 ### Changed
 - A cast is timed by its tooltip's duration first (the client's current tooltip, with talents and
   gear, read again at every cast), then by the one learned from an aura read: a learned 18s for Shadow Word: Pain, stale after
   Improved Shadow Word: Pain made it 24s, ended its bar 6 seconds early. Tooltips that say "seconds" or
   "minutes" are understood too. `/ticky debug` shows a learned length that disagrees: "24s (read
   18s)".
-- Learned tick sizes (shown in `/ticky debug`) are no longer rounded, and a hit far bigger or
-  smaller than a spell's ticks (Mind Blast near a Shadow Word: Pain tick) isn't taken for one.
-- Health bar shading: one segment with the total of all your DoTs (and one for your HoTs) is now the
-  default, in a dark color that shows on any health bar; a segment per spell is still an option
-  ("Segments"). Existing settings switch over unless you'd changed the color.
+- The options window is larger and has eight tabs: Spells, Bars, Layout, Text & Ticks, Sounds
+  (was Alerts), Health bar, Nameplates, General. The spell settings panel scrolls.
+- "Order you added them" is now "Your order" and can be rearranged; existing settings carry over.
+- Preview bars use all your tracked spells (up to 8), including your channel, and show missing
+  spells between runs.
 ### Fixed
 - Another player's spells counted as yours when Ticky could read auras (usually out of combat):
   another priest's Shadow Word: Pain on your target or Fortitude on you made a bar and played your
@@ -115,16 +112,10 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
   sound now sets it to 3s, and existing settings with a warning sound but no time get 3s.
 - Bars now show in combat. Forever hides aura details from addons in combat, so Ticky starts each
   timer from your cast instead (on the mob you targeted when casting, so tab-dotting works). Its
-  length is the one last read from that spell's aura (talents included), else the tooltip. Exact
+  length is the tooltip's (talents included), else the one last read from that spell's aura. Exact
   times and stacks replace the estimate whenever auras are readable, a resist or immunity right
   after the cast drops it, and mobs are tracked by nameplate in dungeons where their IDs are hidden.
 - `UNIT_AURA` with a secret unit token no longer risks an error; Ticky re-reads target and self.
-### Changed
-- The options window is larger and has six tabs: Spells, Bars, Layout, Text & Ticks, Sounds
-  (was Alerts), General. The spell settings panel scrolls.
-- "Order you added them" is now "Your order" and can be rearranged; existing settings carry over.
-- Preview bars use all your tracked spells (up to 8), including your channel, and show missing
-  spells between runs.
 
 ## [0.5.0] - 2026-10-20
 ### Added

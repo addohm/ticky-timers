@@ -58,7 +58,8 @@ No environment variables or secrets. Settings live in the game's saved variables
 
 - `TickyDB` (account-wide look, layout, sounds, and your list of sound files):
   `WTF\Account\<account>\SavedVariables\Ticky.lua`
-- `TickyCharDB` (per-character tracked spells, their order and per-spell settings):
+- `TickyCharDB` (per-character tracked spells, their order and per-spell settings, and what Ticky
+  learned from the game: spell lengths read from auras, the size of your spells' ticks):
   `WTF\Account\<account>\<realm>\<character>\SavedVariables\Ticky.lua`
 
 `/ticky reset` (or General > Reset all settings) restores defaults. Spell data is in the generated

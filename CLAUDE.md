@@ -155,8 +155,8 @@ UNIT_COMBAT WOUND/HEAL            -> OnTickAmount: match to a timer on that mob 
 
 Health bar shading: hangs from the health end (the mirror), as long as what your spells still
 have to do, so every health change moves the spark and your ticks don't:
-  OnCast / channel start          -> t.planTotal = SpellTotal (tooltip amount read now, else
-                                     tickSizes x ticks); t.perTick = planTotal / its ticks (fixed)
+  OnCast / channel start          -> t.total = SpellTotal (tooltip amount read now, else
+                                     tickSizes x ticks); t.perTick = total / its ticks (fixed)
   OnTickAmount match              -> t.matchedTick; drawDue (its UNIT_HEALTH comes the same frame)
   UNIT_HEALTH                     -> healthAt[mob]; drawDue (drawn in the next OnUpdate)
   every 0.1s, or when drawDue     -> ns.UpdateOverlay: UnitAmounts(unit, now): per timer on the

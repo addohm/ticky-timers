@@ -119,10 +119,12 @@ paste what `/ticky debug` shows right after it happens: its first line says whic
   does let Ticky read the aura (usually out of combat), the exact times and stacks replace the
   estimate, and a spell that was dispelled or never landed is removed. A miss, dodge, parry, resist
   or immunity right after the cast drops it too (a missed recast leaves the old timer running).
-- **Health bar amounts.** Each DoT's or HoT's total comes from its tooltip at the cast (with your
-  talents, gear and spell power), or, if the tooltip has none, the size of its ticks seen so far
-  times its ticks. The game hides your target's health, so the shading is drawn by bars the game
-  scales to it (one holds the health when the first DoT went on); Ticky never sees the numbers.
+- **Health bar amounts.** Each DoT's or HoT's part is its total from its tooltip at the cast (with
+  your talents, gear and spell power; if the tooltip has none, the size of its ticks seen so far
+  times its ticks) over its ticks, times the ticks still to come. A tick counts as done when
+  Ticky sees it land on the mob (matched by school, timing and size), else half a second after
+  its time. The game hides your target's health, so the shading is drawn by bars the game scales
+  to it, hanging from its health end; Ticky never sees the numbers.
 - When combat ends, your debuffs on mobs Ticky can no longer see (or that are dead) are dropped
   without alerts; mobs it can still see, such as after a Vanish or Feign Death, keep theirs with
   exact times. Buffs and HoTs carry on.
