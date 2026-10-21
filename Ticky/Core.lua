@@ -591,6 +591,24 @@ local function ForgetMob(mob)
   if mob then timers[mob], gone[mob] = nil, nil end
 end
 
+-- Drop a mob's debuffs (yours on an enemy) without alerts; buffs and HoTs stay.
+local function ForgetDebuffs(mob)
+  local list = timers[mob]
+  if not list then return end
+  for key, t in pairs(list) do
+    local cfg = cdb.spells[key]
+    local id = t.spellID or (cfg and cfg.id)
+    if not id or SpellKind(id) ~= "help" then list[key] = nil end
+  end
+  if gone[mob] then
+    for key, g in pairs(gone[mob]) do
+      if not g.t.spellID or SpellKind(g.t.spellID) ~= "help" then gone[mob][key] = nil end
+    end
+    if not next(gone[mob]) then gone[mob] = nil end
+  end
+  if not next(list) then timers[mob] = nil end
+end
+
 local function Removed(t)
   if t.expires - GetTime() > 0.5 then Alert(t, "removeSound") end
 end
@@ -1264,9 +1282,26 @@ function TB:PLAYER_TARGET_CHANGED()
   ns.UpdateOverlay(GetTime())
 end
 function TB:PLAYER_REGEN_DISABLED() inCombat = true end
+-- Combat is over, so auras can be read again. Mobs Ticky can still see (target, nameplates) are
+-- read for their exact timers; this keeps DoTs on mobs that are still alive after a Vanish or Feign
+-- Death. Your debuffs on mobs it can't see are dropped: those mobs almost always died out of
+-- sight, and their timers would otherwise run on and alert after the fight.
 function TB:PLAYER_REGEN_ENABLED()
   inCombat = false
-  RefreshDisplay() -- auras are readable again: correct the timers we estimated from casts
+  RefreshDisplay()
+  local mobs = {}
+  for mob in pairs(timers) do
+    if mob ~= playerGUID then mobs[#mobs + 1] = mob end
+  end
+  for _, mob in ipairs(mobs) do
+    local unit = UnitForMob(mob)
+    local exists = unit and UnitExists(unit)
+    if unit and not Secret(exists) and exists and not IsDead(unit) then
+      ReadUnit(unit)
+    else
+      ForgetDebuffs(mob)
+    end
+  end
 end
 
 -- What UNIT_AURA and your casts looked like, for /ticky debug.

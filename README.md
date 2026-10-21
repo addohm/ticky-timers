@@ -97,6 +97,9 @@ Ticky read about your target's auras and your casts right now; run it in combat)
   reports on it, matched by timing and school, crits left out), or, until it has seen some, the
   tooltip's total over its tick count, which leaves out spell power. The game hides your target's
   health, so the shading is drawn by bars the game scales to it; Ticky never sees the numbers.
+- When combat ends, your debuffs on mobs Ticky can no longer see (or that are dead) are dropped
+  without alerts; mobs it can still see, such as after a Vanish or Feign Death, keep theirs with
+  exact times. Buffs and HoTs carry on.
 - Mobs are remembered by their ID in the open world, so switching targets and back keeps their
   timers. In dungeons, where mob IDs are hidden, Ticky uses the mob's nameplate instead (turn
   enemy nameplates on), or only your current target.

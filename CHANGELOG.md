@@ -39,6 +39,10 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
   Finds a unit frame addon's target frame or Blizzard's, or takes a frame name. Amounts
   come from the tooltip until Ticky has seen the spell's ticks land, then from the real ticks.
 ### Fixed
+- DoTs on a mob that died out of sight (not your target, no nameplate) kept their timers and played
+  their "ended" sound after the fight. When combat ends, your debuffs on mobs Ticky can't see, or
+  that are dead, are now dropped silently; mobs it can still see are re-read (so DoTs survive a
+  Vanish or Feign Death). Buffs and HoTs are kept.
 - Nameplate bars could all pile up on one mob. Blizzard reuses the frames inside nameplates (the
   health bar included) and moves them between plates; Ticky now checks every frame that the bar it
   sits on still belongs to that plate.

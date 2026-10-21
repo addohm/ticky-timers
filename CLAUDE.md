@@ -131,6 +131,8 @@ PLAYER_REGEN_ENABLED, and each cast timer once it's 1.1s old
      if every aura was readable, tracked timers missing from it (and not cast in the last 1s)
      ended or went to gone[mob][key] (0.3s grace, then "removed")
 NAME_PLATE_UNIT_ADDED/REMOVED     -> ForgetMob("plate:" .. token); a dead GUID mob is forgotten
+PLAYER_REGEN_ENABLED              -> each mob with timers: visible and alive -> ReadUnit (exact);
+                                     else ForgetDebuffs (harmful timers only, silently)
 target dead                       -> ForgetMob(target's key), silently
 
 UNIT_SPELLCAST_CHANNEL_* (player) -> ReadChannel() -> channel timer (interval = ChannelPeriod)
