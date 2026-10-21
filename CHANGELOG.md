@@ -75,6 +75,12 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
 - Health bar shading style: a spark where the shading ends (on by default) and its color, an
   outline (none, thin, thick) and its color, and "Smooth changes".
 ### Changed
+- A cast is timed by its tooltip's duration first (the client's current tooltip, with talents),
+  then by the one learned from an aura read: a learned 18s for Shadow Word: Pain, stale after
+  Improved Shadow Word: Pain made it 24s, ended its bar 6 seconds early, and its last two ticks hit
+  the health bar shading with no DoT to match ("drops to the left"). Tooltips that say "seconds" or
+  "minutes" are understood too. `/ticky debug` shows a learned length that disagrees: "24s (read
+  18s)".
 - Health bar shading: a DoT's last tick that lands a moment after its expiry still counts as its
   tick (the timer was dropped first, so the health dropped with nothing to match). The learned tick
   size is no longer rounded (an average of 25 never moved for ticks of 26). A tick's difference

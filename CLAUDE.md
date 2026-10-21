@@ -81,8 +81,10 @@ for that PC (variables at the top). `.gitattributes` keeps `*.cmd` files CRLF.
    as `ContextuallySecret` (`C_Secrets.GetSpellAuraSecrecy`). From the API docs, not yet seen in
    game: `UNIT_COMBAT` payloads have no secret flags; creature GUIDs are secret wherever unit
    identity is restricted (expected in instances), hence the nameplate-token fallback.
-4. **No hand-entered timing.** Durations come from the aura when it's readable, else the duration
-   last read for that spell (`TickyCharDB.durations`), else the spell's tooltip; tick periods come
+4. **No hand-entered timing.** Durations come from the aura when it's readable, else the spell's
+   current tooltip (it includes talents on Forever), else the duration last read for that spell
+   (`TickyCharDB.durations`; a stale one, 18s after Improved SW:P made it 24s, ended DoTs early);
+   tick periods come
    from `Ticky/Data.lua`. Don't hard-code intervals and don't add "tick every N" settings: the owner
    wants nothing configured by hand.
 5. **Display and sound only.** Never automate combat decisions, call protected functions, or
@@ -121,7 +123,7 @@ timers[mob][spellKey]   mob = MobKey(unit): GUID if readable, else "plate:namepl
 
 UNIT_SPELLCAST_SENT (player)      -> sentTo[castGUID] = MobForCast(spell, target name)
 UNIT_SPELLCAST_SUCCEEDED (player) -> OnCast: tracked, not a channel -> Store(mob, timer)
-                                     start = now, length = CastDuration (learned, else tooltip);
+                                     start = now, length = CastDuration (tooltip, else learned);
                                      apply / refresh sound; recentCast[mob] for resists
 UNIT_COMBAT MISS/DODGE/PARRY/RESIST/IMMUNE/EVADE/REFLECT/DEFLECT
                                   -> OnAvoided: within 0.6s after a done cast on that mob, drop
@@ -208,7 +210,7 @@ was 0; 7 switches `overlayColors` "each" to "single" and the old red damage colo
 `TickyCharDB` (per character): `spells[lowerCaseName] = { name, id, icon, color, order, label,
 speech, missing, warnSeconds, anyCaster, isChannel, applySound, refreshSound, tickSound, warnSound,
 expireSound, removeSound, noOverlay, noPlate }`, `nextOrder`, `durations[spellID]` (seconds, learned from
-your own readable auras; used to time casts in combat) and `tickSizes[spellID]` (damage or healing
+your own readable auras; times casts in combat when the tooltip gives no length) and `tickSizes[spellID]` (damage or healing
 per tick seen on `UNIT_COMBAT`; used by the health bar overlay). Unset per-spell fields mean "use the default". Spells
 are keyed by lower-case name so every rank matches; `id` is the rank that was added (used for data
 lookups in the UI). `order` is the "Your order" slot (`MoveSpell` renumbers 1..n).

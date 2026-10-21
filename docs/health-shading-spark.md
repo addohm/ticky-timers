@@ -228,12 +228,16 @@ few seconds apart; times below are matched up by the DoT ticks' 3s rhythm.
    shading already gone (it let go at expiry, and the hold went with the timer). Fixed: an expired
    timer stays (for matching and the shading only; bars ignore it) until its last tick is counted
    or 0.5s after expiry. `test_lasttick.lua`.
-4. **Still unexplained: a 25 hit about 3.1s after SW:P's last tick** (earlier sample, matched up by
-   DP's ticks). That's where another SW:P tick would land if SW:P lasted longer than Ticky's 18s.
-   Earlier debugs said "Shadow Word: Pain 24s"; now "18s" (learned from an aura read, per spell
-   ID; talents? a new rank?). Or something else hit the mob (a damage-on-hit effect when it melees
-   you?). `/ticky log` now names the school of such hits ("hit 25 (not a tick: Shadow)") and logs
-   when each timer is let go ("ended SWP"), so the next sample tells which.
+4. **SW:P timed 6 seconds short.** A 25 hit about 3.1s after SW:P's "last" tick: another SW:P
+   tick. The owner: the tooltip reads "203 damage over 24 seconds". Ticky timed casts by the
+   duration learned from an aura read first (18s, from a read before Improved Shadow Word: Pain was
+   (re)taken; earlier debugs had said 24s), the tooltip only without one. So the timer (and its bar)
+   ended at 18s, and the ticks at 21 and 24s hit with nothing to match: the health dropped by a
+   tick each with the shading already gone. Fixed: the tooltip's duration first (the client's
+   current one, with talents), learned only when the tooltip gives none; the parser also takes
+   "seconds"/"minutes" (it only knew "sec"/"min"). `test_duration.lua`. `/ticky debug` shows a
+   learned length that disagrees ("24s (read 18s)"). `/ticky log` now names the school of hits that
+   weren't a tick and logs "ended X" when a timer is let go.
 
 ## How to pick it up again
 

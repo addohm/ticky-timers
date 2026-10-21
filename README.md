@@ -110,8 +110,9 @@ paste what `/ticky debug` shows right after it happens: its first line says whic
 
 - **Start and duration.** In combat Forever hides aura details from addons, so a timer starts when
   your cast lands, aimed at the mob you targeted when you cast it (tab-dotting works). Its length is
-  what Ticky last read from that spell's aura (talents such as Improved Shadow Word: Pain's 18s →
-  24s included), or, until it has seen one, the spell's tooltip ("over 18 sec"). Whenever the game
+  what the spell's tooltip says right now ("over 24 sec": the game's tooltip includes talents such
+  as Improved Shadow Word: Pain), or, if the tooltip gives none, what Ticky last read from that
+  spell's aura. Whenever the game
   does let Ticky read the aura (usually out of combat), the exact times and stacks replace the
   estimate, and a spell that was dispelled or never landed is removed. A miss, dodge, parry, resist
   or immunity right after the cast drops it too (a missed recast leaves the old timer running).
@@ -144,8 +145,8 @@ your casts (see above). What that means:
 - Your own casts are tracked in combat. "Track it from anyone" (someone else's buff or debuff) only
   works while auras are readable, usually out of combat.
 - A DoT dispelled in combat keeps its bar until the next time Ticky can read auras.
-- Until Ticky has read a spell's aura once, its length comes from the tooltip, which may not
-  include talents.
+- A spell whose tooltip doesn't give its length is timed from the last time Ticky read its aura
+  (out of combat); until then it can't be timed from casts.
 - `/ticky debug` shows what the game is hiding right now.
 
 ## Regenerating the spell data

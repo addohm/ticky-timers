@@ -193,21 +193,24 @@ local function HasteMult()
   return haste
 end
 
--- Seconds in "18 sec", "2 min", "1 hour" (or nil).
-local UNIT_SECONDS = { sec = 1, min = 60, hour = 3600 }
-local function Seconds(n, unit) return tonumber(n) and UNIT_SECONDS[unit] and tonumber(n) * UNIT_SECONDS[unit] end
+-- Seconds in "18 sec", "24 seconds", "2 min", "2 minutes", "1 hour" (or nil).
+local UNIT_SECONDS = { sec = 1, min = 60, hou = 3600, hr = 3600 }
+local function Seconds(n, unit)
+  local per = unit and (UNIT_SECONDS[unit:sub(1, 3)] or UNIT_SECONDS[unit:sub(1, 2)])
+  return tonumber(n) and per and tonumber(n) * per
+end
 
 -- How long a spell's aura lasts according to its tooltip: the last "over N sec" (the periodic
 -- part), else "lasts N sec", else the first "for N sec". The tooltip is the client's current one.
 local function DescriptionDuration(d)
   local over
-  for n, u in d:gmatch("over ([%d%.]+) (%a+)") do over = Seconds(n, u:gsub("s$", "")) or over end
+  for n, u in d:gmatch("over ([%d%.]+) (%a+)") do over = Seconds(n, u) or over end
   if over then return over end
   local n, u = d:match("lasts ([%d%.]+) (%a+)")
-  local lasts = n and Seconds(n, u:gsub("s$", ""))
+  local lasts = n and Seconds(n, u)
   if lasts then return lasts end
   n, u = d:match("for ([%d%.]+) (%a+)")
-  return n and Seconds(n, u:gsub("s$", ""))
+  return n and Seconds(n, u)
 end
 
 -- School masks by the word a tooltip uses ("30 Shadow damage over 18 sec").
@@ -704,11 +707,13 @@ local function MobForCast(spellID, name)
   return HasTarget() and MobKey("target") or nil
 end
 
+-- How long a cast's aura will last: the tooltip's duration first (the client's current one, with
+-- talents: Shadow Word: Pain read "24 sec" while the duration learned from an older aura read
+-- said 18, so Ticky ended it 6s early and its last two ticks hit with no timer to match, 2026-10-21),
+-- else the one learned from an aura read.
 local function CastDuration(spellID)
-  local d = learned[spellID]
-  if d then return d end
   local info = DescriptionInfo(spellID)
-  return info and info.duration
+  return info and info.duration or learned[spellID]
 end
 
 -- Misses, dodges, parries, resists, immunities, evades, reflects and deflects: a tracked cast
@@ -1723,8 +1728,11 @@ local function ShortDebug()
     local id = cfg.id
     local tick = id and (tickSizes[id] and (floor(tickSizes[id] + 0.5) .. " seen") or (ExpectedTick(id)
       and (floor(ExpectedTick(id) + 0.5) .. " tip")))
-    spells[#spells + 1] = ("%s %s/%s"):format(cfg.name, id and learned[id] and (learned[id] .. "s") or "-",
-      tick or "-")
+    -- How long a cast lasts (tooltip, else learned), and a learned one that disagrees.
+    local lasts = id and CastDuration(id)
+    local read = id and learned[id]
+    lasts = lasts and (lasts .. "s" .. ((read and read ~= lasts) and (" (read " .. read .. "s)") or "")) or "-"
+    spells[#spells + 1] = ("%s %s/%s"):format(cfg.name, lasts, tick or "-")
   end
   L("Spells (lasts/tick): " .. (#spells > 0 and table.concat(spells, ", ") or "none tracked"))
 

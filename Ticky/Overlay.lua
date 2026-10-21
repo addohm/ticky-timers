@@ -424,7 +424,7 @@ local function Draw(o, bar, unit, now)
     if tr and tr.drawing then -- for /ticky debug: how much the shading shrank for the last tick
       tr.drawing, tr.shrink = nil, (o.total or total) - total
     end
-    if o.traced and o.total and total ~= o.total then
+    if o.traced and o.total and math.abs(total - o.total) >= 0.5 then -- not the slow fold-out
       log = (log and log .. "; " or "") .. ("drew shading %+d"):format(floor(total - o.total + 0.5))
     end
     if log then ns.ShadeLog(log) end
