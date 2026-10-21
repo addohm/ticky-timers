@@ -135,10 +135,14 @@ UNIT_COMBAT MISS/DODGE/PARRY/RESIST/IMMUNE/EVADE/REFLECT/DEFLECT
                                      another non-Physical school rules it out. avoidLog feeds
                                      /ticky debug
 UNIT_COMBAT WOUND/HEAL            -> OnTickAmount: match to a timer on that mob (or the channel) by
-                                     school and tick time (+-0.35s, each tick once); non-crits
-                                     teach tickSizes[spellID] (60/40 running average)
+                                     school and tick time (+-0.35s, each tick once), not a hit
+                                     far off the learned size (<0.4x or >3x: another spell); non-
+                                     crits teach tickSizes[spellID] (60/40 running average)
 every 0.1s (and the frame after a counted tick or UNIT_HEALTH) -> ns.UpdateOverlay: UnitAmounts per unit (ticks left x
-                                     ExpectedTick: learned, else tooltip total / tick count; a seen
+                                     t.tickSize, fixed per timer from ExpectedTick (learned, else
+                                     tooltip total / tick count) unless that's >15% off, plus for
+                                     each seen tick its real amount instead (t.paid/paidCount), so
+                                     a tick takes off exactly what it did; a seen
                                      tick (t.matchedTick) is held as t.pendingTick until the mob's
                                      UNIT_HEALTH (or 0.2s), or counts at once if that came earlier
                                      in the same frame (in game both come in one frame), then

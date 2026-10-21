@@ -75,6 +75,12 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
 - Health bar shading style: a spark where the shading ends (on by default) and its color, an
   outline (none, thin, thick) and its color, and "Smooth changes".
 ### Changed
+- Health bar shading: each tick now takes off exactly what it did, and the estimate for the ticks
+  still to come is fixed per DoT. Before, every hit re-estimated all remaining ticks from the
+  rounded running average, which flips between neighbours (25 and 26), so the shading shrank by
+  several health points more or less than the tick (in game: "25 hit, shading -31") and the spark
+  moved. A hit far bigger or smaller than the spell's ticks (Mind Blast near a Shadow Word: Pain
+  tick) is no longer taken for the tick.
 - Health bar shading: its far end no longer jumps on each tick. The shading now hangs off an
   invisible health bar of Ticky's own, fed the unit's health, instead of the unit frame's bar, so
   the health end and the shading change together and ease the same way whatever the unit frame

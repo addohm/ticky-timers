@@ -11,6 +11,9 @@ this (owner or coding assistant).
   often. Good enough to move on; not solved.
 - After that, 55e6ce4 added `/ticky log` (logging only, no change to what's drawn). Its output
   hasn't been seen from the game yet: that's the first thing to collect when coming back.
+- **Then a cause was found and fixed (see "Found: the tick size estimate" below).** On b388b30
+  `/ticky debug` showed "25 hit, shading -31": the shading shrank 6 more than the tick did. Whether
+  that was all of the hop still needs the owner's eye.
 
 ## What the shading is
 
@@ -28,8 +31,8 @@ How it's built (Ticky/Overlay.lua, see also CLAUDE.md's Overlay.lua row):
   `UnitHealth(unit)`. Both are **secret** for mobs on Forever: Lua can't read, compare or do math on
   them, but StatusBar `SetMinMaxValues`/`SetValue` accept them.
 - A chain of StatusBars (one per DoT, or one with the total: "single", the default), each as wide
-  as the health bar and ranged 0..max health (secret), filled with a plain amount (ticks left x
-  expected tick size). The first is anchored to the mirror's fill end, each next to the end of the
+  as the health bar and ranged 0..max health (secret), filled with a plain amount (what the DoT
+  will still do; see `RemainingAmount` below). The first is anchored to the mirror's fill end, each next to the end of the
   previous fill. So the far end sits at health - remaining damage without Lua ever knowing either.
 - Spark and outline: textures on a top layer anchored to the last segment's fill end (`Trim`).
 - Easing: `SetValue(v, Enum.StatusBarInterpolation.ExponentialEaseOut)` while the mob stays the same
@@ -42,12 +45,16 @@ How it's fed (Ticky/Core.lua), as of 3e3c896:
   (`Commit` -> `t.lastTick`) on that mob's `UNIT_HEALTH` (either order within the same frame:
   `healthAt[mob] == now`), or 0.2s later (`PENDING_MAX`) if no health message comes. A tick never
   seen counts 0.5s after its expected time (`UNSEEN_TICK_GRACE`). Each matched tick moves the
-  timer's start/expiry half way to where it really landed (phase learning). Non-crit hits update
-  the learned tick size: `floor(old * 0.6 + hit * 0.4 + 0.5)`.
+  timer's start/expiry half way to where it really landed (phase learning). A hit far off the
+  learned size (under 0.4x or over 3x) isn't matched as a tick (another spell of the same school).
+  Non-crit hits update the learned tick size: `floor(old * 0.6 + hit * 0.4 + 0.5)`.
 - `ns.HoldHealth(unit, now)`: true while one of the mob's ticks is pending, or due (0.5s before,
   `HOLD_BEFORE`, until 0.5s after) and not yet counted. While it's true **neither end is set**: the
   mirror keeps its value and the segments keep theirs (5b9c384; before that only the mirror waited).
-- `ns.RemainingAmount(t)`: (total ticks - max(lastTick, ticks gone by unseen)) x `ExpectedTick`.
+- `ns.RemainingAmount(t)`: (total ticks - max(lastTick, ticks gone by unseen)) x `t.tickSize`, plus
+  for the seen ticks counted (`t.paidCount`) their real amounts (`t.paid`) instead of the estimate.
+  `t.tickSize` is fixed per timer from `ExpectedTick` and replaced only if that's over 15% off. So a
+  seen tick takes off exactly what it did. (Before the fix: ticks left x `ExpectedTick`, see below.)
 - Drawing (`ns.UpdateOverlay` -> `Draw`): from Core's OnUpdate, every 0.1s and in the frame after a
   counted tick or any `UNIT_HEALTH` (`drawDue`, 442456f); never from inside an event handler.
   The mirror is set only when the mob's health changed since the last set (`ns.HealthAt(mob)`, the
@@ -143,9 +150,9 @@ How it's fed (Ticky/Core.lua), as of 3e3c896:
    mob. The mirror reads it on each health change and on the "1s check". If predicted and actual
    differ for a moment, the health end moves alone. Try `UnitHealth(unit, false)`; the log shows
    "drew health (1s check)" draws, which should never move anything.
-4. **The learned tick size changes.** Each non-crit hit nudges the 60/40 average; when the rounded
-   size changes by 1, the whole remaining amount changes by (ticks left) health, up to about 0.7
-   pixel on a 123-pixel bar, at the tick's draw. It doesn't come back, though.
+4. ~~**The learned tick size changes.**~~ Found and fixed; see the next section. (This note had
+   guessed it at "up to about 0.7 pixel, doesn't come back". It was bigger and it does come back,
+   because the size flips back and forth.)
 5. **The last tick.** `RemainingAmount` returns nil once `expires <= now`, so the last tick's share
    (and with one DoT, the whole shading) goes at the expected expiry, not with the hit.
 6. **Easing under live conditions.** Easing is what makes it worse. Both ends are set in the same
@@ -154,6 +161,30 @@ How it's fed (Ticky/Core.lua), as of 3e3c896:
    default (fewer hops, per the owner), or accept.
 7. **Engine-level anchor timing.** A frame anchored to an easing fill texture might lag a frame
    under load. sparktest at real size says no when idle; not tested under load.
+
+## Found: the tick size estimate (fixed after the notes were written)
+
+Evidence: `/ticky debug` on b388b30, "Last tick on target (Shadow Word: Pain ...): ... 25 hit,
+shading -31", with "Shadow Word: Pain 24s/26 seen". The shading shrank 6 more than the tick did.
+
+Cause: the shading's amount was (ticks left) x `ExpectedTick`, the learned running average
+`floor(old * 0.6 + hit * 0.4 + 0.5)`, re-read on every draw. SW:P's ticks with spell power land as
+25 and 26 (or 26 and 27). Each hit can flip the rounded average by 1, which changes the estimate
+for **every** remaining tick at once: the shrink at that tick is (tick size) + (ticks left) x
+(change). From 27 to 26 with 5 ticks left: 26 + 5 = 31 for a 25 hit, as in game. The next hit
+can flip it back. So at most ticks the far end moved by several health points, in either
+direction: up to about half a pixel on a 123-pixel bar with ~1500 health, which pixel rounding
+turns into a 1-pixel hop. The synthetic sparktest never had this: its amounts were exact.
+
+Fix: the estimate is fixed per timer (`t.tickSize`; replaced only if the learned size is over
+15% off, like the tooltip's guess before the first tick is seen), and each seen tick takes off
+its real amount (`t.paid`, `t.paidCount`, set in `Commit` from `t.pendingAmount`). A same-school
+hit far off the learned size (Mind Blast near a SW:P tick) is no longer matched as the tick,
+since it would now take its full amount off. `tools/tests/test_ticksize.lua` reproduces it (a
+25 hit shrank the shading by 32 on the old code).
+
+Left over: an unseen tick still counts as the estimate (the spark moves by the difference); the
+estimate's error over the whole DoT shows as a few health points left at the end (gone at expiry).
 
 ## How to pick it up again
 

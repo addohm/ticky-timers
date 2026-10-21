@@ -651,6 +651,10 @@ local function ReadUnit(unit)
     if lost then gone[mob][t.key] = nil end
     if prev and abs(prev.expires - t.expires) < 0.1 then
       t.warned, t.expired, t.tickN = prev.warned, prev.expired, prev.tickN
+      -- The same aura: keep what its ticks did so far (for the health bar shading).
+      t.matchedTick, t.lastTick, t.pendingTick, t.pendingAt, t.pendingAmount = prev.matchedTick, prev.lastTick,
+        prev.pendingTick, prev.pendingAt, prev.pendingAmount
+      t.tickSize, t.paid, t.paidCount = prev.tickSize, prev.paid, prev.paidCount
     elseif not (prev and prev.castAt and now - prev.castAt < CAST_SETTLE + 0.5) and now - t.start < 1 then
       -- Applied just now and not by a cast we saw (out of combat someone else's, for example).
       Alert(t, (prev or lost) and "refreshSound" or "applySound")
@@ -895,7 +899,10 @@ local function TraceFor(mob) return trace and trace.mob == mob and trace end
 local function Commit(t, why)
   if t.pendingTick then
     t.lastTick = math.max(t.lastTick or 0, t.pendingTick)
-    t.pendingTick = nil
+    if t.pendingAmount then -- what the tick really did, for RemainingAmount
+      t.paid, t.paidCount = (t.paid or 0) + t.pendingAmount, (t.paidCount or 0) + 1
+    end
+    t.pendingTick, t.pendingAmount = nil, nil
     ns.ShadeLog("counted " .. Initials(t.name) .. (why and " " .. why or ""), t.mob or (t.channel and MobKey("target")))
     local tr = TraceFor(t.mob or (t.channel and MobKey("target")))
     if tr and tr.timer == t and not tr.counted then tr.counted = GetTime() end
@@ -928,13 +935,27 @@ function ns.HoldHealth(unit, now)
   return false
 end
 
+-- Each seen tick takes off exactly what it did (the health drops by that much, so the far end holds
+-- still), and the estimate for the ticks still to come is fixed per timer. Re-estimating them all
+-- from the running average on every hit moved the far end by (ticks left) x the change: with ticks
+-- of 25 and 26 the rounded average flips, several health points every tick (in game, 2026-10-21:
+-- "25 hit, shading -31"). The estimate is replaced only when what's learned is clearly different
+-- (over 15%), like the tooltip's guess before the first tick is seen.
 function ns.RemainingAmount(t, now)
   if not t.spellID or not t.interval or t.interval < 0.1 or t.expires <= now then return end
-  local size = ExpectedTick(t.spellID)
-  if not size then return end
+  local learned = ExpectedTick(t.spellID)
+  if not learned then return end
+  local size = t.tickSize
+  if not size or abs(learned - size) > size * 0.15 then
+    size = learned
+    t.tickSize = size
+  end
   if t.pendingTick and now - t.pendingAt > PENDING_MAX then Commit(t, "(no health message)") end
   local done = math.max(t.lastTick or 0, TicksPassed(t, now - UNSEEN_TICK_GRACE))
-  return math.max(0, TicksPassed(t, t.expires) - done) * size
+  local left = math.max(0, TicksPassed(t, t.expires) - done) * size
+  -- The seen ticks among those done count what they really did instead of the estimate.
+  left = left + (t.paidCount or 0) * size - (t.paid or 0)
+  return math.max(0, left)
 end
 
 local TICK_WINDOW = 0.35
@@ -952,6 +973,10 @@ local function OnTickAmount(mob, isHeal, amount, school, crit)
     if helpful ~= isHeal then return end
     local info = DescriptionInfo(t.spellID)
     if not isHeal and info and info.school and info.school ~= school then return end
+    -- Far off what this spell's ticks have been doing: another spell's hit (Mind Blast landing
+    -- near a Shadow Word: Pain tick), not this tick.
+    local seen = tickSizes[t.spellID]
+    if seen and (amount < seen * 0.4 or amount > seen * 3) then return end
     local k = floor((now - t.start) / t.interval + 0.5)
     local dist = abs(now - (t.start + k * t.interval))
     local last = TicksPassed(t, t.expires)
@@ -966,7 +991,7 @@ local function OnTickAmount(mob, isHeal, amount, school, crit)
   ns.ShadeLog(("hit %d%s %s"):format(amount, crit and "!" or "", best and Initials(best.name) or "(not a tick)"), mob)
   if not best then return end
   best.matchedTick = bestK
-  best.pendingTick, best.pendingAt = bestK, now
+  best.pendingTick, best.pendingAt, best.pendingAmount = bestK, now, amount
   local healthNow = healthAt[mob] == now -- its health message came first, in this frame
   -- Learn where this DoT's ticks really land, so the next ones are expected (and drawn) there.
   local expected = bestK == TicksPassed(best, best.expires) and best.expires or best.start + bestK * best.interval
@@ -984,8 +1009,6 @@ local function OnTickAmount(mob, isHeal, amount, school, crit)
   end
   if crit then return end
   local id, old = best.spellID, tickSizes[best.spellID]
-  -- Something else's hit that happened to line up: far off what this spell has been doing.
-  if old and (amount < old * 0.4 or amount > old * 3) then return end
   tickSizes[id] = old and floor(old * 0.6 + amount * 0.4 + 0.5) or amount
 end
 
