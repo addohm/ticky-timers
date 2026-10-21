@@ -457,7 +457,7 @@ end
 function ns.UpdateOverlay(now)
   if not db then return end
   local on = db.overlayDamage or db.overlayHeal
-  UpdatePlateOverlays(now, on and db.overlayPlates)
+  UpdatePlateOverlays(now, on and db.overlayPlates and not ns.PlatesHiddenHere())
   local bar = on and ns.HasTarget() and ns.FindHealthBar()
   if not bar then return HideOverlay(targetOverlay) end
   if not targetOverlay then

@@ -712,22 +712,26 @@ local function BuildPlatesPage()
     "Your tracked buffs and debuffs on each mob, on its nameplate. Needs nameplates turned on."), A, -20)
   g, s = S("hideMain")
   Place(p, W.Check(p, "Hide the main bars", g, s, "Your channel bar too. Sounds, nameplate bars and the health bar overlay keep working. The preview still shows them while this window is open."), A, -46)
+  g, s = S("plateHideInRaid")
+  Place(p, W.Check(p, "Hide on nameplates in raids", g, s,
+    "Inside a raid, nothing on nameplates: no bars, no shading. Your main bars and the shading on "
+    .. "your target's health bar keep working."), A, -72)
   g, s = S("plateWhich")
   Place(p, W.Cycle(p, "Which nameplates", { { "others", "All but your target's" }, { "all", "All" },
-    { "target", "Only your target's" } }, g, s), A + 4, -78)
+    { "target", "Only your target's" } }, g, s), A + 4, -104)
   g, s = S("plateAnchor")
   Place(p, W.Cycle(p, "Where", { { "TOP", "Above the nameplate" }, { "BOTTOM", "Below the nameplate" } }, g, s),
-    A + 4, -124)
+    A + 4, -150)
   g, s = S("plateOffsetY")
-  Place(p, W.Slider(p, "Distance from the nameplate", -20, 60, 1, g, s), A + 4, -170)
-  W.Header(p, "Health shading", HW):SetPoint("TOPLEFT", A, -218)
+  Place(p, W.Slider(p, "Distance from the nameplate", -20, 60, 1, g, s), A + 4, -196)
+  W.Header(p, "Health shading", HW):SetPoint("TOPLEFT", A, -244)
   g, s = S("overlayPlates")
   Place(p, W.Check(p, "Shade what DoTs/HoTs will still do", g, s,
     "On each nameplate's health bar, like the Health bar tab does on your target's. Uses that tab's "
-    .. "damage/healing switches, colors, opacity and texture."), A, -238)
+    .. "damage/healing switches, colors, opacity and texture."), A, -264)
   Note(p, "A mob only gets bars and shading for what Ticky knows is on it: your casts on it, or its "
     .. "auras when the game lets addons read them. Each spell can be left off nameplates on the "
-    .. "Spells tab.", A + 4, -270, 240)
+    .. "Spells tab.", A + 4, -296, 240)
 
   W.Header(p, "Size and text", HW):SetPoint("TOPLEFT", B, 0)
   Note(p, "Bars always span the nameplate's health bar.", B + 4, -20, 230)

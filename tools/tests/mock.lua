@@ -226,6 +226,8 @@ end
 function UnitSpellHaste() return 0 end
 function UnitAffectingCombat() return false end
 function UnitHealthMax() return { __secret = true } end
+M.instanceType = "none" -- "raid", "party", ... as IsInInstance reports it
+function IsInInstance() return M.instanceType ~= "none", M.instanceType end
 function UnitHealth()
   M.healthN = M.healthN + 1 -- a new (secret) value per read, so tests can see when it's read
   return { __secret = true, n = M.healthN }

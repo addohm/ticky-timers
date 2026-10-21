@@ -83,7 +83,8 @@ then goes missing for a few seconds, so you can see how missing spells look too.
   their own texture, background color and opacity, border, fill direction, spark, tick color, font
   and outline. "Shade what DoTs/HoTs will still do" puts the health bar shading on each plate.
   Needs nameplates turned on. "Hide the main bars" (also on the General tab) leaves just the
-  nameplate bars.
+  nameplate bars. "Hide on nameplates in raids" (on by default) keeps nameplates clear inside a
+  raid: no bars and no shading there; your main bars and your target's shading still work.
 - **General**: lock/unlock (drag the blue handle), channel bar, tracked auras on yourself,
   hide out of combat, hide with no target, hide the main bars altogether (sounds, nameplate bars
   and the health bar overlay keep working), in/out of combat opacity, reset position, reset all

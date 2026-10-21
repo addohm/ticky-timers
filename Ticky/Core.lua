@@ -54,7 +54,7 @@ ns.DEFAULTS = {
   overlaySmooth = true, overlaySpark = true, overlaySparkColor = { 1, 1, 1 },
   overlayOutline = 0, overlayOutlineColor = { 0, 0, 0 },
   -- Nameplates
-  plateEnabled = false, plateWhich = "others", plateAnchor = "TOP", plateOffsetY = 4,
+  plateEnabled = false, plateHideInRaid = true, plateWhich = "others", plateAnchor = "TOP", plateOffsetY = 4,
   plateHeightPct = 0.07, plateSpacing = 1, plateShowIcon = true, plateShowName = false,
   plateShowTime = true, plateShowTickCount = false, plateFontSize = 8,
   plateOwnLook = false, plateTexture = "Blizzard", plateBgColor = { 0, 0, 0 }, plateBgAlpha = 0.6,
@@ -333,6 +333,23 @@ function ns.SpellCfg(key) return cdb and cdb.spells[key] end
 function ns.DB() return db end
 function ns.CharDB() return cdb end
 function ns.InCombat() return inCombat end
+
+-- Are you inside a raid instance? (Read at most once a second; it only changes with the zone.)
+local inRaid, inRaidAt = false, -10
+function ns.InRaid()
+  local now = GetTime()
+  if now - inRaidAt >= 1 then
+    inRaidAt = now
+    local ok, inside, kind = pcall(IsInInstance)
+    inRaid = ok and not Secret(inside) and not Secret(kind) and inside == true and kind == "raid"
+  end
+  return inRaid
+end
+
+-- Nothing on nameplates (bars or health shading) inside a raid, unless the player wants it there.
+function ns.PlatesHiddenHere()
+  return db.plateHideInRaid and ns.InRaid()
+end
 
 ---------------------------------------------------------------------------
 -- Reading auras and channels

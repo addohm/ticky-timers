@@ -52,7 +52,8 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
   as small bars above or below its nameplate, always as wide as the plate's health bar (the largest
   status bar on the plate, so nameplate addons work too), with the height a share of that width. All
   plates but your target's, all, or only your target's; distance, spacing, font size,
-  icon/name/time/ticks; per-spell opt-out.
+  icon/name/time/ticks; per-spell opt-out. "Hide on nameplates in raids" (on by default): inside
+  a raid instance, nothing on nameplates (bars or health shading).
   The options window is wider for the eighth tab.
 - "Hide the main bars" (General and Nameplates tabs), e.g. to use only nameplate bars. Sounds,
   nameplate bars and the health bar overlay keep working; the options preview still shows them.

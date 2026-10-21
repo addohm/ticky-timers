@@ -150,7 +150,7 @@ end
 
 function ns.UpdatePlates(now)
   if not db then return end
-  if not db.plateEnabled or (db.hideOutOfCombat and not ns.InCombat())
+  if not db.plateEnabled or ns.PlatesHiddenHere() or (db.hideOutOfCombat and not ns.InCombat())
     or not (C_NamePlate and C_NamePlate.GetNamePlateForUnit) then
     return HideAll()
   end
