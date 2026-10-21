@@ -1527,6 +1527,19 @@ local function ShortDebug()
     #parts > 0 and table.concat(parts, ", ") or "none", channel and (" | channel " .. channel.name) or ""))
   local hb = ns.FindHealthBar and ns.FindHealthBar()
   L("Health bar shading on: " .. (hb and (ns.FramePath(hb) or "a bar with no name") or "none found"))
+  -- And on nameplates: the bar picked on up to two plates (their names show which addon drew them).
+  local plates = {}
+  if C_NamePlate and C_NamePlate.GetNamePlateForUnit and ns.PlateHealthBar then
+    for unit in pairs(ns.plateUnits) do
+      if #plates >= 2 then break end
+      local ok, plate = pcall(C_NamePlate.GetNamePlateForUnit, unit)
+      if ok and type(plate) == "table" and not Secret(plate) then
+        local pb = ns.PlateHealthBar(plate)
+        plates[#plates + 1] = unit .. " " .. (pb and (ns.FramePath(pb) or "a bar with no name") or "none (whole plate)")
+      end
+    end
+  end
+  L("Nameplate health bars: " .. (#plates > 0 and table.concat(plates, "; ") or "no nameplates up"))
 
   local casts = {}
   for _, c in ipairs(seen.casts) do

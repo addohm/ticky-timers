@@ -13,7 +13,9 @@ it); "dev" or an older commit means the game is still running an old copy.
 1. **Health shading on the right side** (3832bb0). With a DoT on a mob, the shading covers the end of
    the green (the health your DoT will take off), not the missing part. With two DoTs (or two HoTs)
    there are two segments end to end. The Health bar tab and `/ticky debug` ("Health bar shading
-   on") say which bar it's on; if the shading is still wrong, send that line.
+   on") say which bar it's on; if the shading is still wrong, send that line. On nameplates (with
+   "Also on nameplates"): same check; `/ticky debug`'s "Nameplate health bars" line names the bar
+   picked on up to two plates.
 2. **Built-in sound files** (6b7bbe5). After installing, restart the game (new files only load at
    startup). Sounds tab: set a sound to "Ticky beep" or "Ticky chime" and press Test. If you hear
    it, addon sound files work and the problem is your own file's location or path; if not, the game

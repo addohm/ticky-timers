@@ -60,7 +60,8 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
   your DoTs will take off. Unit frames also hold full-size bars for missing health, absorbs or
   incoming heals, often filling from the other side, and Ticky took the largest bar it found. It
   now prefers a bar named like a health bar and skips ones named for absorbs, losses, predictions
-  or power (nameplates too). The Health bar tab and `/ticky debug` show the chosen bar's name.
+  or power (nameplates too). The Health bar tab and `/ticky debug` show the chosen bar's name, and
+  `/ticky debug` the bars picked on up to two nameplates.
 - A missed, dodged or parried cast (and a reflected or deflected one) restarted the timer; only
   resists, immunities and evades were caught, and only when the game reported them after the cast.
   All of them now cancel the cast (a missed refresh leaves the old timer running), including when
