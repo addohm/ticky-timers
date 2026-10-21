@@ -67,7 +67,9 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
   the health change separately, so a seen tick waits for the health change (up to a quarter
   second). The health end is held too: the game can update a unit's health a few frames before
   it says so, so from just before a tick is due until it's counted, the shading keeps the health
-  it last drew, then both move in the same redraw. The frame name on the Health bar tab can now be
+  it last drew. And the shading's length changes one frame after its health end moves: the game
+  moves the pinned shading a frame late, which made the spark hop toward the health for a few
+  frames on every tick (measured in a 60 fps capture). The frame name on the Health bar tab can now be
   any frame (the area to shade), not only a status bar, and `/ticky debug` shows how often the
   target shading had to re-anchor. The real cause on unit frames: the shading lived at the main UI's
   scale but was sized in the unit frame's units, so on a frame drawn bigger or smaller (as

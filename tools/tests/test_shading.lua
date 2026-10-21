@@ -23,7 +23,7 @@ end
 
 M.units.target = { guid = "Creature-1", name = "S", exists = true, canAttack = true, auras = {} }
 M.fire("PLAYER_TARGET_CHANGED"); M.fire("PLAYER_REGEN_DISABLED"); M.auraLock = true
-M.cast(589, "S"); M.update(1.5); M.cast(2944, "S"); M.update(0.15)
+M.cast(589, "S"); M.update(1.5); M.cast(2944, "S"); M.update(0.15); M.frame()
 local h = holderOn(M.healthBar)
 local mirror = h.children[1]
 local dmg = shownSegs(h, 2, 9)
@@ -36,7 +36,7 @@ local spark
 for _, t in ipairs(top.children) do if t.texture and t.texture:find("Spark") and t.shown then spark = t end end
 check(spark and spark.points[1][2] == dmg[1]._fill and spark.points[1][3] == "LEFT", "spark at the far end")
 
-db.overlayColors = "each"; M.update(0.15)
+db.overlayColors = "each"; M.update(0.15); M.frame()
 dmg = shownSegs(h, 2, 9)
 check(#dmg == 2 and dmg[1].value == 152 and dmg[2].value == 30, "per-spell segments, in bar order (DP, SW:P)")
 check(dmg[2].points[1][2] == dmg[1]._fill and dmg[2].points[1][3] == "TOPLEFT", "second chained to the first's end")
@@ -51,7 +51,7 @@ check(cdb.tickSizes[2944] == nil, "a Physical hit isn't taken for a Shadow tick"
 
 -- HoT on a friend: green from the health end, growing right.
 M.units.target = { guid = "Player-2", name = "Friend", exists = true, canAssist = true, auras = {} }
-M.fire("PLAYER_TARGET_CHANGED"); M.cast(139, "Friend"); M.update(0.15)
+M.fire("PLAYER_TARGET_CHANGED"); M.cast(139, "Friend"); M.update(0.15); M.frame()
 local heal = shownSegs(h, 10, 17)
 check(#heal == 1 and heal[1].value == 45 and heal[1].reverse == false, "Renew 45 from the health end, growing right")
 check(#shownSegs(h, 2, 9) == 0, "no damage shading on a friend")
@@ -75,9 +75,9 @@ db.overlayPlates = true
 local A = { guid = "Creature-A", name = "A", exists = true, canAttack = true, auras = {} }
 M.units.nameplate1 = A
 M.fire("NAME_PLATE_UNIT_ADDED", "nameplate1")
-M.units.target = A; M.fire("PLAYER_TARGET_CHANGED"); M.cast(589, "A"); M.update(0.15)
+M.units.target = A; M.fire("PLAYER_TARGET_CHANGED"); M.cast(589, "A"); M.update(0.15); M.frame()
 local pA = M.plates.nameplate1
 local oA = holderOn(pA.hb)
 check(oA and oA.shown and oA.parent == pA, "nameplate shaded on its own health bar")
-db.overlayDamage, db.overlayHeal = false, false; M.update(0.15)
+db.overlayDamage, db.overlayHeal = false, false; M.update(0.15); M.frame()
 check(not oA.shown and not h.shown, "off: hidden")

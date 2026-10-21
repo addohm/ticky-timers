@@ -344,11 +344,49 @@ local function Fill(c, entries, enabled, single, color, maxHealth, smooth, heigh
   return count > 0
 end
 
+-- The segments are set one frame after the mirror. They're pinned to the mirror's fill end, and
+-- the game moves a frame that's pinned to another frame's fill a frame after that fill changes,
+-- while a bar's own fill changes at once; set together, the segments would be shortened before
+-- they've moved and the far end would hop toward the health for a few frames on every tick (seen
+-- in a 60 fps capture, 2026-10-21). One frame later, both have caught up together.
+local queued = {} -- [overlay] = the segment values to set on the next frame
+
+local function Apply(o, q)
+  local drawn = false
+  local ok = pcall(function()
+    drawn = Fill(o.damage, q.damage, db.overlayDamage, q.single, q.single and db.overlayDamageColor, q.maxHealth,
+      q.smooth, q.height)
+    drawn = Fill(o.heal, q.heal, db.overlayHeal, q.single, q.single and db.overlayHealColor, q.maxHealth,
+      q.smooth, q.height) or drawn
+  end)
+  if not ok or not drawn then return HideOverlay(o) end
+  o.holder:Show()
+end
+
+local nextFrame = CreateFrame("Frame")
+nextFrame:SetScript("OnUpdate", function()
+  local now = GetTime()
+  for o, q in pairs(queued) do
+    if now > q.at then -- a later frame than the one that queued it
+      queued[o] = nil
+      Apply(o, q)
+    end
+  end
+end)
+
+local function Copy(list)
+  local out = {}
+  for i, e in ipairs(list) do out[i] = { amount = e.amount, color = e.color } end
+  return out
+end
+
 -- Draw what your DoTs and HoTs on `unit` will still do onto `bar` (its health bar).
 local function Draw(o, bar, unit, now)
   local damage, heal = ns.UnitAmounts(unit, now)
-  if not damage or (#damage == 0 and #heal == 0) or not Visible(bar) then return HideOverlay(o) end
-  if not Attach(o, bar) then return HideOverlay(o) end
+  if not damage or (#damage == 0 and #heal == 0) or not Visible(bar) or not Attach(o, bar) then
+    queued[o] = nil
+    return HideOverlay(o)
+  end
   Layer(o, now)
   local single = db.overlayColors == "single"
   -- Ease only while it's the same mob; a new one is drawn at once.
@@ -358,21 +396,29 @@ local function Draw(o, bar, unit, now)
   o.mob = mob
   local hok, height = pcall(bar.GetHeight, bar)
   height = hok and not Secret(height) and height or 12
-  local drawn = false
+  local newMob = mob ~= o.heldMob
+  local maxHealth
   local ok = pcall(function()
-    local maxHealth = UnitHealthMax(unit)
+    maxHealth = UnitHealthMax(unit)
     o.mirror:SetMinMaxValues(0, maxHealth)
     -- Around a DoT/HoT tick the health end waits for the tick to be counted, so both move as one.
-    if mob ~= o.heldMob or not ns.HoldHealth(unit, now) then
+    if newMob or not ns.HoldHealth(unit, now) then
       o.mirror:SetValue(UnitHealth(unit), smooth)
       o.heldMob = mob
     end
-    drawn = Fill(o.damage, damage, db.overlayDamage, single, single and db.overlayDamageColor, maxHealth, smooth, height)
-    drawn = Fill(o.heal, heal, db.overlayHeal, single, single and db.overlayHealColor, maxHealth, smooth, height)
-      or drawn
   end)
-  if not ok or not drawn then return HideOverlay(o) end
-  o.holder:Show()
+  if not ok then
+    queued[o] = nil
+    return HideOverlay(o)
+  end
+  local q = { at = now, damage = Copy(damage), heal = Copy(heal), single = single, maxHealth = maxHealth,
+    smooth = smooth, height = height }
+  if newMob then
+    queued[o] = nil
+    Apply(o, q) -- a different mob: draw it all at once
+  else
+    queued[o] = q
+  end
 end
 
 ---------------------------------------------------------------------------

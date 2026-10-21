@@ -325,6 +325,8 @@ function M.update(dt)
     if f.scripts.OnUpdate and f:IsVisible() then f.scripts.OnUpdate(f, dt) end
   end
 end
+-- One rendered frame (60 fps): what Ticky queued for "the next frame" happens here.
+function M.frame() M.update(1 / 60) end
 function M.aura(spellID, dur, opts)
   opts = opts or {}
   return { spellId = spellID, duration = dur, expirationTime = (opts.start or M.now) + dur,
