@@ -1337,6 +1337,8 @@ function TB:ADDON_LOADED(name)
   self:RegisterUnitEvent("UNIT_SPELLCAST_SUCCEEDED", "player")
   self:RegisterUnitEvent("UNIT_SPELLCAST_SENT", "player")
   self:RegisterEvent("UNIT_COMBAT")
+  self:RegisterEvent("UNIT_HEALTH")
+  self:RegisterEvent("UNIT_MAXHEALTH")
   self:RegisterEvent("NAME_PLATE_UNIT_REMOVED")
 
   local elapsedSinceCheck = 0
@@ -1453,6 +1455,18 @@ function TB:UNIT_COMBAT(unit, action, flag, amount, school)
 end
 
 ns.plateUnits = {} -- nameplate unit tokens that are up, for Plates.lua
+
+-- The health shading's mirror bar follows health as it changes (at most once a frame).
+local healthDrawnAt
+function TB:UNIT_HEALTH(unit)
+  if not (db.overlayDamage or db.overlayHeal) then return end
+  if not Secret(unit) and unit ~= "target" and not unit:find("^nameplate%d") then return end
+  local now = GetTime()
+  if now == healthDrawnAt then return end
+  healthDrawnAt = now
+  ns.UpdateOverlay(now)
+end
+TB.UNIT_MAXHEALTH = TB.UNIT_HEALTH
 
 function TB:NAME_PLATE_UNIT_ADDED(unit)
   if Secret(unit) then return end

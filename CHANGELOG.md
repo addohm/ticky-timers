@@ -59,9 +59,10 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
 - Health bar shading style: a spark where the shading ends (on by default) and its color, an
   outline (none, thin, thick) and its color, and "Smooth changes".
 ### Changed
-- Health bar shading: its far end no longer jumps on each tick. A tick counts as done the moment
-  Ticky sees it land (and the shading is redrawn right then) instead of by the clock, and the
-  shading eases to its new size the way smooth health bars move.
+- Health bar shading: its far end no longer jumps on each tick. The shading now hangs off an
+  invisible health bar of Ticky's own, fed the unit's health, instead of the unit frame's bar, so
+  the health end and the shading change together and ease the same way whatever the unit frame
+  does. A tick counts as done the moment Ticky sees it land.
 - Health bar shading: one segment with the total of all your DoTs (and one for your HoTs) is now the
   default, in a dark color that shows on any health bar; a segment per spell is still an option
   ("Segments"). Existing settings switch over unless you'd changed the color.

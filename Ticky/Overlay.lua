@@ -3,11 +3,13 @@
 -- still heal (starting there).
 --
 -- Target health is secret on Forever, so Lua can't work out where on the bar that is, but a
--- StatusBar can: Blizzard's API accepts secret min/max values. Each spell gets a StatusBar as wide
--- as the health bar, scaled to the target's max health and filled to that spell's (plain) amount.
--- The first is pinned to the edge of the health fill; each next one is pinned to the far end of
--- the previous one's fill, so they chain away from the health edge. A clipping frame over the
--- health bar cuts off whatever runs past its ends.
+-- StatusBar can: Blizzard's API accepts secret values. Over the unit frame's health bar sits an
+-- invisible "mirror" StatusBar of our own, fed the unit's (secret) health. Each spell gets a
+-- StatusBar as wide as the health bar, scaled to the unit's max health and filled to that spell's
+-- (plain) amount; the first is pinned to the end of the mirror's fill, each next one to the far end
+-- of the previous one's fill. The mirror and the segments are all ours and change together (eased
+-- the same way), so the far end, where the health should end up, holds still as ticks land,
+-- whatever animation the unit frame's own bar has. A clipping frame cuts off what runs past.
 local ADDON, ns = ...
 
 local ipairs, pairs, pcall, type = ipairs, pairs, pcall, type
@@ -180,6 +182,11 @@ local function NewOverlay(parent)
   o.holder.tickyOwned = true -- not a health bar to anchor to (see Plates.lua's search)
   o.holder:SetClipsChildren(true)
   o.holder:Hide()
+  o.mirror = CreateFrame("StatusBar", nil, o.holder)
+  o.mirror:SetAllPoints(o.holder)
+  o.mirror:SetStatusBarTexture("Interface\\Buttons\\WHITE8X8")
+  o.mirror:SetStatusBarColor(0, 0, 0, 0)
+  o.mirror:SetMinMaxValues(0, 1)
   o.damage = NewChain(o.holder)
   o.heal = NewChain(o.holder)
   o.top = CreateFrame("Frame", nil, o.holder)
@@ -222,9 +229,10 @@ local function Attach(o, bar)
   o.bar, o.width, o.reverse = bar, width, reverse
   o.holder:ClearAllPoints()
   o.holder:SetAllPoints(bar)
-  -- Health ends at the fill's right end (left end on a bar that fills from the right). Damage
-  -- grows from there into the health, healing into the missing part.
-  local fill = bar:GetStatusBarTexture()
+  o.mirror:SetReverseFill(reverse)
+  -- Health ends at the mirror's fill's right end (left end on a bar that fills from the right).
+  -- Damage grows from there into the health, healing into the missing part.
+  local fill = o.mirror:GetStatusBarTexture()
   local edge = reverse and "LEFT" or "RIGHT"
   LayChain(o.damage, fill, edge, not reverse, width)
   LayChain(o.heal, fill, edge, reverse, width)
@@ -337,6 +345,8 @@ local function Draw(o, bar, unit, now)
   local drawn = false
   local ok = pcall(function()
     local maxHealth = UnitHealthMax(unit)
+    o.mirror:SetMinMaxValues(0, maxHealth)
+    o.mirror:SetValue(UnitHealth(unit), smooth)
     drawn = Fill(o.damage, damage, db.overlayDamage, single, single and db.overlayDamageColor, maxHealth, smooth, height)
     drawn = Fill(o.heal, heal, db.overlayHeal, single, single and db.overlayHealColor, maxHealth, smooth, height)
       or drawn
