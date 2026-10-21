@@ -32,3 +32,12 @@ SlashCmdList.TICKY("debug")
 local line
 for _, l in ipairs(M.printed) do if l:find("Last tick") then line = l end end
 check(line and line:find("19 hit, shading %-24"), "debug shows the hit and how much the shading shrank: " .. tostring(line))
+
+-- /ticky log: the last few seconds of hits, health messages, ticks counted and what was drawn.
+M.printed = {}
+SlashCmdList.TICKY("log")
+local log = M.printed[1] or ""
+print(log)
+check(log:find("hit 5 SWP") and log:find("hit 19 DP") and log:find("health") and log:find("counted DP")
+  and log:find("waits for a tick") and log:find("drew health %(changed%); drew shading %-24"),
+  "log shows hits, health, counting, the wait and the draw")

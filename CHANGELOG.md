@@ -27,6 +27,9 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
   shading is hidden while it goes back to the start. `/ticky sparktest copy` shows a live copy of
   your target's shading on a plain bar in the middle of the screen, drawn by the same code at the
   same moments, to tell a unit frame's part from Ticky's.
+- `/ticky log`: the last four seconds around your target's health bar shading (hits and whether
+  they were a tick, health changes, ticks counted, when the shading waited, and what it drew, with
+  the same number for the same frame).
 - `/ticky debug`'s last-tick line also shows the hit's size and how much the shading shrank for
   it.
 - `tools/install_beta.cmd`: pulls the repo and mirrors the addon into the beta client (Windows).

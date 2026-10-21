@@ -96,7 +96,9 @@ last misses/resists and what Ticky did with them), `/ticky debug all` (the long 
 (the link for reporting a problem, ready to copy) and `/ticky sparktest` (a 30-second test of the
 health bar shading's spark on a test bar the size of your target's health bar; it prints how far
 the spark strayed where it can be measured; `/ticky sparktest copy` shows a live copy of your
-target's shading on a plain bar instead, to compare with the one on your unit frame).
+target's shading on a plain bar instead, to compare with the one on your unit frame) and
+`/ticky log` (the last four seconds around your target's health bar shading: hits, health changes,
+ticks counted and what the shading drew; type it right after something looks wrong).
 
 ## Reporting problems
 

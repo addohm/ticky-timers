@@ -852,6 +852,35 @@ local healthAtAny = 0    -- the last health message for a unit Ticky couldn't te
 -- message it's due, and the next frame draws it (/ticky sparktest held still drawn that way).
 local drawDue = false
 
+-- /ticky log: what happened around your target's shading in the last few seconds (hits, health
+-- messages, ticks counted, and what the shading drew), to explain a hop seen in game.
+local shadeLog = {}
+local SHADE_LOG_MAX, SHADE_LOG_SPAN = 60, 4
+local lastHealthLog
+
+-- "Shadow Word: Pain" -> "SWP".
+local function Initials(name)
+  local s = ""
+  for w in tostring(name or "?"):gmatch("[%a]+") do s = s .. w:sub(1, 1):upper() end
+  return s
+end
+
+-- Add to the log if it's about your target (no mob: always).
+function ns.ShadeLog(text, mob)
+  if mob and mob ~= (HasTarget() and MobKey("target")) then return end
+  shadeLog[#shadeLog + 1] = { at = GetTime(), text = text }
+  if #shadeLog > SHADE_LOG_MAX then table.remove(shadeLog, 1) end
+end
+
+function ns.PrintShadeLog()
+  local now, parts = GetTime(), {}
+  for _, e in ipairs(shadeLog) do
+    if now - e.at <= SHADE_LOG_SPAN then parts[#parts + 1] = ("%.2f %s"):format(e.at - now, e.text) end
+  end
+  print("|cff99ccffTicky|r Shading log (seconds ago, newest last; same number = same frame): "
+    .. (#parts > 0 and table.concat(parts, ", ") or "nothing in the last " .. SHADE_LOG_SPAN .. "s"))
+end
+
 -- When `mob`'s health last changed, for the shading: it sets its health end only then.
 function ns.HealthAt(mob)
   return math.max(mob and healthAt[mob] or 0, healthAtAny)
@@ -863,10 +892,11 @@ local trace
 function ns.TickTrace() return trace end
 local function TraceFor(mob) return trace and trace.mob == mob and trace end
 
-local function Commit(t)
+local function Commit(t, why)
   if t.pendingTick then
     t.lastTick = math.max(t.lastTick or 0, t.pendingTick)
     t.pendingTick = nil
+    ns.ShadeLog("counted " .. Initials(t.name) .. (why and " " .. why or ""), t.mob or (t.channel and MobKey("target")))
     local tr = TraceFor(t.mob or (t.channel and MobKey("target")))
     if tr and tr.timer == t and not tr.counted then tr.counted = GetTime() end
   end
@@ -902,7 +932,7 @@ function ns.RemainingAmount(t, now)
   if not t.spellID or not t.interval or t.interval < 0.1 or t.expires <= now then return end
   local size = ExpectedTick(t.spellID)
   if not size then return end
-  if t.pendingTick and now - t.pendingAt > PENDING_MAX then Commit(t) end
+  if t.pendingTick and now - t.pendingAt > PENDING_MAX then Commit(t, "(no health message)") end
   local done = math.max(t.lastTick or 0, TicksPassed(t, now - UNSEEN_TICK_GRACE))
   return math.max(0, TicksPassed(t, t.expires) - done) * size
 end
@@ -933,6 +963,7 @@ local function OnTickAmount(mob, isHeal, amount, school, crit)
   end
   for _, t in pairs(timers[mob] or {}) do consider(t) end
   if channel and not isHeal and mob == MobKey("target") then consider(channel) end
+  ns.ShadeLog(("hit %d%s %s"):format(amount, crit and "!" or "", best and Initials(best.name) or "(not a tick)"), mob)
   if not best then return end
   best.matchedTick = bestK
   best.pendingTick, best.pendingAt = bestK, now
@@ -1549,11 +1580,16 @@ function TB:UNIT_HEALTH(unit)
   end
   if channel and channel.pendingTick and (not mob or mob == MobKey("target")) then Commit(channel) end
   if mob then healthAt[mob] = now else healthAtAny = now end
+  if lastHealthLog ~= now then -- once a frame (it comes for target and nameplate)
+    lastHealthLog = now
+    ns.ShadeLog("health", mob or nil)
+  end
   local tr = mob and TraceFor(mob)
   if tr and not tr.health and now >= tr.hit then tr.health = now end
   drawDue = true
 end
 function TB:UNIT_MAXHEALTH(unit)
+  ns.ShadeLog("max health", not Secret(unit) and MobKey(unit) or nil)
   if ns.MaxHealthChanged then ns.MaxHealthChanged() end
   self:UNIT_HEALTH(unit)
 end
@@ -1810,6 +1846,8 @@ SlashCmdList.TICKY = function(msg)
     Print("Appearance, layout and sound settings reset. Your spells are unchanged.")
   elseif cmd == "debug" then
     ns.Debug(rest:lower() == "all")
+  elseif cmd == "log" then
+    ns.PrintShadeLog()
   elseif cmd == "sparktest" then
     ns.SparkTest(rest:lower())
   elseif cmd == "report" then

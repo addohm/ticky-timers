@@ -398,12 +398,23 @@ local function Draw(o, bar, unit, now)
     local held = not newMob and not setMax and ns.HoldHealth(unit, now)
     local changed = ns.HealthAt(mob)
     local tr = o.traced and ns.TickTrace()
+    local log -- for /ticky log (your target's shading only)
+    if o.traced and held ~= (o.wasHeld or false) then
+      log = held and "waits for a tick" or "stops waiting"
+    end
+    o.wasHeld = held
     if not held and (newMob or setMax or changed ~= o.healthAt or now - (o.mirrorAt or 0) > 1) then
+      if o.traced then
+        local why = newMob and "new mob" or setMax and "max changed" or changed ~= o.healthAt and "changed"
+          or "1s check"
+        log = (log and log .. "; " or "") .. "drew health (" .. why .. ")"
+      end
       o.mirror:SetValue(UnitHealth(unit), smooth)
       o.heldMob, o.healthAt, o.mirrorAt = mob, changed, now
       if tr and tr.counted and not tr.drawn then tr.drawn, tr.drawing = now, true end
     end
     if held and o.holder:IsShown() then
+      if log then ns.ShadeLog(log) end
       drawn = true
       return
     end
@@ -413,6 +424,10 @@ local function Draw(o, bar, unit, now)
     if tr and tr.drawing then -- for /ticky debug: how much the shading shrank for the last tick
       tr.drawing, tr.shrink = nil, (o.total or total) - total
     end
+    if o.traced and o.total and total ~= o.total then
+      log = (log and log .. "; " or "") .. ("drew shading %+d"):format(floor(total - o.total + 0.5))
+    end
+    if log then ns.ShadeLog(log) end
     o.total = total
     drawn = Fill(o.damage, damage, db.overlayDamage, single, single and db.overlayDamageColor, maxHealth, smooth,
       height, setMax)
