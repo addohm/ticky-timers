@@ -42,7 +42,7 @@ tools/
 README.md CHANGELOG.md ROADMAP.md SECURITY.md DEPLOY.md CLAUDE.md
 .github/ISSUE_TEMPLATE/  bug report (asks for build and /ticky debug) and idea templates; the repo is public
 TESTING.md        running list of what to check in the client (to test / confirmed / gaps)
-docs/health-shading-spark.md  the spark-hop investigation: evidence, every attempt, the fix
+docs/health-shading-spark.md  the spark-hop investigation and how the owner's model ended it
 ```
 
 ## Commands
@@ -88,9 +88,10 @@ for that PC (variables at the top). `.gitattributes` keeps `*.cmd` files CRLF.
    from `Ticky/Data.lua`. Don't hard-code intervals and don't add "tick every N" settings: the owner
    wants nothing configured by hand.
 5. **Everything that modifies a spell counts.** Talents, gear, rank, haste, buffs: never time or
-   size anything from base values or an old reading when a live source exists. The owner asked
-   for this when spells became selectable and had to repeat it (2026-10-21, after Ticky timed a
-   talented 24s Shadow Word: Pain as 18s from a stale aura read). Live sources: the aura when
+   size anything from base values or an old reading when a live source exists. The owner, on
+   2026-10-21, after Ticky timed a talented 24s Shadow Word: Pain as 18s from a stale aura read:
+   "when a spell is selected [...] the addon needs to take talents, haste, gear or anything else
+   that could modify the spell into consideration." Live sources: the aura when
    it's readable; the spell's tooltip, read again at each cast (`CastDuration`; on Forever it
    includes talents and spell power); `UnitChannelInfo` for channels; haste for periods flagged
    `h` (`AuraPeriod`); tick sizes from the ticks themselves (`UNIT_COMBAT`).
@@ -111,9 +112,9 @@ call another file's `ns` functions at runtime, not at load time, unless that fil
 | File | Owns | Exposes on `ns` |
 |---|---|---|
 | `Data.lua` | Generated spell data | `ns.Data`, `ns.DataBuild` |
-| `Core.lua` | Defaults, lists (textures, fonts, sounds, sound events), aura and channel reading, alerts (sounds, speech, messages), missing-spell placeholders, display list, tick math, events, slash commands | `DEFAULTS`, `CHAR_DEFAULTS`, `TEXTURES`, `FONTS`, `OUTLINES`, `SOUNDS`, `SOUND_EVENTS`, `CHANNELS`, `SoundChoices`, `Secret`, `Lookup`, `SpellInfo`, `AuraPeriod`, `ComputeTicks`, `BuildDisplay`, `ActiveTimers`, `RefreshDisplay`, `HasTarget`, `SpellbookSpells`, `Track`, `Untrack`, `IsTracked`, `OrderedSpells`, `MoveSpell`, `AddSpell`, `Describe`, `SoundFor`, `WarnSeconds`, `PlaySound`, `TestSound`, `RemoveCustomSound`, `RemainingAmount`, `UnitAmounts`, `UnitTimers`, `MobKey`, `plateUnits`, `Debug` (`/ticky debug`), `ShadeLog`/`PrintShadeLog` (`/ticky log`), `HealthAt`, `ResetSettings`, `CopyDefaults`, `SpellCfg`, `DB`, `CharDB`, `InCombat`, `TB` (event frame) |
+| `Core.lua` | Defaults, lists (textures, fonts, sounds, sound events), aura and channel reading, alerts (sounds, speech, messages), missing-spell placeholders, display list, tick math, events, slash commands | `DEFAULTS`, `CHAR_DEFAULTS`, `TEXTURES`, `FONTS`, `OUTLINES`, `SOUNDS`, `SOUND_EVENTS`, `CHANNELS`, `SoundChoices`, `Secret`, `Lookup`, `SpellInfo`, `AuraPeriod`, `ComputeTicks`, `BuildDisplay`, `ActiveTimers`, `RefreshDisplay`, `HasTarget`, `SpellbookSpells`, `Track`, `Untrack`, `IsTracked`, `OrderedSpells`, `MoveSpell`, `AddSpell`, `Describe`, `SoundFor`, `WarnSeconds`, `PlaySound`, `TestSound`, `RemoveCustomSound`, `UnitAmounts`, `UnitTimers`, `MobKey`, `plateUnits`, `Debug` (`/ticky debug`), `ShadeLog`/`PrintShadeLog` (`/ticky log`), `HealthAt`, `ResetSettings`, `CopyDefaults`, `SpellCfg`, `DB`, `CharDB`, `InCombat`, `TB` (event frame) |
 | `Bars.lua` | Anchor and bar frames, styling, drawing, missing bars, preview, on-screen messages. Bar functions take a style `st` (the settings, or the nameplate style) | `CreateBars`, `ApplyStyle`, `UpdateBars`, `SetPreview`, `preview`, `ResetPosition`, `ShowMessage`, `GetBar`, `UpdateBar`, `IconSpace` |
-| `Overlay.lua` | Health bar overlay: finding the target health bar (custom path; another addon's unit button whose `unit` attribute is "target"; else Blizzard's). `ns.HealthBarIn(frame, depth)` picks a unit frame's or nameplate's health bar: visible StatusBars scored by their `GetDebugName(true)` key (health-like names first, absorb/loss/predict/power/... skipped), then by area. An overlay object (`NewOverlay`) is a clipping holder over the health bar (only its rect and fill direction are used) holding an invisible `mirror` StatusBar fed `UnitHealth(unit)` (secret) and a chain of StatusBars per group (damage, heal) as wide as the health bar, scaled to the unit's secret max health, the first pinned to the mirror's fill end and each next to the end of the previous one's fill. The holder takes the bar's effective scale (`ScaleOf`), so segment widths in the bar's units match it on scaled unit frames. Mirror and segments are set in the same call and ease the same way. Their range (`SetMinMaxValues`) is set only for a new mob or after `UNIT_MAXHEALTH` (`maxDirty`); a segment's value, texture and color (and the holder's strata and level) only when they change; the mirror's health only when `ns.HealthAt(mob)` (the mob's last `UNIT_HEALTH`) moved, or once a second at rest. Re-setting these on every redraw seems to end or restart a bar's easing, so the two ends drifted apart (60 fps captures, 2026-10-21: the spark hopped toward the health for a few frames on each tick; delaying the segments a frame, 150577c, made it hop the other way; not a stale health value: no later `UNIT_HEALTH` comes). `/ticky sparktest` held still eased or instant with each value set once, from the frame update; Core.lua therefore only marks the shading due (`drawDue`) in `UNIT_HEALTH` and on a counted tick, and its OnUpdate draws it. So the far end holds still; `UNIT_HEALTH`/`UNIT_MAXHEALTH` redraw (once a frame). Tests: `MOCK.frame()` steps one frame. One for the target (parented to UIParent), one per nameplate (parented to the plate, on `ns.PlateHealthBar(plate)`, when `overlayPlates`); amounts from `ns.UnitAmounts(unit)`. `/ticky sparktest` (`ns.SparkTest`) builds the same overlay on a fresh test bar the size and scale of the target's health bar (123x12 if none) and runs six variants (eased/instant x as now, no pixel snapping (`SetSnapToPixelGrid(false)`, `SetTexelSnappingBias(0)`), hidden health; hidden values come from `UnitHealthPercent("player", false, curve)` with a flat `C_CurveUtil` curve); with plain values it measures the spark (`GetCenter`) each frame. Results so far, on a 600-wide bar: plain or hidden, eased or instant, set once or every 0.1s, it holds still if both ends are set in the same frame; the real (123-wide) shading still hopped about a pixel with the right amounts (`/ticky debug`: 20 hit, shading -21), while at the real size (f43c9c9) all six held still. `/ticky sparktest copy` (`ns.DrawCopy`, called from `UpdateOverlay`) draws a live copy of the target's shading with the same `Draw` on a plain bar of our own, to tell the unit frame's part from ours; only the real target overlay (`traced`) feeds the debug trace and `/ticky log`. In game (d6a2af6) the copy hopped too, and so did Blizzard's frames with EllesmereUI off; with "Smooth changes" off it hopped less often. So the cause is in the live data or timing; `/ticky log` (Core's `ns.ShadeLog`: hits, health messages, counted ticks, waits and draws for the target, last 4s) is there to catch it. While the health end is held for a tick (`ns.HoldHealth`), the segments are held too (two DoTs ticking close together) | `FindHealthBar`, `UpdateOverlay`, `CreateOverlay`, `SparkTest` |
+| `Overlay.lua` | Health bar overlay: finding the target health bar (custom path, any frame; another addon's unit button whose `unit` attribute is "target"; else Blizzard's). `ns.HealthBarIn(frame, depth)` picks a unit frame's or nameplate's health bar: visible StatusBars scored by their `GetDebugName(true)` key (health-like names first, absorb/loss/predict/power/... skipped), then by area. An overlay object (`NewOverlay`) is a clipping holder over the health bar (only its rect, fill direction and effective scale (`ScaleOf`) are used) holding two invisible StatusBars, `mirror` (`UnitHealth(unit)`, set when the mob's health changed: `ns.HealthAt`) and `frozen` (the plan's `health`, the secret health when its first DoT went on, set when `plan.version` changes), and a chain of StatusBars per group (damage, heal), each as wide as the health bar and scaled to the unit's secret max health, filled to the plan's plain totals, the first pinned to the frozen fill's end and each next to the end of the previous one's. The chains sit in clipping frames that end (`dclip`) or start (`hclip`) at the mirror's fill end, so only the part between the health now and the spark shows. Spark and outline (`Trim`) on a top layer. Values, textures, colors, ranges and layers are set only when they change (re-setting them seemed to end the easing). One overlay for the target (parented to UIParent; `traced` for `/ticky log`), one per nameplate (parented to the plate, on `ns.PlateHealthBar(plate)`, when `overlayPlates`); the plan from `ns.UnitAmounts(unit)` | `FindHealthBar`, `UpdateOverlay`, `CreateOverlay`, `MaxHealthChanged`, `OverlayInfo`, `HealthBarIn`, `FramePath` |
 | `Plates.lua` | Bars on nameplates: a holder per (recycled) nameplate frame, parented to it and anchored to both edges of the plate's health bar (`PlateBar`: `ns.HealthBarIn(plate, 5)`, which covers Blizzard's plates and addons that build on them; re-checked every frame with `IsUnder`, because Blizzard pools the plates' UnitFrames, health bar included, and moves them between plates). Its width sets the bars' size (`plateHeightPct`); Bars.lua's bars are drawn with a per-plate style proxy (`PLATE_KEYS` swap in the `plate*` text settings, `PLATE_LOOK` the `plate*` look settings when `plateOwnLook`, `growUp` from `plateAnchor`). Our own frames are marked `tickyOwned` so the health bar search skips them | `UpdatePlates`, `LayoutPlates`, `CreatePlates`, `PlateHealthBar` |
 | `Widgets.lua` | Option controls | `ns.W` (`Label`, `Header`, `Button`, `Check`, `Slider`, `Cycle`, `Swatch`, `EditBox`, `Setting`) |
 | `Options.lua` | Options window, Settings-panel entry, shift-click link hook, the report dialog (issues link to copy) | `ToggleOptions`, `RefreshOptions`, `ShowReport` |
@@ -145,27 +146,27 @@ UNIT_COMBAT MISS/DODGE/PARRY/RESIST/IMMUNE/EVADE/REFLECT/DEFLECT
                                      /ticky debug
 UNIT_COMBAT WOUND/HEAL            -> OnTickAmount: match to a timer on that mob (or the channel) by
                                      school and tick time (+-0.35s, each tick once), not a hit
-                                     far off the learned size (<0.4x or >3x: another spell); non-
-                                     crits teach tickSizes[spellID] (60/40 running average,
-                                     unrounded)
-every 0.1s (and the frame after a counted tick or UNIT_HEALTH) -> ns.UpdateOverlay: UnitAmounts per unit (ticks left x
-                                     t.tickSize, fixed per timer from ExpectedTick (learned, else
-                                     tooltip total / tick count) unless that's >15% off; a seen
-                                     tick's difference from it (t.fold) stays on the shading as it
-                                     lands, then fades out over 1.5s (Fold), so a tick takes off
-                                     exactly what it did and the far end drifts, not jumps; an
-                                     expired timer stays until its last tick is counted or 0.5s
-                                     (late last ticks; bars ignore it); a seen
-                                     tick (t.matchedTick) is held as t.pendingTick until the mob's
-                                     UNIT_HEALTH (or 0.2s), or counts at once if that came earlier
-                                     in the same frame (in game both come in one frame), then
-                                     t.lastTick; unseen: 0.5s after its time).
-                                     ns.HoldHealth keeps the mirror's health from 0.5s before a tick
-                                     is due until it's counted; each matched tick moves the timer's
-                                     start/expiry half way to where it really landed. The last
-                                     target tick's hit/health/counted/drawn times feed /ticky debug ->
-                                     segment values, eased (ExponentialEaseOut) while the mob stays
-                                     the same; spark and outline (Trim) anchored to our own bars
+                                     far off the learned size (<0.4x or >3x: another spell): moves
+                                     the timer's start/expiry half way to where it landed (tick
+                                     marks); non-crits teach tickSizes[spellID] (60/40 running
+                                     average, unrounded; /ticky debug, totals without a tooltip)
+
+Health bar shading (the owner's model): plan[mob] = { health, parts[key] = { amount, heal,
+expires }, expires, version }
+  OnCast / channel start          -> PlanAdd: first part: health = UnitHealth(UnitForMob(mob))
+                                     (secret; else taken at the first draw); amount += the
+                                     spell's total (SpellTotal: tooltip amount read now, else
+                                     tickSizes x ticks); a refresh adds total - old total x
+                                     LeftShare (its ticks still to come, by the clock)
+  miss/resist after a cast, aura gone early, channel stopped early -> PlanTake (that much back)
+  CheckAlerts                     -> a plan ends PLAN_LINGER (0.5s) after its last part's expiry
+  UNIT_HEALTH                     -> healthAt[mob]; drawDue (drawn in the next OnUpdate)
+  every 0.1s, or when drawDue     -> ns.UpdateOverlay: UnitAmounts(unit) = plan + parts ->
+                                     mirror = UnitHealth when HealthAt changed (or 1s); frozen =
+                                     plan.health when plan.version changed; segments = parts'
+                                     amounts (set only on change), chained from the frozen fill
+                                     end, clipped at the mirror's fill end; spark and outline
+                                     (Trim). Ticks never move the spark.
 
 UNIT_AURA (target/player/nameplateN), PLAYER_TARGET_CHANGED, NAME_PLATE_UNIT_ADDED,
 PLAYER_REGEN_ENABLED, and each cast timer once it's 1.1s old
@@ -380,12 +381,13 @@ Game data (spell tables) for Forever is on wago.tools under product `wowf`; see
   0.5 showed no bars for DoTs on a mob in the open world; fixed by timing from casts. Read
   `SecretPredicatesDocumentation.lua` for what each `SecretWhen...` flag means before relying on an
   API.
-- Chasing the health shading's spark hop (2026-10-21) by guessing a cause and shipping a fix per
-  round: about fifteen builds, several built on wrong premises (an anchor lag, a stale health
-  value). What finally found it was measuring live data: the debug line's "25 hit, shading -31"
-  and `/ticky log` (the shading's tick estimate was re-made on every hit, and crits were taken
-  off as normal ticks; fixed in f5dc0fd). Read docs/health-shading-spark.md before touching the
-  shading's timing or amounts, and measure first.
+- The health shading's spark (2026-10-21): about twenty builds chasing hops, because the shading
+  re-worked out "damage still to come" from ticks as they landed (tick matching, holds, rounding,
+  crits, late last ticks: every mismatch moved the spark). The owner's model needed none of it:
+  the spark is the health when the DoT went on minus its total, and only moves when a DoT is
+  added, refreshed or taken back. Ask what the owner wants something to mean before engineering
+  around it, and prefer the simplest model that does it. docs/health-shading-spark.md has the
+  history.
 - Copying from or crediting other addons. The owner wants Ticky's code and docs to be its own: no
   code, patterns or frame names taken from other addons, and no references to them. Work from
   Blizzard's UI source and API docs, and from tests in the client.

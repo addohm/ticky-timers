@@ -1,15 +1,21 @@
 -- Ticky health bar overlay: on your target's health bar (and, if chosen, every nameplate's), the
--- part your DoTs will still take off (ending at the current health) and the part your HoTs will
--- still heal (starting there).
+-- part your DoTs will still take off and the part your HoTs will still heal, with a spark where
+-- the health should end up.
+--
+-- The owner's model (2026-10-21): when a DoT goes on, the spark goes at the mob's health at that
+-- moment minus what the DoT will do in total (its tooltip's amount, read at the cast); each further
+-- DoT moves it by its own total. Ticks don't move it; the shading is the part between the current
+-- health and the spark. (Core.lua keeps that plan per mob: ns.UnitAmounts.)
 --
 -- Target health is secret on Forever, so Lua can't work out where on the bar that is, but a
--- StatusBar can: Blizzard's API accepts secret values. Over the unit frame's health bar sits an
--- invisible "mirror" StatusBar of our own, fed the unit's (secret) health. Each spell gets a
--- StatusBar as wide as the health bar, scaled to the unit's max health and filled to that spell's
--- (plain) amount; the first is pinned to the end of the mirror's fill, each next one to the far end
--- of the previous one's fill. The mirror and the segments are all ours and change together (eased
--- the same way), so the far end, where the health should end up, holds still as ticks land,
--- whatever animation the unit frame's own bar has. A clipping frame cuts off what runs past.
+-- StatusBar can: Blizzard's API accepts secret values. Over the unit frame's health bar sit two
+-- invisible StatusBars of our own: the "mirror", fed the unit's (secret) health as it changes, and
+-- the "frozen" one, holding the health when the plan was made. Each spell gets a StatusBar as wide
+-- as the health bar, scaled to the unit's max health and filled to its (plain) total; the first is
+-- pinned to the end of the frozen bar's fill, each next one to the far end of the previous one's,
+-- so the far end (the spark) sits at frozen health - totals and only moves when the plan changes.
+-- The bars hang in a clipping frame that ends at the mirror's fill end, so only the part between
+-- the current health and the spark shows.
 local ADDON, ns = ...
 
 local ipairs, pairs, pcall, type, floor = ipairs, pairs, pcall, type, math.floor
@@ -175,21 +181,31 @@ local function NewTrim(top)
   return t
 end
 
--- An overlay: a clipping holder (child of `parent`) with a damage and a heal chain, and a layer
--- above them for the sparks and outlines.
+-- An overlay: a clipping holder (child of `parent`) with the mirror and frozen health bars, a
+-- damage and a heal chain each in its own clipping frame, and a layer above for sparks and
+-- outlines.
 local function NewOverlay(parent)
   local o = { layerAt = 0 }
   o.holder = CreateFrame("Frame", nil, parent)
   o.holder.tickyOwned = true -- not a health bar to anchor to (see Plates.lua's search)
   o.holder:SetClipsChildren(true)
   o.holder:Hide()
-  o.mirror = CreateFrame("StatusBar", nil, o.holder)
-  o.mirror:SetAllPoints(o.holder)
-  o.mirror:SetStatusBarTexture("Interface\\Buttons\\WHITE8X8")
-  o.mirror:SetStatusBarColor(0, 0, 0, 0)
-  o.mirror:SetMinMaxValues(0, 1)
-  o.damage = NewChain(o.holder)
-  o.heal = NewChain(o.holder)
+  local function Invisible()
+    local b = CreateFrame("StatusBar", nil, o.holder)
+    b:SetAllPoints(o.holder)
+    b:SetStatusBarTexture("Interface\\Buttons\\WHITE8X8")
+    b:SetStatusBarColor(0, 0, 0, 0)
+    b:SetMinMaxValues(0, 1)
+    return b
+  end
+  o.mirror = Invisible() -- the health now
+  o.frozen = Invisible() -- the health when the plan was made
+  o.dclip = CreateFrame("Frame", nil, o.holder) -- damage shows only up to the health now
+  o.dclip:SetClipsChildren(true)
+  o.hclip = CreateFrame("Frame", nil, o.holder) -- healing only beyond it
+  o.hclip:SetClipsChildren(true)
+  o.damage = NewChain(o.dclip)
+  o.heal = NewChain(o.hclip)
   o.top = CreateFrame("Frame", nil, o.holder)
   o.top:SetAllPoints(o.holder)
   o.damage.trim = NewTrim(o.top)
@@ -246,12 +262,22 @@ local function Attach(o, bar)
   o.holder:ClearAllPoints()
   o.holder:SetAllPoints(bar)
   o.mirror:SetReverseFill(reverse)
-  -- Health ends at the mirror's fill's right end (left end on a bar that fills from the right).
-  -- Damage grows from there into the health, healing into the missing part.
-  local fill = o.mirror:GetStatusBarTexture()
-  local edge = reverse and "LEFT" or "RIGHT"
-  LayChain(o.damage, fill, edge, not reverse, width)
-  LayChain(o.heal, fill, edge, reverse, width)
+  o.frozen:SetReverseFill(reverse)
+  -- Health ends at a fill's right end (left end on a bar that fills from the right). Damage shows
+  -- from there back into the health, healing into the missing part.
+  local live, edge = o.mirror:GetStatusBarTexture(), reverse and "LEFT" or "RIGHT"
+  local other = reverse and "RIGHT" or "LEFT"
+  o.edge = edge
+  o.dclip:ClearAllPoints()
+  o.dclip:SetPoint("TOP" .. other, o.holder, "TOP" .. other)
+  o.dclip:SetPoint("BOTTOM" .. edge, live, "BOTTOM" .. edge)
+  o.hclip:ClearAllPoints()
+  o.hclip:SetPoint("TOP" .. other, live, "TOP" .. edge)
+  o.hclip:SetPoint("BOTTOM" .. edge, o.holder, "BOTTOM" .. edge)
+  local frozen = o.frozen:GetStatusBarTexture()
+  LayChain(o.damage, frozen, edge, not reverse, width)
+  LayChain(o.heal, frozen, edge, reverse, width)
+  o.damage.trimmed, o.heal.trimmed = nil, nil
   o.layerAt = 0
   return true
 end
@@ -270,26 +296,26 @@ local function Layer(o, now)
   o.top:SetFrameLevel(level + 10)
 end
 
--- The spark where the shading ends (the health that should be left once your DoTs are done, or
--- the health your HoTs will bring) and an outline around it. Anchored only to our own bars.
-local function Trim(c, count, height)
+-- The spark where the shading ends (where the health should end up) and an outline around the
+-- shading, from there to the health now. Anchored only to our own bars.
+local function Trim(o, c, count, height)
   local t = c.trim
   local last = count > 0 and c.segs[count].bar:GetStatusBarTexture()
   if count > 0 and c.trimmed ~= count then
     c.trimmed = count
-    local first = c.segs[1].bar
+    local live, edge = o.mirror:GetStatusBarTexture(), o.edge
     t.spark:ClearAllPoints()
     t.spark:SetPoint("CENTER", last, c.far)
     local l = t.lines
     for _, line in ipairs(l) do line:ClearAllPoints() end
     l[1]:SetPoint("TOP" .. c.far, last, "TOP" .. c.far)       -- top
-    l[1]:SetPoint("TOP" .. c.near, first, "TOP" .. c.near)
+    l[1]:SetPoint("TOP" .. c.near, live, "TOP" .. edge)
     l[2]:SetPoint("BOTTOM" .. c.far, last, "BOTTOM" .. c.far) -- bottom
-    l[2]:SetPoint("BOTTOM" .. c.near, first, "BOTTOM" .. c.near)
+    l[2]:SetPoint("BOTTOM" .. c.near, live, "BOTTOM" .. edge)
     l[3]:SetPoint("TOP" .. c.far, last, "TOP" .. c.far)       -- the far end
     l[3]:SetPoint("BOTTOM" .. c.far, last, "BOTTOM" .. c.far)
-    l[4]:SetPoint("TOP" .. c.near, first, "TOP" .. c.near)    -- the health edge
-    l[4]:SetPoint("BOTTOM" .. c.near, first, "BOTTOM" .. c.near)
+    l[4]:SetPoint("TOP" .. c.near, live, "TOP" .. edge)       -- the health now
+    l[4]:SetPoint("BOTTOM" .. c.near, live, "BOTTOM" .. edge)
   end
   local spark = count > 0 and db.overlaySpark
   if spark then
@@ -314,13 +340,10 @@ local function HideOverlay(o)
 end
 
 -- Show a chain's entries ({ amount, color }), one bar each (or one bar with the total). `smooth`:
--- ease toward the new values like a smooth health bar does, so the far end holds still.
+-- ease toward new values like a smooth health bar does.
 -- A bar's value, texture and color are set only when they change: re-setting them (like its
--- range) on every redraw seems to end or restart the bar's easing, so after a tick the shading
--- and the health end stopped moving together, and the spark hopped toward the health for a few
--- frames (60 fps captures, 2026-10-21). /ticky sparktest, where each value is set once, held
--- still.
-local function Fill(c, entries, enabled, single, color, maxHealth, smooth, height, setMax)
+-- range) on every redraw seems to end or restart the bar's easing.
+local function Fill(o, c, entries, enabled, single, color, maxHealth, smooth, height, setMax)
   local tex = ns.Lookup(ns.TEXTURES, db.overlayTexture)[2]
   local alpha = db.overlayAlpha
   local count = enabled and #entries or 0
@@ -359,14 +382,14 @@ local function Fill(c, entries, enabled, single, color, maxHealth, smooth, heigh
       bar:Hide()
     end
   end
-  Trim(c, count, height)
+  Trim(o, c, count, height)
   return count > 0
 end
 
--- Draw what your DoTs and HoTs on `unit` will still do onto `bar` (its health bar).
+-- Draw your DoTs' and HoTs' plan for `unit` (see the top of this file) onto `bar`, its health bar.
 local function Draw(o, bar, unit, now)
-  local damage, heal = ns.UnitAmounts(unit, now)
-  if not damage or (#damage == 0 and #heal == 0) or not Visible(bar) or not Attach(o, bar) then
+  local plan, damage, heal = ns.UnitAmounts(unit)
+  if not plan or (#damage == 0 and #heal == 0) or not Visible(bar) or not Attach(o, bar) then
     return HideOverlay(o)
   end
   Layer(o, now)
@@ -375,64 +398,43 @@ local function Draw(o, bar, unit, now)
   local mob = ns.MobKey(unit)
   local interp = Enum.StatusBarInterpolation
   local smooth = interp and (db.overlaySmooth and mob == o.mob and interp.ExponentialEaseOut or interp.Immediate)
+  local newMob = mob ~= o.mob
   o.mob = mob
   local hok, height = pcall(bar.GetHeight, bar)
   height = hok and not Secret(height) and height or 12
-  local newMob = mob ~= o.heldMob
   -- The bars' range (0 to max health) is set only for a new mob or when its max health changed:
-  -- setting it on every redraw cut the easing short, so the health end and the shading stopped
-  -- moving together.
-  local setMax = newMob or o.maxFor ~= mob or o.maxDirty
+  -- setting it on every redraw cut the easing short.
+  local setMax = newMob or o.maxDirty
   local drawn = false
   local ok = pcall(function()
     local maxHealth = setMax and UnitHealthMax(unit)
     if setMax then
       o.mirror:SetMinMaxValues(0, maxHealth)
-      o.maxFor, o.maxDirty = mob, false
+      o.frozen:SetMinMaxValues(0, maxHealth)
+      o.maxDirty = false
     end
-    -- Around a DoT/HoT tick both ends wait for the tick to be counted, then they're set in the
-    -- same moment and ease the same way. The shading waits too: with two DoTs ticking close
-    -- together, the first one's tick would otherwise shrink it while the health end still waited
-    -- for the second. The health end is set only when the health changed (see Fill), or once a
-    -- second while nothing moves, in case a change went unreported.
-    local held = not newMob and not setMax and ns.HoldHealth(unit, now)
-    local changed = ns.HealthAt(mob)
-    local tr = o.traced and ns.TickTrace()
     local log -- for /ticky log (your target's shading only)
-    if o.traced and held ~= (o.wasHeld or false) then
-      log = held and "waits for a tick" or "stops waiting"
-    end
-    o.wasHeld = held
-    if not held and (newMob or setMax or changed ~= o.healthAt or now - (o.mirrorAt or 0) > 1) then
-      if o.traced then
-        local why = newMob and "new mob" or setMax and "max changed" or changed ~= o.healthAt and "changed"
-          or "1s check"
-        log = (log and log .. "; " or "") .. "drew health (" .. why .. ")"
-      end
+    -- The health now: set when it changed, or once a second in case a change went unreported.
+    local changed = ns.HealthAt(mob)
+    if newMob or setMax or changed ~= o.healthAt or now - (o.mirrorAt or 0) > 1 then
       o.mirror:SetValue(UnitHealth(unit), smooth)
-      o.heldMob, o.healthAt, o.mirrorAt = mob, changed, now
-      if tr and tr.counted and not tr.drawn then tr.drawn, tr.drawing = now, true end
+      o.healthAt, o.mirrorAt = changed, now
     end
-    if held and o.holder:IsShown() then
-      if log then ns.ShadeLog(log) end
-      drawn = true
-      return
+    -- The health when the plan was made (taken now if it couldn't be read at the cast).
+    if plan.health == nil then
+      plan.health = UnitHealth(unit)
+      plan.version = plan.version + 1
     end
-    local total = 0
-    for _, e in ipairs(damage) do total = total + e.amount end
-    for _, e in ipairs(heal) do total = total + e.amount end
-    if tr and tr.drawing then -- for /ticky debug: how much the shading shrank for the last tick
-      tr.drawing, tr.shrink = nil, (o.total or total) - total
-    end
-    if o.traced and o.total and math.abs(total - o.total) >= 0.5 then -- not the slow fold-out
-      log = (log and log .. "; " or "") .. ("drew shading %+d"):format(floor(total - o.total + 0.5))
+    if newMob or setMax or o.planVersion ~= plan.version then
+      o.frozen:SetValue(plan.health, smooth)
+      o.planVersion = plan.version
+      if o.traced then log = "drew spark" end
     end
     if log then ns.ShadeLog(log) end
-    o.total = total
-    drawn = Fill(o.damage, damage, db.overlayDamage, single, single and db.overlayDamageColor, maxHealth, smooth,
-      height, setMax)
-    drawn = Fill(o.heal, heal, db.overlayHeal, single, single and db.overlayHealColor, maxHealth, smooth, height,
-      setMax) or drawn
+    drawn = Fill(o, o.damage, damage, db.overlayDamage, single, single and db.overlayDamageColor, maxHealth,
+      smooth, height, setMax)
+    drawn = Fill(o, o.heal, heal, db.overlayHeal, single, single and db.overlayHealColor, maxHealth, smooth,
+      height, setMax) or drawn
   end)
   if not ok or not drawn then return HideOverlay(o) end
   o.holder:Show()
@@ -487,267 +489,9 @@ function ns.UpdateOverlay(now)
   if not bar then return HideOverlay(targetOverlay) end
   if not targetOverlay then
     targetOverlay = NewOverlay(UIParent)
-    targetOverlay.traced = true -- the one /ticky debug's last tick follows
+    targetOverlay.traced = true -- the one /ticky log follows
   end
   Draw(targetOverlay, bar, "target", now)
-  if ns.DrawCopy then ns.DrawCopy(now) end
-end
-
----------------------------------------------------------------------------
--- /ticky sparktest
----------------------------------------------------------------------------
-
--- How does the far end behave when the health and the shading change together? A test bar in the
--- middle of the screen, the size of your target's health bar (123 wide if there's none), built
--- like the real shading. Each tick takes 25 of 1500 health and shrinks the shading by 25, so the
--- spark should hold still. With plain values its position is measured every frame (in screen
--- pixels); hidden values, like a mob's health (made with a flat curve, see Hidden), can only be
--- watched. Each test runs three times. The shading is hidden while it's put back to the start, so
--- only the tick itself is seen moving.
--- Results so far (in game, 2026-10-21): on a 600-wide bar, plain or hidden, eased or instant, set
--- once or every 0.1s, it held still if both ends were set in the same frame (a frame or two apart,
--- it bounced). The real shading still hopped, by about a pixel: the size is what's left.
-local TEST_VARIANTS = {
-  { "smooth" , true },
-  { "instant", false },
-  { "smooth, no pixel snapping", true, nil, true },
-  { "instant, no pixel snapping", false, nil, true },
-  { "smooth, hidden health (like a mob)", true, "health" },
-  { "instant, hidden health (like a mob)", false, "health" },
-}
-local TEST_MAX, TEST_HEALTH, TEST_AMOUNT, TEST_TICK = 1500, 900, 150, 25
-local TEST_SHOW = 12 -- the frame the shading shows again after going back to the start
-local TEST_SETTLE, TEST_WATCH, TEST_REST, TEST_REPS = 30, 40, 20, 3
-local test
-
-local function TestPrint(msg) print("|cff99ccffTicky|r: " .. msg) end
-
--- A hidden copy of a plain number, the kind the game hands out for a mob's health: a curve that's
--- flat at `v`, evaluated on your own health percentage (which the game always hides).
-local function Hidden(v)
-  if not (C_CurveUtil and C_CurveUtil.CreateCurve and UnitHealthPercent) then return v end
-  local curve = test.curves[v]
-  if not curve then
-    local ok, c = pcall(C_CurveUtil.CreateCurve)
-    if not ok or not c then return v end
-    c:AddPoint(0, v)
-    c:AddPoint(1, v)
-    curve = c
-    test.curves[v] = c
-  end
-  local ok, h = pcall(UnitHealthPercent, "player", false, curve)
-  if not ok or h == nil then return v end
-  if Secret(h) then test.hidden = true end
-  return h
-end
-
--- Turn off the game's pixel snapping on an overlay's textures, so they're drawn where they are
--- rather than rounded to whole pixels one by one.
-local function NoSnap(o)
-  local list = { o.mirror:GetStatusBarTexture() }
-  for _, c in ipairs({ o.damage, o.heal }) do
-    for _, seg in ipairs(c.segs) do list[#list + 1] = seg.bar:GetStatusBarTexture() end
-    list[#list + 1] = c.trim.spark
-    for _, line in ipairs(c.trim.lines) do list[#list + 1] = line end
-  end
-  for _, t in ipairs(list) do
-    pcall(t.SetSnapToPixelGrid, t, false)
-    pcall(t.SetTexelSnappingBias, t, 0)
-  end
-end
-
-local function TestSparkX()
-  local spark = test.o.damage.trim.spark
-  local ok, x = pcall(spark.GetCenter, spark)
-  if not ok or x == nil or Secret(x) then return end
-  return x * test.px
-end
-
-local function TestSet(v, health, amount, interp, reset)
-  local o, hide = test.o, v[3]
-  if health then
-    if reset then
-      local max = hide and Hidden(TEST_MAX) or TEST_MAX
-      o.mirror:SetMinMaxValues(0, max)
-      test.bar:SetMinMaxValues(0, max)
-      test.max = max
-    end
-    local h = hide and Hidden(health) or health
-    o.mirror:SetValue(h, interp)
-    test.bar:SetValue(h, interp)
-  end
-  if amount then
-    o.damage.segs[1].amount = nil -- the real shading's Fill skips values it already set
-    Fill(o.damage, { { amount = amount } }, true, true, db.overlayDamageColor, test.max, interp, test.height, reset)
-  end
-end
-
-local function TestFinish()
-  test.running = false
-  test.driver:SetScript("OnUpdate", nil)
-  test.bar:Hide()
-  test.snapped.holder:Hide()
-  test.free.holder:Hide()
-  db.overlaySpark = test.sparkWas
-  TestPrint(("spark test on a %dx%d bar (how far the spark strayed, in screen pixels; it should stay "
-    .. "at 0):"):format(test.width, test.height))
-  for i, v in ipairs(TEST_VARIANTS) do
-    local r = test.results[i]
-    if v[3] then
-      TestPrint(("%d) %s: hidden values can't be measured, only watched%s"):format(i, v[1],
-        test.hidden and "" or " (the game didn't hide them here, so this ran with plain values)"))
-    elseif not r.max then
-      TestPrint(("%d) %s: couldn't measure"):format(i, v[1]))
-    else
-      local steps = {}
-      for k = 1, 8 do
-        if r.frames[k] then steps[#steps + 1] = ("%+.2f"):format(r.frames[k]) end
-      end
-      TestPrint(("%d) %s: up to %.2f | frames: %s"):format(i, v[1], r.max, table.concat(steps, " ")))
-    end
-  end
-end
-
-local function TestStep()
-  local s = test
-  s.f = s.f + 1
-  local v = TEST_VARIANTS[s.variant]
-  local interp = Enum.StatusBarInterpolation
-  local how = v[2] and interp.ExponentialEaseOut or interp.Immediate
-  local f = s.f
-  if f == 1 then -- back to the start at once, out of sight
-    s.snapped.holder:Hide()
-    s.free.holder:Hide()
-    s.o = v[4] and s.free or s.snapped
-    TestSet(v, TEST_HEALTH, TEST_AMOUNT, interp.Immediate, true)
-    s.label:SetText(("Ticky spark test %d of %d: %s"):format(s.variant, #TEST_VARIANTS, v[1]))
-  elseif f == TEST_SHOW then
-    s.o.holder:Show()
-  elseif f == TEST_SETTLE then -- the tick: both in the same frame, as the real shading does
-    s.x0 = TestSparkX()
-    TestSet(v, TEST_HEALTH - TEST_TICK, TEST_AMOUNT - TEST_TICK, how)
-  end
-  if f >= TEST_SETTLE and f < TEST_SETTLE + TEST_WATCH then
-    local x = TestSparkX()
-    if x and s.x0 then
-      local d = x - s.x0
-      local r = s.results[s.variant]
-      r.max = math.max(r.max or 0, math.abs(d))
-      if s.rep == TEST_REPS then r.frames[f - TEST_SETTLE + 1] = d end
-    end
-  elseif f >= TEST_SETTLE + TEST_WATCH + TEST_REST then
-    s.f = 0
-    if s.rep < TEST_REPS then
-      s.rep = s.rep + 1
-    elseif s.variant < #TEST_VARIANTS then
-      s.variant, s.rep = s.variant + 1, 1
-    else
-      TestFinish()
-    end
-  end
-end
-
--- The size and scale of your target's health bar, if Ticky can find it.
-local function RealBarSize()
-  local ok, w, h, sc = pcall(function()
-    local bar = ns.FindHealthBar()
-    return bar:GetWidth(), bar:GetHeight(), bar:GetEffectiveScale() / UIParent:GetEffectiveScale()
-  end)
-  if ok and not Secret(w) and not Secret(h) and not Secret(sc) and type(w) == "number" and w > 10
-    and type(h) == "number" and h > 1 and type(sc) == "number" and sc > 0 then
-    return floor(w + 0.5), floor(h + 0.5), sc
-  end
-  return 123, 12, 1
-end
-
--- /ticky sparktest copy: a second copy of your target's shading, on a plain bar of Ticky's own in
--- the middle of the screen (the size of your target's health bar), drawn by the same code at the
--- same moments. If the copy's spark holds still while the one on your unit frame hops, the unit
--- frame is the cause; if both hop, it's the data or timing.
-local copy
-
-function ns.DrawCopy(now)
-  if not copy or not copy.on then return end
-  if not ns.HasTarget() then return HideOverlay(copy.o) end
-  pcall(function() -- the bar under it: your target's health, as a plain reference
-    copy.bar:SetMinMaxValues(0, UnitHealthMax("target"))
-    copy.bar:SetValue(UnitHealth("target"))
-  end)
-  Draw(copy.o, copy.bar, "target", now)
-end
-
-local function ToggleCopy()
-  if not copy then
-    local width, height, scale = RealBarSize()
-    local bar = CreateFrame("StatusBar", nil, UIParent)
-    bar.tickyOwned = true
-    bar:SetScale(scale)
-    bar:SetSize(width, height)
-    bar:SetPoint("CENTER", UIParent, "CENTER", 0, 150 / scale)
-    bar:SetStatusBarTexture("Interface\\Buttons\\WHITE8X8")
-    bar:SetStatusBarColor(0.1, 0.55, 0.1, 1)
-    local bg = bar:CreateTexture(nil, "BACKGROUND")
-    bg:SetAllPoints(bar)
-    bg:SetColorTexture(0.15, 0.15, 0.15, 0.9)
-    local label = bar:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    label:SetPoint("BOTTOM", bar, "TOP", 0, 6)
-    label:SetText("Ticky: copy of your target's shading")
-    copy = { bar = bar, o = NewOverlay(UIParent) }
-  end
-  copy.on = not copy.on
-  copy.bar:SetShown(copy.on)
-  if not copy.on then HideOverlay(copy.o) end
-  TestPrint(copy.on and "a copy of your target's shading is in the middle of the screen. Watch it and the "
-    .. "one on your unit frame as your DoTs tick. /ticky sparktest copy again hides it."
-    or "copy hidden.")
-end
-
-function ns.SparkTest(arg)
-  if arg == "copy" then return ToggleCopy() end
-  if not db or (test and test.running) then return end
-  -- New frames every run: a bar that has shown a hidden value may stay unmeasurable.
-  if test then
-    test.bar:Hide()
-    test.snapped.holder:Hide()
-    test.free.holder:Hide()
-  end
-  local driver = test and test.driver or CreateFrame("Frame")
-  test = { driver = driver, curves = {} }
-  local width, height, scale = RealBarSize()
-  test.width, test.height = width, height
-  local bar = CreateFrame("StatusBar", nil, UIParent)
-  bar.tickyOwned = true
-  bar:SetScale(scale)
-  bar:SetSize(width, height)
-  bar:SetPoint("CENTER", UIParent, "CENTER", 0, 150 / scale)
-  bar:SetFrameStrata("DIALOG")
-  bar:SetStatusBarTexture("Interface\\Buttons\\WHITE8X8")
-  bar:SetStatusBarColor(0.1, 0.55, 0.1, 1)
-  local bg = bar:CreateTexture(nil, "BACKGROUND")
-  bg:SetAllPoints(bar)
-  bg:SetColorTexture(0.15, 0.15, 0.15, 0.9)
-  test.label = bar:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-  test.label:SetPoint("BOTTOM", bar, "TOP", 0, 6)
-  test.bar = bar
-  test.snapped, test.free = NewOverlay(UIParent), NewOverlay(UIParent)
-  NoSnap(test.free)
-  for _, o in ipairs({ test.snapped, test.free }) do
-    if not Attach(o, bar) then return TestPrint("spark test: couldn't set up the test bar.") end
-    o.layerAt = 0
-    Layer(o, GetTime())
-  end
-  test.o = test.snapped
-  -- Screen pixels per unit at the spark, to report in pixels.
-  local ok, _, h = pcall(GetPhysicalScreenSize)
-  local sok, sc = pcall(test.snapped.top.GetEffectiveScale, test.snapped.top)
-  test.px = (ok and type(h) == "number" and h > 0 and h / 768 or 1) * (sok and type(sc) == "number" and sc or 1)
-  test.running, test.variant, test.rep, test.f, test.results = true, 1, 1, 0, {}
-  for i in ipairs(TEST_VARIANTS) do test.results[i] = { frames = {} } end
-  test.sparkWas, db.overlaySpark = db.overlaySpark, true
-  test.driver:SetScript("OnUpdate", TestStep)
-  TestPrint("spark test: watch the small bar in the middle of the screen (about 30 seconds; it's the "
-    .. "size of your target's health bar). Note which numbered tests keep their spark still, then "
-    .. "paste the lines it prints.")
 end
 
 function ns.CreateOverlay()

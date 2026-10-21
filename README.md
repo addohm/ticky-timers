@@ -59,11 +59,14 @@ then goes missing for a few seconds, so you can see how missing spells look too.
   load when the game starts). Picking a warning sound while the warning time is Off sets it to 3s.
 - **Health bar**: on your target's health bar, shade the part your DoTs (and channel) will still
   take off, ending at its current health, and the part your HoTs will still heal, starting there.
+  When a DoT goes on, the spark (where the health should end up) goes at the health at that
+  moment less the DoT's total, from its tooltip (with your talents and spell power); each DoT you
+  add moves it by its own total, a refresh by its total less what the old one still had to do,
+  and a miss or resist takes it back. Ticks and other hits don't move it.
   Off by default. One segment with the total (dark for damage, green for healing; colors are
   yours to pick) or one segment per spell in its bar color, with a line between them; opacity;
   texture; a spark where the shading ends (where the health should end up) and its color; an
-  outline and its color; smooth changes (the shading eases down like a smooth health bar, so its
-  far end holds still as ticks land). "Also on nameplates" shades each nameplate's health bar the
+  outline and its color; smooth changes (the shading's ends ease like a smooth health bar). "Also on nameplates" shades each nameplate's health bar the
   same way, for your DoTs and HoTs on that mob. It finds a unit frame addon's target frame (or
   Blizzard's) by itself, picking the bar named like a health bar over absorb or missing-health bars,
   and shows which bar it's drawing on; if it picks the wrong one, enter the health bar's frame name
@@ -93,12 +96,9 @@ Commands: `/ticky`, `/ticky lock | unlock`, `/ticky preview`, `/ticky add <spell
 enough to paste into a chat message: build, combat state, each spell's learned length and tick,
 the timers on your target, your last casts, the timing and size of the last tick on your target, and the
 last misses/resists and what Ticky did with them), `/ticky debug all` (the long version, with what the game is hiding), `/ticky report`
-(the link for reporting a problem, ready to copy) and `/ticky sparktest` (a 30-second test of the
-health bar shading's spark on a test bar the size of your target's health bar; it prints how far
-the spark strayed where it can be measured; `/ticky sparktest copy` shows a live copy of your
-target's shading on a plain bar instead, to compare with the one on your unit frame) and
-`/ticky log` (the last four seconds around your target's health bar shading: hits, health changes,
-ticks counted and what the shading drew; type it right after something looks wrong).
+(the link for reporting a problem, ready to copy) and `/ticky log` (the last four seconds around
+your target's health bar shading: hits, health changes, spells going on or taken back, and what
+the shading drew; type it right after something looks wrong).
 
 ## Reporting problems
 
@@ -116,11 +116,10 @@ paste what `/ticky debug` shows right after it happens: its first line says whic
   does let Ticky read the aura (usually out of combat), the exact times and stacks replace the
   estimate, and a spell that was dispelled or never landed is removed. A miss, dodge, parry, resist
   or immunity right after the cast drops it too (a missed recast leaves the old timer running).
-- **Health bar amounts.** What's left is the ticks still to come times the size of one tick: what
-  the spell's ticks actually did on your target (Ticky watches the damage and healing the game
-  reports on it, matched by timing and school, crits left out), or, until it has seen some, the
-  tooltip's total over its tick count, which leaves out spell power. The game hides your target's
-  health, so the shading is drawn by bars the game scales to it; Ticky never sees the numbers.
+- **Health bar amounts.** Each DoT's or HoT's total comes from its tooltip at the cast (with your
+  talents, gear and spell power), or, if the tooltip has none, the size of its ticks seen so far
+  times its ticks. The game hides your target's health, so the shading is drawn by bars the game
+  scales to it (one holds the health when the first DoT went on); Ticky never sees the numbers.
 - When combat ends, your debuffs on mobs Ticky can no longer see (or that are dead) are dropped
   without alerts; mobs it can still see, such as after a Vanish or Feign Death, keep theirs with
   exact times. Buffs and HoTs carry on.

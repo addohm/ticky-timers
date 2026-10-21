@@ -673,11 +673,12 @@ local function BuildHealthPage()
   Place(p, W.Swatch(p, "Outline color", g, s), COL2 + 4, -270)
   g, s = S("overlaySmooth")
   Place(p, W.Check(p, "Smooth changes", g, s,
-    "Shrink the shading gradually as ticks land, like a smooth health bar, so its far end holds still."),
+    "Move the shading's ends gradually, like a smooth health bar does."),
     COL2, -296)
 
-  Note(p, "How much is left comes from each spell's tooltip at first, which leaves out spell power. "
-    .. "Once Ticky has seen the spell's ticks land on your target, it uses what they actually did.\n\n"
+  Note(p, "When a DoT goes on, the spark goes at the health then, less what the DoT does in total (its "
+    .. "tooltip's amount, with your talents and spell power); each DoT you add moves it by its own total. "
+    .. "Ticks don't move it: the shading is what's left between the health now and the spark.\n\n"
     .. "The health bar has to be horizontal. Nothing shows while your target has none of your DoTs "
     .. "or HoTs.", COL2 + 4, -330, 320)
   p.OnRefresh = function()

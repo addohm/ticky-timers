@@ -8,8 +8,8 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
 - `tools/check_lua.py`: syntax-checks the addon's Lua and the TOC file list.
 - DEPLOY.md: installing, releasing, rolling back, saved variables and troubleshooting.
 - TESTING.md: the running list of what needs checking in the game client.
-- docs/health-shading-spark.md: notes on the shading spark's remaining hop (evidence, every
-  attempt, what's ruled out and still open, how to pick it up again).
+- docs/health-shading-spark.md: how the health bar shading's spark was made to hold still, and
+  the long way there.
 - `tools/tests/`: behaviour tests against a stand-in Forever client (`python tools/tests/run.py`).
 - "Ticky beep" and "Ticky chime": two sound files that come with Ticky (`Ticky/Sounds`, made by
   `tools/make_sounds.py`). They also show whether the game plays addon sound files at all. The Sounds
@@ -21,19 +21,9 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
   build and `/ticky debug` output.
 - Build stamp: `install_beta.cmd` writes the installed commit into `Build.lua`; `/ticky debug` and
   the options window show it ("dev" for a copy taken straight from the repo).
-- `/ticky sparktest`: a test bar in the middle of the screen, the size of your target's health
-  bar, built like the health bar shading, runs six variants of a tick (eased or instant; as now,
-  without the game's pixel snapping, or with a hidden health like a mob's, made with a flat curve
-  on your own hidden health) three times each and prints how far the spark strayed with plain
-  values, frame by frame, to a hundredth of a pixel. Hidden values can only be watched. The
-  shading is hidden while it goes back to the start. `/ticky sparktest copy` shows a live copy of
-  your target's shading on a plain bar in the middle of the screen, drawn by the same code at the
-  same moments, to tell a unit frame's part from Ticky's.
 - `/ticky log`: the last four seconds around your target's health bar shading (hits and whether
-  they were a tick, health changes, ticks counted, when the shading waited, and what it drew, with
-  the same number for the same frame).
-- `/ticky debug`'s last-tick line also shows the hit's size and how much the shading shrank for
-  it.
+  they were one of your ticks, health changes, spells going on or taken back, what the shading
+  drew; the same number for the same frame).
 - `tools/install_beta.cmd`: pulls the repo and mirrors the addon into the beta client (Windows).
 - `/ticky debug`: a five-line report that fits in a chat message (build, combat, learned lengths and
   ticks, target timers, casts, misses); `/ticky debug all` prints the long one: what the game lets
@@ -69,50 +59,23 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
 - Health bar overlay (new Health bar tab, off by default): on your target's health bar, the part your
   DoTs and channel will still take off, ending at its current health, and the part your HoTs will
   still heal. Per-spell colors or one color each, opacity, texture, dividers; per-spell opt-out.
-  Finds a unit frame addon's target frame or Blizzard's, or takes a frame name. Amounts
-  come from the tooltip until Ticky has seen the spell's ticks land, then from the real ticks.
+  Finds a unit frame addon's target frame or Blizzard's, or takes any frame by name, at the health
+  bar's scale. When a DoT goes on, the spark (where the health should end up) goes at the health
+  at that moment less the DoT's total from its tooltip (talents, gear, spell power); each DoT you
+  add moves it by its own total, a refresh by its total less what the old one still had to do, a
+  miss or resist takes it back. Ticks and other hits don't move it; the shading is the part
+  between the health now and the spark.
 ### Added
 - Health bar shading style: a spark where the shading ends (on by default) and its color, an
   outline (none, thin, thick) and its color, and "Smooth changes".
 ### Changed
 - A cast is timed by its tooltip's duration first (the client's current tooltip, with talents and
   gear, read again at every cast), then by the one learned from an aura read: a learned 18s for Shadow Word: Pain, stale after
-  Improved Shadow Word: Pain made it 24s, ended its bar 6 seconds early, and its last two ticks hit
-  the health bar shading with no DoT to match ("drops to the left"). Tooltips that say "seconds" or
+  Improved Shadow Word: Pain made it 24s, ended its bar 6 seconds early. Tooltips that say "seconds" or
   "minutes" are understood too. `/ticky debug` shows a learned length that disagrees: "24s (read
   18s)".
-- Health bar shading: a DoT's last tick that lands a moment after its expiry still counts as its
-  tick (the timer was dropped first, so the health dropped with nothing to match). The learned tick
-  size is no longer rounded (an average of 25 never moved for ticks of 26). A tick's difference
-  from the estimate (a crit, mostly) fades out over a second and a half after the tick, so the
-  spark drifts to where the health will end up instead of dropping at the DoT's end. `/ticky log`
-  names the school of hits that weren't a tick and notes when a timer is let go.
-- Health bar shading: each tick now takes off exactly what it did, and the estimate for the ticks
-  still to come is fixed per DoT. Before, every hit re-estimated all remaining ticks from the
-  rounded running average, which flips between neighbours (25 and 26), so the shading shrank by
-  several health points more or less than the tick (in game: "25 hit, shading -31") and the spark
-  moved. A hit far bigger or smaller than the spell's ticks (Mind Blast near a Shadow Word: Pain
-  tick) is no longer taken for the tick.
-- Health bar shading: its far end no longer jumps on each tick. The shading now hangs off an
-  invisible health bar of Ticky's own, fed the unit's health, instead of the unit frame's bar, so
-  the health end and the shading change together and ease the same way whatever the unit frame
-  does. A tick counts together with the health change it causes: the game reports the hit and
-  the health change separately (in the same frame, either order), so a seen tick waits for the
-  health change (up to a fifth of a second). The health end is held too: from just before a tick
-  is due until it's counted, the shading keeps the health it last drew. Both are then set in the
-  same moment. The shading is fed the way `/ticky sparktest` showed holding still: drawn from
-  the frame update rather than inside the game's events, and each value (health, amounts, range,
-  texture, color, layer) set only when it changes. Setting them again on every redraw seems to
-  cut the smooth easing short or restart it, so the two ends drifted apart and the spark hopped
-  toward the health for a few frames on every tick (measured in 60 fps captures). The hold now starts
-  half a second before a tick is due (ticks that landed a little early slipped through), Ticky
-  learns where each DoT's ticks really land (so tick marks line up better too), and `/ticky debug`
-  shows the last tick's hit, health change, counting and drawing times. The frame name on the Health bar tab can now be
-  any frame (the area to shade), not only a status bar, and `/ticky debug` shows how often the
-  target shading had to re-anchor. The real cause on unit frames: the shading lived at the main UI's
-  scale but was sized in the unit frame's units, so on a frame drawn bigger or smaller (as
-  EllesmereUI's target frame is) it was the wrong length and its far end slid on every tick. The
-  shading now takes the health bar's scale.
+- Learned tick sizes (shown in `/ticky debug`) are no longer rounded, and a hit far bigger or
+  smaller than a spell's ticks (Mind Blast near a Shadow Word: Pain tick) isn't taken for one.
 - Health bar shading: one segment with the total of all your DoTs (and one for your HoTs) is now the
   default, in a dark color that shows on any health bar; a segment per spell is still an option
   ("Segments"). Existing settings switch over unless you'd changed the color.

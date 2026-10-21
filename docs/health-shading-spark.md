@@ -3,7 +3,29 @@
 Notes from the 2026-10-21 investigation, for picking it up again. Written for whoever comes back to
 this (owner or coding assistant).
 
-## Status
+## Resolution (read this first)
+
+The owner, 2026-10-21, after about twenty builds: "Why do the dot ticks matter? The spark should
+simply be placed at, in this example 203 damage minus the current health, right? And when
+devouring plague is cast the spark should be moved an additional 160 damage, right?"
+
+Yes. The shading was rebuilt on that model: when a DoT goes on, the spark goes at the mob's health
+at that moment minus the DoT's total (its tooltip's amount, read at the cast); each further DoT
+moves it by its own total; a refresh by its total less what the old one still had to do; a miss
+or resist takes it back. Ticks and other hits never move it: the shading is just the part between
+the health now and the spark (a clipping frame ending at the live health). The frozen health is a
+second invisible StatusBar holding the secret health from when the plan was made. No tick
+matching, holds, pending counts, folds or per-tick estimates are involved any more; all of that
+(below) was removed. See CLAUDE.md's data flow ("Health bar shading") and Overlay.lua's header.
+
+The lesson: everything below came from modelling "damage still to come" from the ticks as they
+land, which the owner never asked for. Every mismatch between a tick and its estimate moved the
+spark, and each fix uncovered the next mismatch. Ask what a feature should mean before
+engineering around it.
+
+The rest of this file is the record of that investigation.
+
+## Status (before the rebuild)
 
 - **Accepted by the owner at 3e3c896 (code of d6a2af6), 2026-10-21.** The spark (the far end of
   the DoT shading on a health bar) still hops by about a pixel now and then as DoTs tick, on the

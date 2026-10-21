@@ -586,6 +586,7 @@ end
 --     and they correct or remove cast timers.
 
 local timers = {}
+local plan = {} -- the health bar shading's plan per mob (see "Health bar shading" below)
 local learned -- cdb.durations: [spellID] = seconds, from aura reads (talents and ranks included)
 local tickSizes -- cdb.tickSizes: [spellID] = damage or healing per tick, seen on UNIT_COMBAT
 
@@ -607,11 +608,18 @@ end
 
 -- Drop a mob's timers without alerts (it died, its plate went to another mob, ...).
 local function ForgetMob(mob)
-  if mob then timers[mob], gone[mob] = nil, nil end
+  if mob then timers[mob], gone[mob], plan[mob] = nil, nil, nil end
 end
 
 -- Drop a mob's debuffs (yours on an enemy) without alerts; buffs and HoTs stay.
 local function ForgetDebuffs(mob)
+  local p = plan[mob]
+  if p then
+    for key, part in pairs(p.parts) do
+      if not part.heal then p.parts[key] = nil end
+    end
+    if next(p.parts) then p.version = p.version + 1 else plan[mob] = nil end
+  end
   local list = timers[mob]
   if not list then return end
   for key, t in pairs(list) do
@@ -659,10 +667,8 @@ local function ReadUnit(unit)
     if lost then gone[mob][t.key] = nil end
     if prev and abs(prev.expires - t.expires) < 0.1 then
       t.warned, t.expired, t.tickN = prev.warned, prev.expired, prev.tickN
-      -- The same aura: keep what its ticks did so far (for the health bar shading).
-      t.matchedTick, t.lastTick, t.pendingTick, t.pendingAt, t.pendingAmount = prev.matchedTick, prev.lastTick,
-        prev.pendingTick, prev.pendingAt, prev.pendingAmount
-      t.tickSize, t.fold, t.foldAt = prev.tickSize, prev.fold, prev.foldAt
+      -- The same aura: keep which ticks were seen, and its part in the health bar shading.
+      t.matchedTick, t.planMob, t.planTotal, t.planDelta = prev.matchedTick, prev.planMob, prev.planTotal, prev.planDelta
     elseif not (prev and prev.castAt and now - prev.castAt < CAST_SETTLE + 0.5) and now - t.start < 1 then
       -- Applied just now and not by a cast we saw (out of combat someone else's, for example).
       Alert(t, (prev or lost) and "refreshSound" or "applySound")
@@ -681,12 +687,135 @@ local function ReadUnit(unit)
         else
           gone[mob] = gone[mob] or {}
           gone[mob][key] = { t = prev, at = now }
+          if prev.planTotal then PlanTake(prev, "removed early", prev.planTotal * LeftShare(prev, now), now) end
         end
       end
     end
   end
   if gone[mob] and not next(gone[mob]) then gone[mob] = nil end
   if not next(mine) then timers[mob] = nil end
+end
+
+-- Health bar shading (drawn by Overlay.lua) --------------------------------------
+--
+-- The owner's model (2026-10-21): when one of your DoTs (or HoTs) goes on a mob, the spark goes at
+-- the mob's health at that moment minus what the spell will do in total: its tooltip's amount,
+-- read at the cast, so talents, gear and spell power count. Each further one moves it by its own
+-- total. Ticks don't move it; the shading is just the part between the current health and the
+-- spark. (Before, the remaining damage was re-worked out from the ticks as they landed, and every
+-- mismatch moved the spark: hours of hops. docs/health-shading-spark.md.)
+--
+-- plan[mob] = { health = <the health when the first one went on: secret, only a StatusBar can
+-- show it>, parts = { [key] = { amount, heal, expires } }, expires, version }. A refresh moves the
+-- spark by its total less what the one it replaced still had to do (by the clock); a miss or
+-- resist takes its amount back, a DoT removed early what it still had to do. The plan ends half
+-- a second after the last of its spells ends, or with the mob.
+local PLAN_LINGER = 0.5
+local healthAt = {}      -- [mob] = when its health last changed
+local healthAtAny = 0    -- the last health message for a unit Ticky couldn't tell apart
+-- The shading is drawn from the frame update, not inside the events: after a health message or a
+-- plan change it's due, and the next frame draws it.
+local drawDue = false
+
+-- /ticky log: what happened around your target's shading in the last few seconds (hits, health
+-- messages, spells going on or being taken back, and what the shading drew).
+local shadeLog = {}
+local SHADE_LOG_MAX, SHADE_LOG_SPAN = 60, 4
+local lastHealthLog
+
+-- "Shadow Word: Pain" -> "SWP".
+local function Initials(name)
+  local s = ""
+  for w in tostring(name or "?"):gmatch("[%a]+") do s = s .. w:sub(1, 1):upper() end
+  return s
+end
+
+-- Add to the log if it's about your target (no mob: always).
+function ns.ShadeLog(text, mob)
+  if mob and mob ~= (HasTarget() and MobKey("target")) then return end
+  shadeLog[#shadeLog + 1] = { at = GetTime(), text = text }
+  if #shadeLog > SHADE_LOG_MAX then table.remove(shadeLog, 1) end
+end
+
+function ns.PrintShadeLog()
+  local now, parts = GetTime(), {}
+  for _, e in ipairs(shadeLog) do
+    if now - e.at <= SHADE_LOG_SPAN then parts[#parts + 1] = ("%.2f %s"):format(e.at - now, e.text) end
+  end
+  print("|cff99ccffTicky|r Shading log (seconds ago, newest last; same number = same frame): "
+    .. (#parts > 0 and table.concat(parts, ", ") or "nothing in the last " .. SHADE_LOG_SPAN .. "s"))
+end
+
+-- When `mob`'s health last changed, for the shading: it sets its health end only then.
+function ns.HealthAt(mob)
+  return math.max(mob and healthAt[mob] or 0, healthAtAny)
+end
+
+-- What a spell will do in total: its tooltip's amount, read now, else the size of its ticks seen
+-- so far times its ticks.
+local function SpellTotal(spellID, duration, interval)
+  local info = DescriptionInfo(spellID, true)
+  if info and info.amount and info.amount > 0 then return info.amount end
+  local size = tickSizes[spellID]
+  if size and duration and interval and interval >= 0.1 then return size * floor(duration / interval + 0.5) end
+end
+
+-- The share of a timer's ticks still to come, by the clock.
+local function LeftShare(t, now)
+  if not t.interval or t.interval < 0.1 then return 0 end
+  local total = TicksPassed(t, t.expires)
+  if total <= 0 then return 0 end
+  return math.max(0, total - TicksPassed(t, now)) / total
+end
+
+local function PlanChanged(p)
+  p.expires = 0
+  for _, part in pairs(p.parts) do p.expires = math.max(p.expires, part.expires) end
+  p.version = p.version + 1
+  drawDue = true
+end
+
+-- Your spell `t` went on `mob` (`prev`: the timer it replaced, if still running).
+local function PlanAdd(mob, t, prev, now)
+  local cfg = cdb.spells[t.key]
+  if not mob or not t.interval or t.interval < 0.1 or (cfg and cfg.noOverlay) then return end
+  local total = SpellTotal(t.spellID, t.expires - t.start, t.interval)
+  if not total then return end
+  local p = plan[mob]
+  if not p then
+    local unit = UnitForMob(mob)
+    -- Its health now; if no unit shows the mob, the overlay takes it when it first draws.
+    p = { parts = {}, version = 0, health = unit and UnitHealth(unit) or nil }
+    plan[mob] = p
+  end
+  local part = p.parts[t.key]
+  if not part then
+    part = { amount = 0, heal = SpellKind(t.spellID) == "help" }
+    p.parts[t.key] = part
+  end
+  local delta = total
+  if prev and prev.expires > now and prev.planTotal then
+    delta = total - prev.planTotal * LeftShare(prev, now) -- a refresh replaces what was still to come
+  end
+  part.amount = part.amount + delta
+  part.expires = math.max(part.expires or 0, t.expires)
+  t.planMob, t.planTotal, t.planDelta = mob, total, delta
+  PlanChanged(p)
+  ns.ShadeLog(("%s on: spark %s%d"):format(Initials(t.name), part.heal and "+" or "-", floor(delta + 0.5)), mob)
+end
+
+-- Take `amount` of what `t` added back off (its cast missed; it was removed or stopped early).
+-- `expires`: when the spell now ends (the timer a missed refresh leaves running).
+local function PlanTake(t, why, amount, expires)
+  local mob = t.planMob
+  local p = mob and plan[mob]
+  local part = p and p.parts[t.key]
+  if not part or not amount or amount <= 0 then return end
+  part.amount = part.amount - amount
+  if expires then part.expires = expires end
+  if part.amount <= 0.5 then p.parts[t.key] = nil end
+  if next(p.parts) then PlanChanged(p) else plan[mob], drawDue = nil, true end
+  ns.ShadeLog(("%s %s: spark back %d"):format(Initials(t.name), why, floor(amount + 0.5)), mob)
 end
 
 -- Casts ----------------------------------------------------------------------
@@ -785,6 +914,7 @@ local function OnCast(castGUID, spellID)
   else
     Alert(t, "applySound")
   end
+  PlanAdd(mob, t, prev, now)
   recentCast[mob] = { t = t, prev = prev, at = now }
 end
 
@@ -822,7 +952,9 @@ local function OnAvoided(mob, action, school, unit)
     return
   end
   entry.result = "cancelled " .. c.t.name
-  if c.prev and c.prev.expires > now then
+  local kept = c.prev and c.prev.expires > now and c.prev
+  PlanTake(c.t, "missed", c.t.planDelta, kept and kept.expires or nil)
+  if kept then
     list[c.t.key] = c.prev -- a refresh that missed leaves the old one running
   else
     list[c.t.key] = nil
@@ -848,145 +980,10 @@ local function ExpectedTick(spellID)
   return info.amount / math.max(1, floor(span / (d.p / 1000) + 0.5))
 end
 
--- How much the timer will still deal or heal, or nil if unknown.
--- When does a tick count as done for the shading? Together with the health change it causes, so
--- the shading shrinks in the same moment the health drops and its far end holds still. The game
--- reports the hit (UNIT_COMBAT) and the health change (UNIT_HEALTH) separately, in the same frame
--- and in either order (in game, 2026-10-21: no later health message came). A seen tick counts on
--- its mob's UNIT_HEALTH (at once if that came earlier in the same frame), or PENDING_MAX after the
--- hit if none came. A tick never seen counts once its time is UNSEEN_TICK_GRACE past.
-local UNSEEN_TICK_GRACE = 0.5
-local PENDING_MAX = 0.2
--- The health end is held too: the game can update a unit's health a few frames before it sends
--- UNIT_HEALTH, so a routine redraw could move it ahead of the shading. From just before a tick is
--- due until it's counted (or the grace runs out), the overlay keeps the health it last drew.
-local HOLD_BEFORE = 0.5  -- wide: ticks can land a little before or after when they're expected
-local healthAt = {}      -- [mob] = when its health last changed
-local healthAtAny = 0    -- the last health message for a unit Ticky couldn't tell apart
--- The shading is drawn from the frame update, not inside the events: after a tick or a health
--- message it's due, and the next frame draws it (/ticky sparktest held still drawn that way).
-local drawDue = false
-
--- /ticky log: what happened around your target's shading in the last few seconds (hits, health
--- messages, ticks counted, and what the shading drew), to explain a hop seen in game.
-local shadeLog = {}
-local SHADE_LOG_MAX, SHADE_LOG_SPAN = 60, 4
-local lastHealthLog
-
--- "Shadow Word: Pain" -> "SWP".
-local function Initials(name)
-  local s = ""
-  for w in tostring(name or "?"):gmatch("[%a]+") do s = s .. w:sub(1, 1):upper() end
-  return s
-end
-
--- Add to the log if it's about your target (no mob: always).
-function ns.ShadeLog(text, mob)
-  if mob and mob ~= (HasTarget() and MobKey("target")) then return end
-  shadeLog[#shadeLog + 1] = { at = GetTime(), text = text }
-  if #shadeLog > SHADE_LOG_MAX then table.remove(shadeLog, 1) end
-end
-
-function ns.PrintShadeLog()
-  local now, parts = GetTime(), {}
-  for _, e in ipairs(shadeLog) do
-    if now - e.at <= SHADE_LOG_SPAN then parts[#parts + 1] = ("%.2f %s"):format(e.at - now, e.text) end
-  end
-  print("|cff99ccffTicky|r Shading log (seconds ago, newest last; same number = same frame): "
-    .. (#parts > 0 and table.concat(parts, ", ") or "nothing in the last " .. SHADE_LOG_SPAN .. "s"))
-end
-
--- When `mob`'s health last changed, for the shading: it sets its health end only then.
-function ns.HealthAt(mob)
-  return math.max(mob and healthAt[mob] or 0, healthAtAny)
-end
-
--- The last tick on your target, step by step, for /ticky debug: when its hit came (and how far off
--- the expected time), when the health message came, when it was counted, when the shading moved.
+-- The last tick on your target, for /ticky debug: how far off the expected time it landed (Ticky
+-- moves each DoT's tick times toward where they really land, for the tick marks) and its size.
 local trace
 function ns.TickTrace() return trace end
-local function TraceFor(mob) return trace and trace.mob == mob and trace end
-
--- A seen tick that did more or less than the estimate: the difference is first kept on the
--- shading (so the far end holds still as the tick lands and eases) and then, from FOLD_DELAY on,
--- folded out over FOLD_TIME, so the far end drifts to where the health will really end up instead
--- of jumping, there or at the DoT's end. Crits (DoT ticks can crit on Forever: "hit 38! SWP") are
--- the big ones.
-local FOLD_DELAY, FOLD_TIME = 0.3, 1.5
-local function Fold(t, now)
-  local v = t.fold
-  if not v then return 0 end
-  local share = 1 - math.max(0, now - t.foldAt - FOLD_DELAY) / FOLD_TIME
-  if share <= 0 then
-    t.fold = nil
-    return 0
-  end
-  return v * share
-end
-
-local function Commit(t, why)
-  if t.pendingTick then
-    t.lastTick = math.max(t.lastTick or 0, t.pendingTick)
-    if t.pendingAmount and t.tickSize then -- for RemainingAmount: what it did against the estimate
-      local now = GetTime()
-      t.fold, t.foldAt = Fold(t, now) + t.tickSize - t.pendingAmount, now
-    end
-    t.pendingTick, t.pendingAmount = nil, nil
-    ns.ShadeLog("counted " .. Initials(t.name) .. (why and " " .. why or ""), t.mob or (t.channel and MobKey("target")))
-    local tr = TraceFor(t.mob or (t.channel and MobKey("target")))
-    if tr and tr.timer == t and not tr.counted then tr.counted = GetTime() end
-  end
-end
-
--- The next tick of a timer that hasn't been counted yet, and when it's due (nil if none left).
-local function NextTick(t, now)
-  if not t.interval or t.interval < 0.1 then return end
-  -- Past the ticks seen, counted, or gone by unseen.
-  local n = math.max(t.matchedTick or 0, t.lastTick or 0, TicksPassed(t, now - UNSEEN_TICK_GRACE)) + 1
-  local total = TicksPassed(t, t.expires)
-  if n > total then return end
-  return n, n == total and t.expires or t.start + n * t.interval
-end
-
--- Should the overlay keep the health it last drew for this unit? While one of its ticks is seen but
--- not yet counted, or due and not yet seen.
-function ns.HoldHealth(unit, now)
-  local mob = MobKey(unit)
-  local function holds(t)
-    if t.pendingTick then return true end
-    local n, due = NextTick(t, now)
-    return n and now >= due - HOLD_BEFORE and now <= due + UNSEEN_TICK_GRACE
-  end
-  for _, t in pairs(mob and timers[mob] or {}) do
-    if holds(t) then return true end
-  end
-  if channel and mob and mob == (HasTarget() and MobKey("target")) and holds(channel) then return true end
-  return false
-end
-
--- Each seen tick takes off exactly what it did as it lands (the health drops by that much, so the
--- far end holds still; see Fold for the difference), and the estimate for the ticks still to come
--- is fixed per timer. Re-estimating them all from the running average on every hit moved the far
--- end by (ticks left) x the change: with ticks of 25 and 26 the rounded average flipped, several
--- health points every tick (in game, 2026-10-21: "25 hit, shading -31"). The estimate is replaced
--- only when what's learned is clearly different (over 15%), like the tooltip's guess before the
--- first tick is seen. A timer's last tick, at its expiry, can land a little late: it's still
--- counted then (the timer is kept until UNSEEN_TICK_GRACE after expiry, see CheckAlerts).
-function ns.RemainingAmount(t, now)
-  if not t.spellID or not t.interval or t.interval < 0.1 or now > t.expires + UNSEEN_TICK_GRACE then return end
-  local learned = ExpectedTick(t.spellID)
-  if not learned then return end
-  local size = t.tickSize
-  if not size or abs(learned - size) > size * 0.15 then
-    size = learned
-    t.tickSize = size
-  end
-  if t.pendingTick and now - t.pendingAt > PENDING_MAX then Commit(t, "(no health message)") end
-  local done = math.max(t.lastTick or 0, TicksPassed(t, now - UNSEEN_TICK_GRACE))
-  local total = TicksPassed(t, t.expires)
-  if done >= total then return end
-  return math.max(0, (total - done) * size + Fold(t, now))
-end
 
 local TICK_WINDOW = 0.35
 local lastHit
@@ -1022,8 +1019,6 @@ local function OnTickAmount(mob, isHeal, amount, school, crit)
     or "(not a tick: " .. SchoolName(school) .. ")"), mob)
   if not best then return end
   best.matchedTick = bestK
-  best.pendingTick, best.pendingAt, best.pendingAmount = bestK, now, amount
-  local healthNow = healthAt[mob] == now -- its health message came first, in this frame
   -- Learn where this DoT's ticks really land, so the next ones are expected (and drawn) there.
   local expected = bestK == TicksPassed(best, best.expires) and best.expires or best.start + bestK * best.interval
   local off = now - expected
@@ -1031,12 +1026,7 @@ local function OnTickAmount(mob, isHeal, amount, school, crit)
     best.start, best.expires = best.start + off * 0.5, best.expires + off * 0.5
   end
   if mob == (HasTarget() and MobKey("target")) then
-    trace = { mob = mob, timer = best, name = best.name, hit = now, off = off, amount = amount,
-      health = healthNow and now or nil }
-  end
-  if healthNow then
-    Commit(best)
-    drawDue = true
+    trace = { name = best.name, hit = now, off = off, amount = amount, crit = crit }
   end
   if crit then return end
   local id, old = best.spellID, tickSizes[best.spellID]
@@ -1059,20 +1049,21 @@ local function CheckAlerts(now)
       end
       if now >= t.expires then
         Expire(t)
-        -- Kept a moment for its last tick, which can land a little after the expiry: dropped
-        -- before it, that tick took the health down with nothing to match it, and the shading
-        -- had already let go of it. Only the health bar shading and tick matching still see it.
-        if not t.interval or t.interval < 0.1 or now > t.expires + UNSEEN_TICK_GRACE
-          or (t.lastTick or 0) >= TicksPassed(t, t.expires) then
-          list[key] = nil
-          ns.ShadeLog("ended " .. Initials(t.name), mob)
-        end
+        list[key] = nil
+        ns.ShadeLog("ended " .. Initials(t.name), mob)
       else
         local warn = WarnSeconds(key)
         if not t.warned and warn > 0 and t.expires - now <= warn then Warn(t) end
       end
     end
     if not next(list) then timers[mob] = nil end
+  end
+  -- A plan ends a moment after its last spell (its last tick can land a little late).
+  for mob, p in pairs(plan) do
+    if now > p.expires + PLAN_LINGER then
+      plan[mob], drawDue = nil, true
+      ns.ShadeLog("all ended: no spark", mob)
+    end
   end
   for mob, lost in pairs(gone) do
     for key, g in pairs(lost) do
@@ -1091,6 +1082,9 @@ end
 local function EndChannel(now)
   if not channel then return end
   CheckTick(channel, channel.expires - now < 0.15 and channel.expires or now)
+  if channel.planTotal and channel.expires - now >= 0.15 then -- stopped early
+    PlanTake(channel, "stopped", channel.planTotal * LeftShare(channel, now), now)
+  end
   channel = nil
 end
 
@@ -1252,32 +1246,26 @@ function ns.UnitTimers(unit, now, out)
 end
 ns.MobKey = MobKey
 
--- What your DoTs and HoTs on a unit (the target, a nameplate) will still deal and heal, for the
--- health bar overlay: two lists of { key, amount, color } in bar order (reused tables, so use them
--- before the next call), or nil when the unit isn't there or is dead.
-local damageList, healList, amountsSrc = {}, {}, {}
-function ns.UnitAmounts(unit, now)
+-- The health bar shading's plan for a unit (the target, a nameplate): the plan (its `health`, the
+-- secret health the spark is measured from, and `version`, which changes with it), and its
+-- damage and heal parts, { key, amount, color, expires } in bar order. Nil when there's no plan,
+-- or the unit isn't there or is dead.
+function ns.UnitAmounts(unit)
   local exists = UnitExists(unit)
   if (not Secret(exists) and not exists) or IsDead(unit) then return end
-  local mob = MobKey(unit)
-  ListOf(mob, amountsSrc)
-  -- Your channel is on your target.
-  if channel and channel.expires > now and SpellKind(channel.spellID or 0) ~= "help"
-    and mob and mob == (HasTarget() and MobKey("target")) then
-    amountsSrc[#amountsSrc + 1] = channel
-  end
-  table.sort(amountsSrc, byMode)
-  wipe(damageList)
-  wipe(healList)
-  for _, t in ipairs(amountsSrc) do
-    local cfg = cdb.spells[t.key]
-    local amount = cfg and not cfg.noOverlay and ns.RemainingAmount(t, now)
-    if amount and amount > 0 then
-      local out = SpellKind(t.spellID) == "help" and healList or damageList
-      out[#out + 1] = { key = t.key, amount = amount, color = cfg.color }
+  local p = plan[MobKey(unit)]
+  if not p then return end
+  local damage, heal = {}, {}
+  for key, part in pairs(p.parts) do
+    local cfg = cdb.spells[key]
+    if cfg and not cfg.noOverlay and part.amount > 0 then
+      local out = part.heal and heal or damage
+      out[#out + 1] = { key = key, amount = part.amount, color = cfg.color, expires = part.expires }
     end
   end
-  return damageList, healList
+  table.sort(damage, byMode)
+  table.sort(heal, byMode)
+  return p, damage, heal
 end
 
 ---------------------------------------------------------------------------
@@ -1631,23 +1619,12 @@ ns.plateUnits = {} -- nameplate unit tokens that are up, for Plates.lua
 function TB:UNIT_HEALTH(unit)
   if not Secret(unit) and unit ~= "target" and not unit:find("^nameplate%d") then return end
   local now = GetTime()
-  -- Ticks seen landing on this mob count now, together with the health drop.
   local mob = not Secret(unit) and MobKey(unit)
-  for m, list in pairs(timers) do
-    if not mob or m == mob then
-      for _, t in pairs(list) do
-        if t.pendingTick then Commit(t) end
-      end
-    end
-  end
-  if channel and channel.pendingTick and (not mob or mob == MobKey("target")) then Commit(channel) end
   if mob then healthAt[mob] = now else healthAtAny = now end
   if lastHealthLog ~= now then -- once a frame (it comes for target and nameplate)
     lastHealthLog = now
     ns.ShadeLog("health", mob or nil)
   end
-  local tr = mob and TraceFor(mob)
-  if tr and not tr.health and now >= tr.hit then tr.health = now end
   drawDue = true
 end
 function TB:UNIT_MAXHEALTH(unit)
@@ -1680,8 +1657,25 @@ function TB:SPELL_DATA_LOAD_RESULT()
   if ns.RefreshOptions then ns.RefreshOptions(true) end
 end
 
-function TB:UNIT_SPELLCAST_CHANNEL_START() channel = ReadChannel() end
-function TB:UNIT_SPELLCAST_CHANNEL_UPDATE() if channel then channel = ReadChannel() end end
+function TB:UNIT_SPELLCAST_CHANNEL_START()
+  channel = ReadChannel()
+  local mob = channel and SpellKind(channel.spellID or 0) ~= "help" and HasTarget() and MobKey("target")
+  if mob then PlanAdd(mob, channel, nil, GetTime()) end
+end
+function TB:UNIT_SPELLCAST_CHANNEL_UPDATE()
+  if not channel then return end
+  local old = channel
+  channel = ReadChannel()
+  if channel then
+    channel.planMob, channel.planTotal, channel.planDelta = old.planMob, old.planTotal, old.planDelta
+    local p = old.planMob and plan[old.planMob]
+    local part = p and p.parts[channel.key]
+    if part then -- pushed back or cut short: it ends at its new time
+      part.expires = channel.expires
+      PlanChanged(p)
+    end
+  end
+end
 function TB:UNIT_SPELLCAST_CHANNEL_STOP() EndChannel(GetTime()) end
 
 ---------------------------------------------------------------------------
@@ -1774,11 +1768,9 @@ local function ShortDebug()
   end
   L("Casts: " .. (#casts > 0 and table.concat(casts, ", ") or "-"))
   local tr = ns.TickTrace()
-  local function at(v) return v and ("%+.3f"):format(v - tr.hit) or "never" end
-  L(tr and ("Last tick on target (%s, %.2fs %s than expected): hit 0, health %s, counted %s, drawn %s, %s ago; "
-    .. "%s hit, shading %s")
-    :format(tr.name, math.abs(tr.off), tr.off < 0 and "earlier" or "later", at(tr.health), at(tr.counted), at(tr.drawn),
-      ago(tr.hit), tostring(tr.amount), tr.shrink and ("%+d"):format(floor(-tr.shrink + 0.5)) or "?")
+  L(tr and ("Last tick on target: %s, %d%s, %.2fs %s than expected, %s ago")
+    :format(tr.name, floor(tr.amount + 0.5), tr.crit and " (crit)" or "", math.abs(tr.off),
+      tr.off < 0 and "earlier" or "later", ago(tr.hit))
     or "Last tick on target: none seen yet")
 
   local avoids = {}
@@ -1913,8 +1905,6 @@ SlashCmdList.TICKY = function(msg)
     ns.Debug(rest:lower() == "all")
   elseif cmd == "log" then
     ns.PrintShadeLog()
-  elseif cmd == "sparktest" then
-    ns.SparkTest(rest:lower())
   elseif cmd == "report" then
     Print("report a problem or ask for a feature at " .. ns.ISSUES_URL
       .. " (include what /ticky debug shows right after it happens).")
