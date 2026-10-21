@@ -212,6 +212,9 @@ end
 
 -- School masks by the word a tooltip uses ("30 Shadow damage over 18 sec").
 local SCHOOLS = { physical = 1, holy = 2, fire = 4, nature = 8, frost = 16, shadow = 32, arcane = 64 }
+local SCHOOL_NAMES = {}
+for name, bit in pairs(SCHOOLS) do SCHOOL_NAMES[bit] = name:sub(1, 1):upper() .. name:sub(2) end
+local function SchoolName(school) return SCHOOL_NAMES[school] or ("school " .. tostring(school)) end
 
 -- The amount and school in the clause that ends at `stop` (an index into `d`): the last number
 -- before it, and the school word between that number and the end. School is nil when the clause
@@ -654,7 +657,7 @@ local function ReadUnit(unit)
       -- The same aura: keep what its ticks did so far (for the health bar shading).
       t.matchedTick, t.lastTick, t.pendingTick, t.pendingAt, t.pendingAmount = prev.matchedTick, prev.lastTick,
         prev.pendingTick, prev.pendingAt, prev.pendingAmount
-      t.tickSize, t.paid, t.paidCount = prev.tickSize, prev.paid, prev.paidCount
+      t.tickSize, t.fold, t.foldAt = prev.tickSize, prev.fold, prev.foldAt
     elseif not (prev and prev.castAt and now - prev.castAt < CAST_SETTLE + 0.5) and now - t.start < 1 then
       -- Applied just now and not by a cast we saw (out of combat someone else's, for example).
       Alert(t, (prev or lost) and "refreshSound" or "applySound")
@@ -896,11 +899,29 @@ local trace
 function ns.TickTrace() return trace end
 local function TraceFor(mob) return trace and trace.mob == mob and trace end
 
+-- A seen tick that did more or less than the estimate: the difference is first kept on the
+-- shading (so the far end holds still as the tick lands and eases) and then, from FOLD_DELAY on,
+-- folded out over FOLD_TIME, so the far end drifts to where the health will really end up instead
+-- of jumping, there or at the DoT's end. Crits (DoT ticks can crit on Forever: "hit 38! SWP") are
+-- the big ones.
+local FOLD_DELAY, FOLD_TIME = 0.3, 1.5
+local function Fold(t, now)
+  local v = t.fold
+  if not v then return 0 end
+  local share = 1 - math.max(0, now - t.foldAt - FOLD_DELAY) / FOLD_TIME
+  if share <= 0 then
+    t.fold = nil
+    return 0
+  end
+  return v * share
+end
+
 local function Commit(t, why)
   if t.pendingTick then
     t.lastTick = math.max(t.lastTick or 0, t.pendingTick)
-    if t.pendingAmount then -- what the tick really did, for RemainingAmount
-      t.paid, t.paidCount = (t.paid or 0) + t.pendingAmount, (t.paidCount or 0) + 1
+    if t.pendingAmount and t.tickSize then -- for RemainingAmount: what it did against the estimate
+      local now = GetTime()
+      t.fold, t.foldAt = Fold(t, now) + t.tickSize - t.pendingAmount, now
     end
     t.pendingTick, t.pendingAmount = nil, nil
     ns.ShadeLog("counted " .. Initials(t.name) .. (why and " " .. why or ""), t.mob or (t.channel and MobKey("target")))
@@ -935,14 +956,16 @@ function ns.HoldHealth(unit, now)
   return false
 end
 
--- Each seen tick takes off exactly what it did (the health drops by that much, so the far end holds
--- still), and the estimate for the ticks still to come is fixed per timer. Re-estimating them all
--- from the running average on every hit moved the far end by (ticks left) x the change: with ticks
--- of 25 and 26 the rounded average flips, several health points every tick (in game, 2026-10-21:
--- "25 hit, shading -31"). The estimate is replaced only when what's learned is clearly different
--- (over 15%), like the tooltip's guess before the first tick is seen.
+-- Each seen tick takes off exactly what it did as it lands (the health drops by that much, so the
+-- far end holds still; see Fold for the difference), and the estimate for the ticks still to come
+-- is fixed per timer. Re-estimating them all from the running average on every hit moved the far
+-- end by (ticks left) x the change: with ticks of 25 and 26 the rounded average flipped, several
+-- health points every tick (in game, 2026-10-21: "25 hit, shading -31"). The estimate is replaced
+-- only when what's learned is clearly different (over 15%), like the tooltip's guess before the
+-- first tick is seen. A timer's last tick, at its expiry, can land a little late: it's still
+-- counted then (the timer is kept until UNSEEN_TICK_GRACE after expiry, see CheckAlerts).
 function ns.RemainingAmount(t, now)
-  if not t.spellID or not t.interval or t.interval < 0.1 or t.expires <= now then return end
+  if not t.spellID or not t.interval or t.interval < 0.1 or now > t.expires + UNSEEN_TICK_GRACE then return end
   local learned = ExpectedTick(t.spellID)
   if not learned then return end
   local size = t.tickSize
@@ -952,10 +975,9 @@ function ns.RemainingAmount(t, now)
   end
   if t.pendingTick and now - t.pendingAt > PENDING_MAX then Commit(t, "(no health message)") end
   local done = math.max(t.lastTick or 0, TicksPassed(t, now - UNSEEN_TICK_GRACE))
-  local left = math.max(0, TicksPassed(t, t.expires) - done) * size
-  -- The seen ticks among those done count what they really did instead of the estimate.
-  left = left + (t.paidCount or 0) * size - (t.paid or 0)
-  return math.max(0, left)
+  local total = TicksPassed(t, t.expires)
+  if done >= total then return end
+  return math.max(0, (total - done) * size + Fold(t, now))
 end
 
 local TICK_WINDOW = 0.35
@@ -988,7 +1010,8 @@ local function OnTickAmount(mob, isHeal, amount, school, crit)
   end
   for _, t in pairs(timers[mob] or {}) do consider(t) end
   if channel and not isHeal and mob == MobKey("target") then consider(channel) end
-  ns.ShadeLog(("hit %d%s %s"):format(amount, crit and "!" or "", best and Initials(best.name) or "(not a tick)"), mob)
+  ns.ShadeLog(("hit %d%s %s"):format(amount, crit and "!" or "", best and Initials(best.name)
+    or "(not a tick: " .. SchoolName(school) .. ")"), mob)
   if not best then return end
   best.matchedTick = bestK
   best.pendingTick, best.pendingAt, best.pendingAmount = bestK, now, amount
@@ -1009,7 +1032,8 @@ local function OnTickAmount(mob, isHeal, amount, school, crit)
   end
   if crit then return end
   local id, old = best.spellID, tickSizes[best.spellID]
-  tickSizes[id] = old and floor(old * 0.6 + amount * 0.4 + 0.5) or amount
+  -- Kept unrounded: rounded, ticks of 26 never moved an average of 25 (25.9 rounds down).
+  tickSizes[id] = old and (old * 0.6 + amount * 0.4) or amount
 end
 
 local function CheckAlerts(now)
@@ -1027,7 +1051,14 @@ local function CheckAlerts(now)
       end
       if now >= t.expires then
         Expire(t)
-        list[key] = nil
+        -- Kept a moment for its last tick, which can land a little after the expiry: dropped
+        -- before it, that tick took the health down with nothing to match it, and the shading
+        -- had already let go of it. Only the health bar shading and tick matching still see it.
+        if not t.interval or t.interval < 0.1 or now > t.expires + UNSEEN_TICK_GRACE
+          or (t.lastTick or 0) >= TicksPassed(t, t.expires) then
+          list[key] = nil
+          ns.ShadeLog("ended " .. Initials(t.name), mob)
+        end
       else
         local warn = WarnSeconds(key)
         if not t.warned and warn > 0 and t.expires - now <= warn then Warn(t) end
@@ -1690,7 +1721,7 @@ local function ShortDebug()
   for _, key in ipairs(ns.OrderedSpells()) do
     local cfg = cdb.spells[key]
     local id = cfg.id
-    local tick = id and (tickSizes[id] and (tickSizes[id] .. " seen") or (ExpectedTick(id)
+    local tick = id and (tickSizes[id] and (floor(tickSizes[id] + 0.5) .. " seen") or (ExpectedTick(id)
       and (floor(ExpectedTick(id) + 0.5) .. " tip")))
     spells[#spells + 1] = ("%s %s/%s"):format(cfg.name, id and learned[id] and (learned[id] .. "s") or "-",
       tick or "-")
@@ -1772,7 +1803,7 @@ function ns.Debug(all)
       local ok, level = pcall(CS and CS.GetSpellAuraSecrecy, cfg.id)
       V(cfg.name .. " (" .. cfg.id .. "):", "aura secrecy", ok and (SECRECY[level] or Show(level)) or "n/a",
         "secret now", Try(CS and CS.ShouldSpellAuraBeSecret, cfg.id),
-        "| lasts", Show(learned[cfg.id]), "| tick", Show(tickSizes[cfg.id] or ExpectedTick(cfg.id)),
+        "| lasts", Show(learned[cfg.id]), "| tick", Show(tickSizes[cfg.id] and floor(tickSizes[cfg.id] + 0.5) or ExpectedTick(cfg.id)),
         tickSizes[cfg.id] and "(seen)" or "(tooltip)")
     end
   end

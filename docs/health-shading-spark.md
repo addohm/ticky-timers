@@ -16,11 +16,9 @@ this (owner or coding assistant).
   the first `/ticky log` showed a critical tick taken off as a normal one.
 - **Owner on e3394b8 (code of f5dc0fd), 2026-10-21: "the most stable it's been. It doesn't really
   hop around anymore", it only "drops to the left a bit every once in a while".** The log at one
-  of those drops: `hit 25 (not a tick), health, drew health (changed)`, with Shoot (the wand)
-  among the casts. Damage that isn't your DoT's tick lowers the health the DoTs will leave, so the
-  spark moving left by it is correct. The last SW:P tick showed "26 hit, shading -24": the summed
-  deviation showing at the DoT's end (2 health, about 0.16 pixel), the expected trade-off.
-  Treated as solved; the rest of this file is the record.
+  of those drops: `hit 25 (not a tick), health, drew health (changed)`. I took it for the wand
+  (Shoot was in the casts list, but 32s earlier); **wrong: the owner wasn't wanding or meleeing.**
+  See "Drops to the left (after f5dc0fd)" below.
 
 ## What the shading is
 
@@ -143,7 +141,7 @@ How it's fed (Ticky/Core.lua), as of 3e3c896:
 
 ## Still open: candidates, roughly most likely first
 
-1. **Other damage near a tick.** Any hit that isn't your tick (wand "Shoot", melee, party members,
+1. **Other damage near a tick.** Any hit that isn't your tick (wand, melee, party members,
    another DoT's tick that wasn't matched) moves the health end alone; that's correct, but inside a
    hold window it's applied together with the next tick, and outside one it moves the spark by the
    hit. If the owner's "hops" include these, they're not a bug. `/ticky log` shows them as
@@ -209,6 +207,33 @@ Left over: an unseen tick still counts as the estimate (the spark moves by the d
 That log also shows a clean sequence otherwise: hit, counted and health in the same frame,
 "stops waiting; drew health (changed); drew shading" in the same frame too, and one "drew health
 (1s check)" at rest.
+
+## Drops to the left (after f5dc0fd)
+
+Two samples from 495e163 (2026-10-21), owner not wanding or meleeing. Debug and log were typed a
+few seconds apart; times below are matched up by the DoT ticks' 3s rhythm.
+
+1. **Rounding bias in the learned tick size.** "Shadow Word: Pain 18s/25 seen" while its ticks
+   were mostly 26. `floor(old * 0.6 + hit * 0.4 + 0.5)` can't move 25 up for a 26 (25.9 rounds
+   down), so the per-DoT estimate was 25 and every 26 tick left 1 behind. At the DoT's last tick
+   it showed: `hit 26 SWP ... drew shading -22`, a 4-health drop. Fixed: the average is kept
+   unrounded.
+2. **The difference from the estimate all landed at the DoT's end** (f5dc0fd kept the spark still
+   at each tick by carrying it). A crit (+12) dropped the spark by 12 there. Fixed: the difference
+   is kept on the shading as the tick lands and eases, then folded out over 1.5s from 0.3s after
+   (`Fold`, `t.fold`): a slow drift to where the health will really end up, not a jump.
+3. **A last tick landing after its timer was dropped.** The last tick is due at the expiry, and
+   ticks were landing 0.03-0.08s late; CheckAlerts (every 0.1s) dropped the timer at expiry, so a
+   late last tick found nothing to match: "hit N (not a tick)", the health dropped with the
+   shading already gone (it let go at expiry, and the hold went with the timer). Fixed: an expired
+   timer stays (for matching and the shading only; bars ignore it) until its last tick is counted
+   or 0.5s after expiry. `test_lasttick.lua`.
+4. **Still unexplained: a 25 hit about 3.1s after SW:P's last tick** (earlier sample, matched up by
+   DP's ticks). That's where another SW:P tick would land if SW:P lasted longer than Ticky's 18s.
+   Earlier debugs said "Shadow Word: Pain 24s"; now "18s" (learned from an aura read, per spell
+   ID; talents? a new rank?). Or something else hit the mob (a damage-on-hit effect when it melees
+   you?). `/ticky log` now names the school of such hits ("hit 25 (not a tick: Shadow)") and logs
+   when each timer is let go ("ended SWP"), so the next sample tells which.
 
 ## How to pick it up again
 

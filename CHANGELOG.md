@@ -75,6 +75,12 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
 - Health bar shading style: a spark where the shading ends (on by default) and its color, an
   outline (none, thin, thick) and its color, and "Smooth changes".
 ### Changed
+- Health bar shading: a DoT's last tick that lands a moment after its expiry still counts as its
+  tick (the timer was dropped first, so the health dropped with nothing to match). The learned tick
+  size is no longer rounded (an average of 25 never moved for ticks of 26). A tick's difference
+  from the estimate (a crit, mostly) fades out over a second and a half after the tick, so the
+  spark drifts to where the health will end up instead of dropping at the DoT's end. `/ticky log`
+  names the school of hits that weren't a tick and notes when a timer is let go.
 - Health bar shading: each tick now takes off exactly what it did, and the estimate for the ticks
   still to come is fixed per DoT. Before, every hit re-estimated all remaining ticks from the
   rounded running average, which flips between neighbours (25 and 26), so the shading shrank by

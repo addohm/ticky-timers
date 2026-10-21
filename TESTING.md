@@ -59,9 +59,8 @@ it); "dev" or an older commit means the game is still running an old copy.
 ## Confirmed
 
 - 2026-10-21: health shading spark after the tick-size fix (f5dc0fd, installed as e3394b8): "the
-  most stable it's been", no more hopping around. It still moves left now and then when something
-  other than your DoT ticks hits the mob (the log showed a wand hit, "hit 25 (not a tick)"), which
-  is by design: the spark is where the health will end up once your DoTs are done.
+  most stable it's been", no more hopping around. It still dropped left now and then (not from a
+  wand or melee: the owner wasn't using either); see To test.
 - 2026-10-21: health shading spark: accepted as it is at 3e3c896. It still hops by about a pixel
   now and then as DoTs tick (less often with "Smooth changes" off). The cause was found after
   that and fixed in f5dc0fd (entry above).
