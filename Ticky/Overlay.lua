@@ -132,8 +132,9 @@ end
 function ns.FindHealthBar()
   local custom = db.overlayFrame
   if custom and custom ~= "" then
+    -- Any frame will do: the shading only uses its area (health comes from the mirror bar).
     local f = Resolve(custom)
-    if IsBar(f) then return f, custom end
+    if type(f) == "table" and type(f.GetWidth) == "function" then return f, custom end
   end
   local addon = AddonBar(GetTime())
   if addon then return addon, "another addon's target frame" end
@@ -227,6 +228,7 @@ local function Attach(o, bar)
   reverse = not Secret(reverse) and reverse == true
   if bar == o.bar and width == o.width and reverse == o.reverse then return true end
   o.bar, o.width, o.reverse = bar, width, reverse
+  o.attaches = (o.attaches or 0) + 1
   o.holder:ClearAllPoints()
   o.holder:SetAllPoints(bar)
   o.mirror:SetReverseFill(reverse)
@@ -360,6 +362,12 @@ end
 ---------------------------------------------------------------------------
 
 local targetOverlay
+
+-- For /ticky debug: how often the target shading had to be re-anchored (a count that keeps
+-- climbing means the bar it follows keeps changing size), and the size it last used.
+function ns.OverlayInfo()
+  if targetOverlay then return targetOverlay.attaches or 0, targetOverlay.width end
+end
 local plateOverlays = {} -- [nameplate frame] = overlay, parented to the plate
 
 local function UpdatePlateOverlays(now, on)

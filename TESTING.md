@@ -10,10 +10,11 @@ it); "dev" or an older commit means the game is still running an old copy.
 
 ## To test
 
-1. **Shading holds still and has a spark** (5a37229). With DoTs ticking, the far (left) end of the
-   shading, where the spark is, stays put as ticks land. Health bar tab, "Look": spark color,
-   outline, "Smooth changes" (try it off to compare). The shading's right end may trail the unit
-   frame's own health animation for a moment; that's expected.
+1. **Shading holds still on the target frame** (this push). Smooth on nameplates since 04a1cf5, not
+   on EllesmereUI's target frame. Send what jumps (the spark end, the end by the health, or the
+   whole shading) and `/ticky debug`'s "Health bar shading on" line (its re-anchor count, taken
+   twice a few seconds apart). Then try Health bar tab, frame name
+   `EllesmereUIUnitFrames_Target._barClip`, Use, and compare.
 2. **One shading segment** (d5cd7ea). With two DoTs on a mob, the shading is one dark segment
    from the health edge covering both DoTs' remaining damage together. Health bar tab, "Segments"
    switches to one per spell.

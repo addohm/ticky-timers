@@ -62,7 +62,9 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
 - Health bar shading: its far end no longer jumps on each tick. The shading now hangs off an
   invisible health bar of Ticky's own, fed the unit's health, instead of the unit frame's bar, so
   the health end and the shading change together and ease the same way whatever the unit frame
-  does. A tick counts as done the moment Ticky sees it land.
+  does. A tick counts as done the moment Ticky sees it land. The frame name on the Health bar tab can now be
+  any frame (the area to shade), not only a status bar, and `/ticky debug` shows how often the
+  target shading had to re-anchor.
 - Health bar shading: one segment with the total of all your DoTs (and one for your HoTs) is now the
   default, in a dark color that shows on any health bar; a segment per spell is still an option
   ("Segments"). Existing settings switch over unless you'd changed the color.
