@@ -1,6 +1,12 @@
 # Roadmap
 
 ## Next (priority order)
+0. Options window cleanup (the owner, 2026-10-21: "very busy"; about 130 settings on 8 tabs). Not
+   decided yet which of these: show a setting only when the switch it depends on is on (low-time
+   color, faded-bar look, nameplates' own look, health bar look, next-tick color); remove the
+   duplicates ("Hide the main bars" on General and Nameplates; "Also on nameplates" and "Shade what
+   DoTs/HoTs will still do"); merge Layout into Bars; an Advanced section for rarely changed ones
+   (custom health bar frame, in/out of combat opacity, tenths, sound channel) and shorter notes.
 1. Work through [TESTING.md](TESTING.md), the running list of what needs checking in the client.
 2. Timers from casts live only in memory: a `/reload` mid-fight loses them (bars and nameplates)
    until you recast. Could save them on logout and restore unexpired ones (`GetTime` carries over
