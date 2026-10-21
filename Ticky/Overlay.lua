@@ -14,6 +14,7 @@ local ipairs, pairs, pcall, type = ipairs, pairs, pcall, type
 
 local db
 local MAX_SEGMENTS = 8
+local SPARK = "Interface\\CastingBar\\UI-CastingBar-Spark"
 
 local function Secret(v) return ns.Secret(v) end
 
@@ -157,7 +158,22 @@ local function NewChain(holder)
   return c
 end
 
--- An overlay: a clipping holder (child of `parent`) with a damage and a heal chain.
+-- The spark and outline of a chain, drawn on the overlay's top layer.
+local function NewTrim(top)
+  local t = { lines = {} }
+  t.spark = top:CreateTexture(nil, "OVERLAY")
+  t.spark:SetTexture(SPARK)
+  t.spark:SetBlendMode("ADD")
+  t.spark:Hide()
+  for i = 1, 4 do
+    t.lines[i] = top:CreateTexture(nil, "OVERLAY", nil, -1)
+    t.lines[i]:Hide()
+  end
+  return t
+end
+
+-- An overlay: a clipping holder (child of `parent`) with a damage and a heal chain, and a layer
+-- above them for the sparks and outlines.
 local function NewOverlay(parent)
   local o = { layerAt = 0 }
   o.holder = CreateFrame("Frame", nil, parent)
@@ -166,6 +182,10 @@ local function NewOverlay(parent)
   o.holder:Hide()
   o.damage = NewChain(o.holder)
   o.heal = NewChain(o.holder)
+  o.top = CreateFrame("Frame", nil, o.holder)
+  o.top:SetAllPoints(o.holder)
+  o.damage.trim = NewTrim(o.top)
+  o.heal.trim = NewTrim(o.top)
   return o
 end
 
@@ -174,6 +194,7 @@ end
 local function LayChain(c, fill, edge, growLeft, width)
   local near = growLeft and "RIGHT" or "LEFT" -- the side of each bar that's pinned
   local far = growLeft and "LEFT" or "RIGHT"  -- the side its fill grows toward
+  c.near, c.far, c.trimmed = near, far, nil
   local prev
   for _, seg in ipairs(c.segs) do
     local bar = seg.bar
@@ -220,14 +241,55 @@ local function Layer(o, now)
   if not ok or Secret(strata) or Secret(level) or not level then return end
   o.holder:SetFrameStrata(strata)
   o.holder:SetFrameLevel(level + 5)
+  o.top:SetFrameLevel(level + 10)
+end
+
+-- The spark where the shading ends (the health that should be left once your DoTs are done, or
+-- the health your HoTs will bring) and an outline around it. Anchored only to our own bars.
+local function Trim(c, count, height)
+  local t = c.trim
+  local last = count > 0 and c.segs[count].bar:GetStatusBarTexture()
+  if count > 0 and c.trimmed ~= count then
+    c.trimmed = count
+    local first = c.segs[1].bar
+    t.spark:ClearAllPoints()
+    t.spark:SetPoint("CENTER", last, c.far)
+    local l = t.lines
+    for _, line in ipairs(l) do line:ClearAllPoints() end
+    l[1]:SetPoint("TOP" .. c.far, last, "TOP" .. c.far)       -- top
+    l[1]:SetPoint("TOP" .. c.near, first, "TOP" .. c.near)
+    l[2]:SetPoint("BOTTOM" .. c.far, last, "BOTTOM" .. c.far) -- bottom
+    l[2]:SetPoint("BOTTOM" .. c.near, first, "BOTTOM" .. c.near)
+    l[3]:SetPoint("TOP" .. c.far, last, "TOP" .. c.far)       -- the far end
+    l[3]:SetPoint("BOTTOM" .. c.far, last, "BOTTOM" .. c.far)
+    l[4]:SetPoint("TOP" .. c.near, first, "TOP" .. c.near)    -- the health edge
+    l[4]:SetPoint("BOTTOM" .. c.near, first, "BOTTOM" .. c.near)
+  end
+  local spark = count > 0 and db.overlaySpark
+  if spark then
+    local sc = db.overlaySparkColor
+    t.spark:SetSize(12, height * 2)
+    t.spark:SetVertexColor(sc[1], sc[2], sc[3], 1)
+  end
+  t.spark:SetShown(spark and true or false)
+  local size = count > 0 and db.overlayOutline or 0
+  local oc = db.overlayOutlineColor
+  for i, line in ipairs(t.lines) do
+    if size > 0 then
+      line:SetColorTexture(oc[1], oc[2], oc[3], 1)
+      if i <= 2 then line:SetHeight(size) else line:SetWidth(size) end
+    end
+    line:SetShown(size > 0)
+  end
 end
 
 local function HideOverlay(o)
   if o and o.holder:IsShown() then o.holder:Hide() end
 end
 
--- Show a chain's entries ({ amount, color }), one bar each (or one bar with the total).
-local function Fill(c, entries, enabled, single, color, maxHealth)
+-- Show a chain's entries ({ amount, color }), one bar each (or one bar with the total). `smooth`:
+-- ease toward the new values like a smooth health bar does, so the far end holds still.
+local function Fill(c, entries, enabled, single, color, maxHealth, smooth, height)
   local tex = ns.Lookup(ns.TEXTURES, db.overlayTexture)[2]
   local alpha = db.overlayAlpha
   local count = enabled and #entries or 0
@@ -245,7 +307,7 @@ local function Fill(c, entries, enabled, single, color, maxHealth)
         for j = i + 1, #entries do amount = amount + entries[j].amount end
       end
       bar:SetMinMaxValues(0, maxHealth)
-      bar:SetValue(amount)
+      bar:SetValue(amount, smooth)
       bar:SetStatusBarTexture(tex)
       bar:SetStatusBarColor(col[1], col[2], col[3], alpha)
       seg.divider:SetShown(db.overlayDividers and not single and i < count)
@@ -254,6 +316,7 @@ local function Fill(c, entries, enabled, single, color, maxHealth)
       bar:Hide()
     end
   end
+  Trim(c, count, height)
   return count > 0
 end
 
@@ -264,11 +327,19 @@ local function Draw(o, bar, unit, now)
   if not Attach(o, bar) then return HideOverlay(o) end
   Layer(o, now)
   local single = db.overlayColors == "single"
+  -- Ease only while it's the same mob; a new one is drawn at once.
+  local mob = ns.MobKey(unit)
+  local interp = Enum.StatusBarInterpolation
+  local smooth = interp and (db.overlaySmooth and mob == o.mob and interp.ExponentialEaseOut or interp.Immediate)
+  o.mob = mob
+  local hok, height = pcall(bar.GetHeight, bar)
+  height = hok and not Secret(height) and height or 12
   local drawn = false
   local ok = pcall(function()
     local maxHealth = UnitHealthMax(unit)
-    drawn = Fill(o.damage, damage, db.overlayDamage, single, single and db.overlayDamageColor, maxHealth)
-    drawn = Fill(o.heal, heal, db.overlayHeal, single, single and db.overlayHealColor, maxHealth) or drawn
+    drawn = Fill(o.damage, damage, db.overlayDamage, single, single and db.overlayDamageColor, maxHealth, smooth, height)
+    drawn = Fill(o.heal, heal, db.overlayHeal, single, single and db.overlayHealColor, maxHealth, smooth, height)
+      or drawn
   end)
   if not ok or not drawn then return HideOverlay(o) end
   o.holder:Show()

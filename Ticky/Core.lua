@@ -51,6 +51,8 @@ ns.DEFAULTS = {
   overlayDamage = false, overlayHeal = false, overlayPlates = false, overlayColors = "single",
   overlayDamageColor = { 0.1, 0.1, 0.1 }, overlayHealColor = { 0.2, 1, 0.3 }, overlayAlpha = 0.6,
   overlayTexture = "Flat", overlayDividers = true, overlayFrame = "",
+  overlaySmooth = true, overlaySpark = true, overlaySparkColor = { 1, 1, 1 },
+  overlayOutline = 0, overlayOutlineColor = { 0, 0, 0 },
   -- Nameplates
   plateEnabled = false, plateWhich = "others", plateAnchor = "TOP", plateOffsetY = 4,
   plateHeightPct = 0.07, plateSpacing = 1, plateShowIcon = true, plateShowName = false,
@@ -832,11 +834,17 @@ local function ExpectedTick(spellID)
 end
 
 -- How much the timer will still deal or heal, or nil if unknown.
+-- A tick counts as done the moment it's seen landing (UNIT_COMBAT, see OnTickAmount), so the
+-- shading shrinks together with the health bar; one never seen counts once its time is this far
+-- past (the mob may be out of sight).
+local UNSEEN_TICK_GRACE = 0.4
+
 function ns.RemainingAmount(t, now)
   if not t.spellID or not t.interval or t.interval < 0.1 or t.expires <= now then return end
   local size = ExpectedTick(t.spellID)
   if not size then return end
-  return (TicksPassed(t, t.expires) - TicksPassed(t, now)) * size
+  local done = math.max(t.lastTick or 0, TicksPassed(t, now - UNSEEN_TICK_GRACE))
+  return math.max(0, TicksPassed(t, t.expires) - done) * size
 end
 
 local TICK_WINDOW = 0.35
@@ -867,6 +875,7 @@ local function OnTickAmount(mob, isHeal, amount, school, crit)
   if channel and not isHeal and mob == MobKey("target") then consider(channel) end
   if not best then return end
   best.lastTick = bestK
+  if ns.UpdateOverlay then ns.UpdateOverlay(now) end -- shrink the shading as the health drops
   if crit then return end
   local id, old = best.spellID, tickSizes[best.spellID]
   -- Something else's hit that happened to line up: far off what this spell has been doing.

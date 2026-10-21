@@ -647,9 +647,9 @@ local function BuildHealthPage()
   status:SetPoint("TOPLEFT", COL2 + 4, -24)
   status:SetWidth(320)
   W.Label(p, "Another addon's target health bar (frame name):", "GameFontHighlightSmall")
-    :SetPoint("TOPLEFT", COL2 + 4, -50)
+    :SetPoint("TOPLEFT", COL2 + 4, -58)
   local box = W.EditBox(p, 220)
-  box:SetPoint("TOPLEFT", COL2 + 10, -66)
+  box:SetPoint("TOPLEFT", COL2 + 10, -74)
   local function use()
     db().overlayFrame = strtrim(box:GetText() or "")
     box:ClearFocus()
@@ -659,11 +659,27 @@ local function BuildHealthPage()
   box:SetScript("OnEnterPressed", use)
   Note(p, "For example MyUnitFrames_Target.Health. Leave empty to find it automatically "
     .. "(a unit frame addon's target frame, else Blizzard's). Use /fstack to find a frame's name.",
-    COL2 + 4, -94, 320)
+    COL2 + 4, -100, 320)
+
+  W.Header(p, "Look"):SetPoint("TOPLEFT", COL2, -150)
+  g, s = S("overlaySpark")
+  Place(p, W.Check(p, "Spark where the shading ends", g, s,
+    "A bright line where the health should end up once your DoTs (or HoTs) are done."), COL2, -170)
+  g, s = S("overlaySparkColor")
+  Place(p, W.Swatch(p, "Spark color", g, s), COL2 + 4, -198)
+  g, s = S("overlayOutline")
+  Place(p, W.Cycle(p, "Outline", { { 0, "None" }, { 1, "Thin" }, { 2, "Thick" } }, g, s), COL2 + 4, -224)
+  g, s = S("overlayOutlineColor")
+  Place(p, W.Swatch(p, "Outline color", g, s), COL2 + 4, -270)
+  g, s = S("overlaySmooth")
+  Place(p, W.Check(p, "Smooth changes", g, s,
+    "Shrink the shading gradually as ticks land, like a smooth health bar, so its far end holds still."),
+    COL2, -296)
+
   Note(p, "How much is left comes from each spell's tooltip at first, which leaves out spell power. "
     .. "Once Ticky has seen the spell's ticks land on your target, it uses what they actually did.\n\n"
     .. "The health bar has to be horizontal. Nothing shows while your target has none of your DoTs "
-    .. "or HoTs.", COL2 + 4, -146, 320)
+    .. "or HoTs.", COL2 + 4, -330, 320)
   p.OnRefresh = function()
     box:SetText(db().overlayFrame or "")
     local bar, what = ns.FindHealthBar()
