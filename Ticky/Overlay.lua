@@ -454,6 +454,142 @@ function ns.UpdateOverlay(now)
   Draw(targetOverlay, bar, "target", now)
 end
 
+---------------------------------------------------------------------------
+-- /ticky sparktest
+---------------------------------------------------------------------------
+
+-- How does the far end behave when the health and the shading change together? A big test bar
+-- in the middle of the screen, built like the real shading but with plain values, so the spark's
+-- position can be measured every frame. The health drops by 100 of 1000 and the shading shrinks by
+-- 100, so the spark should hold still; the variants differ in easing and in how many frames after
+-- the health the shading is set. Each runs twice; the results are printed in screen pixels.
+local TEST_VARIANTS = {
+  { "smooth, same frame", true, 0 },
+  { "smooth, shading 1 frame later", true, 1 },
+  { "smooth, shading 2 frames later", true, 2 },
+  { "instant, same frame", false, 0 },
+  { "instant, shading 1 frame later", false, 1 },
+}
+local TEST_SETTLE, TEST_WATCH, TEST_REST, TEST_REPS = 30, 40, 20, 2
+local test
+
+local function TestPrint(msg) print("|cff99ccffTicky|r: " .. msg) end
+
+local function TestSparkX()
+  local spark = test.o.damage.trim.spark
+  local ok, x = pcall(spark.GetCenter, spark)
+  if not ok or x == nil or Secret(x) then return end
+  return x * test.px
+end
+
+local function TestSet(health, amount, interp, setMax)
+  local o = test.o
+  if health then
+    if setMax then
+      o.mirror:SetMinMaxValues(0, 1000)
+      test.bar:SetMinMaxValues(0, 1000)
+    end
+    o.mirror:SetValue(health, interp)
+    test.bar:SetValue(health, interp)
+  end
+  if amount then
+    Fill(o.damage, { { amount = amount } }, true, true, db.overlayDamageColor, 1000, interp, 30, setMax)
+  end
+end
+
+local function TestFinish()
+  test.running = false
+  test.driver:SetScript("OnUpdate", nil)
+  test.bar:Hide()
+  test.o.holder:Hide()
+  db.overlaySpark = test.sparkWas
+  TestPrint("spark test (how far the spark strayed, in screen pixels; it should stay at 0):")
+  for i, v in ipairs(TEST_VARIANTS) do
+    local r = test.results[i]
+    if not r.max then
+      TestPrint(("%d) %s: couldn't measure"):format(i, v[1]))
+    else
+      local steps = {}
+      for k = 1, 8 do
+        if r.frames[k] then steps[#steps + 1] = ("%+.1f"):format(r.frames[k]) end
+      end
+      TestPrint(("%d) %s: up to %.1f | frames: %s"):format(i, v[1], r.max, table.concat(steps, " ")))
+    end
+  end
+end
+
+local function TestStep()
+  local s = test
+  s.f = s.f + 1
+  local v = TEST_VARIANTS[s.variant]
+  local interp = Enum.StatusBarInterpolation
+  local how = v[2] and interp.ExponentialEaseOut or interp.Immediate
+  local f = s.f
+  if f == 1 then -- back to the start at once
+    TestSet(600, 300, interp.Immediate, true)
+    s.label:SetText(("Ticky spark test %d of %d: %s"):format(s.variant, #TEST_VARIANTS, v[1]))
+  elseif f == TEST_SETTLE then -- the tick: health first
+    s.x0 = TestSparkX()
+    TestSet(500, nil, how)
+  end
+  if f == TEST_SETTLE + v[3] then TestSet(nil, 200, how) end
+  if f >= TEST_SETTLE and f < TEST_SETTLE + TEST_WATCH then
+    local x = TestSparkX()
+    if x and s.x0 then
+      local d = x - s.x0
+      local r = s.results[s.variant]
+      r.max = math.max(r.max or 0, math.abs(d))
+      if s.rep == TEST_REPS then r.frames[f - TEST_SETTLE + 1] = d end
+    end
+  elseif f >= TEST_SETTLE + TEST_WATCH + TEST_REST then
+    s.f = 0
+    if s.rep < TEST_REPS then
+      s.rep = s.rep + 1
+    elseif s.variant < #TEST_VARIANTS then
+      s.variant, s.rep = s.variant + 1, 1
+    else
+      TestFinish()
+    end
+  end
+end
+
+function ns.SparkTest()
+  if not db or (test and test.running) then return end
+  if not test then
+    test = {}
+    local bar = CreateFrame("StatusBar", nil, UIParent)
+    bar.tickyOwned = true
+    bar:SetSize(600, 30)
+    bar:SetPoint("CENTER", UIParent, "CENTER", 0, 150)
+    bar:SetFrameStrata("DIALOG")
+    bar:SetStatusBarTexture("Interface\\Buttons\\WHITE8X8")
+    bar:SetStatusBarColor(0.1, 0.55, 0.1, 1)
+    local bg = bar:CreateTexture(nil, "BACKGROUND")
+    bg:SetAllPoints(bar)
+    bg:SetColorTexture(0.15, 0.15, 0.15, 0.9)
+    test.label = bar:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    test.label:SetPoint("BOTTOM", bar, "TOP", 0, 6)
+    test.bar = bar
+    test.o = NewOverlay(UIParent)
+    test.driver = CreateFrame("Frame")
+  end
+  test.bar:Show()
+  if not Attach(test.o, test.bar) then return TestPrint("spark test: couldn't set up the test bar.") end
+  test.o.layerAt = 0
+  Layer(test.o, GetTime())
+  test.o.holder:Show()
+  -- Screen pixels per unit at the spark, to report in pixels.
+  local ok, _, h = pcall(GetPhysicalScreenSize)
+  local sok, scale = pcall(test.o.top.GetEffectiveScale, test.o.top)
+  test.px = (ok and type(h) == "number" and h > 0 and h / 768 or 1) * (sok and type(scale) == "number" and scale or 1)
+  test.running, test.variant, test.rep, test.f, test.results = true, 1, 1, 0, {}
+  for i in ipairs(TEST_VARIANTS) do test.results[i] = { frames = {} } end
+  test.sparkWas, db.overlaySpark = db.overlaySpark, true
+  test.driver:SetScript("OnUpdate", TestStep)
+  TestPrint("spark test: watch the bar in the middle of the screen (about 15 seconds). Note which "
+    .. "numbered test, if any, keeps its spark still.")
+end
+
 function ns.CreateOverlay()
   db = ns.DB()
 end

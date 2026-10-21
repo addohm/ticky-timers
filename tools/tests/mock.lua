@@ -52,6 +52,7 @@ function methods:GetWidth()
   return self.w
 end
 function methods:GetHeight() return self.h end
+function methods:GetCenter() return nil end -- no layout here: positions can't be measured
 function methods:SetScale(sc) self.scale = sc end
 function methods:GetEffectiveScale()
   local sc, f = 1, self

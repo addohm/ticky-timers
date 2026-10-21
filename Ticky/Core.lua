@@ -1804,6 +1804,8 @@ SlashCmdList.TICKY = function(msg)
     Print("Appearance, layout and sound settings reset. Your spells are unchanged.")
   elseif cmd == "debug" then
     ns.Debug(rest:lower() == "all")
+  elseif cmd == "sparktest" then
+    ns.SparkTest()
   elseif cmd == "report" then
     Print("report a problem or ask for a feature at " .. ns.ISSUES_URL
       .. " (include what /ticky debug shows right after it happens).")
