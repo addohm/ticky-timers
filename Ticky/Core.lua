@@ -1432,8 +1432,10 @@ function TB:UNIT_COMBAT(unit, action, flag, amount, school)
   if Secret(unit) or Secret(action) then return end
   if AVOIDED[action] then
     local mob = MobKey(unit)
+    -- Attacks on you missing aren't your casts missing.
+    if not mob or mob == playerGUID then return end
     local sc = not Secret(school) and type(school) == "number" and school or nil
-    if mob then OnAvoided(mob, action, sc, unit) end
+    OnAvoided(mob, action, sc, unit)
   elseif action == "WOUND" or action == "HEAL" then
     if Secret(amount) or Secret(school) or Secret(flag) or type(amount) ~= "number" then return end
     local mob = MobKey(unit)

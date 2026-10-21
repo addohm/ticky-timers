@@ -73,7 +73,8 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
   mob and labels a spell's own miss Physical, so a miss counts only within 0.3s of your cast,
   dodges and parries only count for physical DoTs (spells can't be dodged), and an avoid in a
   different non-Physical school than the spell's is ignored.
-  `/ticky debug` lists the last few and what Ticky did with each. A miss in a different school than the spell's, such as your pet's
+  `/ticky debug` lists the last few and what Ticky did with each; attacks on you missing aren't
+  counted or listed. A miss in a different school than the spell's, such as your pet's
   melee being dodged as you cast a Shadow DoT, is ignored.
 - DoTs on a mob that died out of sight (not your target, no nameplate) kept their timers and played
   their "ended" sound after the fight. When combat ends, your debuffs on mobs Ticky can't see, or
