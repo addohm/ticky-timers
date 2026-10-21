@@ -118,8 +118,10 @@ UNIT_COMBAT MISS/DODGE/PARRY/RESIST/IMMUNE/EVADE/REFLECT/DEFLECT
                                   -> OnAvoided: within 0.6s after a done cast on that mob, drop
                                      it (or restore the one it refreshed); otherwise mark casts at
                                      that mob still under way (sentTo), and OnCast drops one whose
-                                     mark is under 0.4s old. Ignored if the event's school differs
-                                     from the spell's. avoidLog feeds /ticky debug
+                                     mark is under 0.4s old. With a pet out, ignored if the event's
+                                     school differs from the spell's (how the game labels a spell's
+                                     own miss is unconfirmed). avoidLog (with each decision) feeds
+                                     /ticky debug
 UNIT_COMBAT WOUND/HEAL            -> OnTickAmount: match to a timer on that mob (or the channel) by
                                      school and tick time (+-0.35s, each tick once); non-crits
                                      teach tickSizes[spellID] (60/40 running average)

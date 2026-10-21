@@ -42,7 +42,9 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
 - A missed, dodged or parried cast (and a reflected or deflected one) restarted the timer; only
   resists, immunities and evades were caught, and only when the game reported them after the cast.
   All of them now cancel the cast (a missed refresh leaves the old timer running), including when
-  the result arrives while the cast is still under way. `/ticky debug` lists the last few. A miss in a different school than the spell's, such as your pet's
+  the result arrives while the cast is still under way. The school check (ignoring a pet's dodged
+  melee) only applies with a pet out. `/ticky debug` lists the last few and what Ticky did with
+  each. A miss in a different school than the spell's, such as your pet's
   melee being dodged as you cast a Shadow DoT, is ignored.
 - DoTs on a mob that died out of sight (not your target, no nameplate) kept their timers and played
   their "ended" sound after the fight. When combat ends, your debuffs on mobs Ticky can't see, or

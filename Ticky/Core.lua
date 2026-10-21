@@ -706,9 +706,12 @@ local AVOID_AFTER = 0.6  -- seconds after a cast is done that its result may sti
 local AVOID_BEFORE = 0.4 -- ...and before
 local avoidLog = {}      -- the last few, for /ticky debug
 
--- Could an avoid in `school` be this spell's? Not when the game names a different school (your
--- pet's melee being dodged as you cast a Shadow DoT).
+-- Could an avoid in `school` be this spell's? With a pet out, not when the game names a different
+-- school: that's the pet's melee being dodged as you cast a Shadow DoT. Without a pet, any avoid
+-- on the mob counts (how the game labels a spell's own miss is unconfirmed).
 local function SchoolFits(school, spellID)
+  local pet = UnitExists("pet")
+  if Secret(pet) or not pet then return true end
   local info = DescriptionInfo(spellID)
   return not (school and school > 0 and info and info.school and info.school ~= school)
 end
@@ -737,6 +740,7 @@ local function OnCast(castGUID, spellID)
   if sent and sent.avoidedAt and now - sent.avoidedAt <= AVOID_BEFORE and SpellKind(spellID) ~= "help"
     and SchoolFits(sent.avoidSchool, spellID) then
     -- Its miss (or resist, ...) already came in: the old timer, if any, carries on.
+    if sent.avoidEntry then sent.avoidEntry.result = "cancelled " .. name .. " (came first)" end
     if not (prev and prev.expires > now) then Removed(t) end
     return
   end
@@ -752,22 +756,35 @@ end
 
 -- An avoid on a mob: cancel the tracked cast just before it, or remember it for the cast that's
 -- about to be reported. `school`: the avoided attack's school, if the game said.
-local function OnAvoided(mob, action, school)
+local function OnAvoided(mob, action, school, unit)
   local now = GetTime()
-  table.insert(avoidLog, 1, { at = now, action = action, school = school, mob = mob })
+  local entry = { at = now, action = action, school = school, unit = unit }
+  table.insert(avoidLog, 1, entry)
   avoidLog[6] = nil
   local c = recentCast[mob]
   if not c or now - c.at > AVOID_AFTER or SpellKind(c.t.spellID) == "help" then
     -- Maybe the result of a cast at this mob that's under way: keep it on that cast.
+    local pending = 0
     for _, sent in pairs(sentTo) do
-      if sent.mob == mob and now - sent.at < 10 then sent.avoidedAt, sent.avoidSchool = now, school end
+      if sent.mob == mob and now - sent.at < 10 then
+        sent.avoidedAt, sent.avoidSchool, sent.avoidEntry = now, school, entry
+        pending = pending + 1
+      end
     end
+    entry.result = pending > 0 and "kept for the cast under way" or "no tracked cast on that mob"
     return
   end
-  if not SchoolFits(school, c.t.spellID) then return end
+  if not SchoolFits(school, c.t.spellID) then
+    entry.result = "ignored: other school (pet?)"
+    return
+  end
   recentCast[mob] = nil
   local list = timers[mob]
-  if not list or list[c.t.key] ~= c.t then return end
+  if not list or list[c.t.key] ~= c.t then
+    entry.result = "cast already replaced"
+    return
+  end
+  entry.result = "cancelled " .. c.t.name
   if c.prev and c.prev.expires > now then
     list[c.t.key] = c.prev -- a refresh that missed leaves the old one running
   else
@@ -1385,7 +1402,7 @@ function TB:UNIT_COMBAT(unit, action, flag, amount, school)
   if AVOIDED[action] then
     local mob = MobKey(unit)
     local sc = not Secret(school) and type(school) == "number" and school or nil
-    if mob then OnAvoided(mob, action, sc) end
+    if mob then OnAvoided(mob, action, sc, unit) end
   elseif action == "WOUND" or action == "HEAL" then
     if Secret(amount) or Secret(school) or Secret(flag) or type(amount) ~= "number" then return end
     local mob = MobKey(unit)
@@ -1533,9 +1550,10 @@ function ns.Debug()
   V("Your last casts:", #casts > 0 and table.concat(casts, ", ") or "-")
   local avoids = {}
   for _, a in ipairs(avoidLog) do
-    avoids[#avoids + 1] = ("%s (school %s) %.1fs ago"):format(a.action, tostring(a.school), GetTime() - a.at)
+    avoids[#avoids + 1] = ("%s (school %s) on %s %.1fs ago: %s"):format(a.action, tostring(a.school),
+      tostring(a.unit), GetTime() - a.at, a.result or "?")
   end
-  V("Misses, resists, dodges on mobs:", #avoids > 0 and table.concat(avoids, ", ") or "-")
+  V("Misses, resists, dodges on mobs:", #avoids > 0 and table.concat(avoids, "; ") or "-")
   V("UNIT_AURA events:", seen.auraEvents, "| unit secret", seen.secretUnits, "| added", seen.added,
     "| added with secret ID", seen.addedSecret)
 end
