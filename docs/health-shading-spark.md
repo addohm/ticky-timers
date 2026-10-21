@@ -20,6 +20,9 @@ second invisible StatusBar holding the secret health from when the plan was made
 matching, holds, pending counts, folds or per-tick estimates are involved any more; all of that
 (below) was removed. See CLAUDE.md's data flow ("Health bar shading") and Overlay.lua's header.
 
+Confirmed by the owner in game on 040e432 (with crits moving the spark by their extra): "This
+worked very well."
+
 The lesson: everything below came from modelling "damage still to come" from the ticks as they
 land, which the owner never asked for. Every mismatch between a tick and its estimate moved the
 spark, and each fix uncovered the next mismatch. Ask what a feature should mean before
