@@ -10,10 +10,10 @@ it); "dev" or an older commit means the game is still running an old copy.
 
 ## To test
 
-1. **Health shading on nameplates** (this push). Health bar tab: damage (and healing) on, "Also on
+1. **Health shading on nameplates** (8164a0c). Health bar tab: damage (and healing) on, "Also on
    nameplates" on. Each mob's nameplate health bar shows its own DoTs' remaining damage from the
    health edge; the timer bars still sit on the plate's health bar, not on the shading.
-2. **Nameplate bars' own look** (this push). Nameplates tab, "Their own look": texture, border,
+2. **Nameplate bars' own look** (8164a0c). Nameplates tab, "Their own look": texture, border,
    background, font etc. change only the nameplate bars, not the main bars; off again, they match
    the main bars.
 3. **A missed recast** (90b6bc6) leaves the old bar running, and **with several mobs** a miss on one
