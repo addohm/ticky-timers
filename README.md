@@ -63,9 +63,11 @@ then goes missing for a few seconds, so you can see how missing spells look too.
   it. Off by default. On every nameplate but your target's (your target has the main bars), on all,
   or only your target's; above or below the plate, with an offset; width, height, spacing, font
   size, icon, name, time and ticks left. Colors, texture, ticks and font follow the main bars.
-  Needs nameplates turned on.
+  Needs nameplates turned on. "Hide the main bars" (also on the General tab) leaves just the
+  nameplate bars.
 - **General**: lock/unlock (drag the blue handle), channel bar, tracked auras on yourself,
-  hide out of combat, hide with no target, in/out of combat opacity, reset position, reset all
+  hide out of combat, hide with no target, hide the main bars altogether (sounds, nameplate bars
+  and the health bar overlay keep working), in/out of combat opacity, reset position, reset all
   settings.
 
 A fixed stack, for example Shadow Word: Pain on top, Devouring Plague in the middle and Mind Flay

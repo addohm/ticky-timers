@@ -649,20 +649,22 @@ local function BuildPlatesPage()
   local g, s = S("plateEnabled")
   Place(p, W.Check(p, "Show timer bars on nameplates", g, s,
     "Your tracked buffs and debuffs on each mob, on its nameplate. Needs nameplates turned on."), 0, -20)
+  g, s = S("hideMain")
+  Place(p, W.Check(p, "Hide the main bars", g, s, "Your channel bar too. Sounds, nameplate bars and the health bar overlay keep working. The preview still shows them while this window is open."), 0, -46)
   g, s = S("plateWhich")
   Place(p, W.Cycle(p, "Which nameplates", { { "others", "All but your target's" }, { "all", "All" },
-    { "target", "Only your target's" } }, g, s), 4, -52)
+    { "target", "Only your target's" } }, g, s), 4, -78)
   g, s = S("plateAnchor")
   Place(p, W.Cycle(p, "Where", { { "TOP", "Above the nameplate" }, { "BOTTOM", "Below the nameplate" } }, g, s),
-    4, -98)
+    4, -124)
   g, s = S("plateOffsetY")
-  Place(p, W.Slider(p, "Distance from the nameplate", -20, 60, 1, g, s), 4, -144)
+  Place(p, W.Slider(p, "Distance from the nameplate", -20, 60, 1, g, s), 4, -170)
   g, s = S("plateOffsetX")
-  Place(p, W.Slider(p, "Left / right", -60, 60, 1, g, s), 4, -184)
+  Place(p, W.Slider(p, "Left / right", -60, 60, 1, g, s), 4, -210)
   Note(p, "Colors, texture, background, border, ticks and font follow the Bars and Text & Ticks tabs. "
     .. "Each spell can be left off nameplates on the Spells tab.\n\n"
     .. "A mob only gets bars for what Ticky knows is on it: your casts on it, or its auras when the game "
-    .. "lets addons read them.", 4, -228, 320)
+    .. "lets addons read them.", 4, -254, 320)
 
   W.Header(p, "Size and text"):SetPoint("TOPLEFT", COL2, 0)
   g, s = S("plateWidth")
@@ -703,10 +705,12 @@ local function BuildGeneralPage()
   Place(p, W.Check(p, "Hide bars out of combat", g, s), 0, -98)
   g, s = S("hideNoTarget")
   Place(p, W.Check(p, "Hide bars when you have no target", g, s), 0, -124)
+  g, s = S("hideMain")
+  Place(p, W.Check(p, "Hide the main bars", g, s, "Your channel bar too. Sounds, nameplate bars and the health bar overlay keep working. The preview still shows them while this window is open."), 0, -150)
   g, s = S("alpha")
-  Place(p, W.Slider(p, "Opacity in combat", 0.1, 1, 0.05, g, s, pct), 4, -158)
+  Place(p, W.Slider(p, "Opacity in combat", 0.1, 1, 0.05, g, s, pct), 4, -184)
   g, s = S("oocAlpha")
-  Place(p, W.Slider(p, "Opacity out of combat", 0.1, 1, 0.05, g, s, pct), 4, -198)
+  Place(p, W.Slider(p, "Opacity out of combat", 0.1, 1, 0.05, g, s, pct), 4, -224)
 
   W.Header(p, "Reset"):SetPoint("TOPLEFT", COL2, 0)
   W.Button(p, "Reset bar position", 160, ns.ResetPosition):SetPoint("TOPLEFT", COL2 + 4, -22)

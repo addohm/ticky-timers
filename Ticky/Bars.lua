@@ -397,8 +397,9 @@ end
 
 function ns.UpdateBars(now)
   local combat = ns.InCombat()
-  local visible = ns.preview or not db.locked
-    or ((combat or not db.hideOutOfCombat) and (not db.hideNoTarget or ns.HasTarget()))
+  -- Hidden main bars still show their preview while the options window is open.
+  local visible = ns.preview or (not db.hideMain and (not db.locked
+    or ((combat or not db.hideOutOfCombat) and (not db.hideNoTarget or ns.HasTarget()))))
   anchor:SetShown(visible)
   if not visible then return end
   local list = ns.preview and PreviewTimers(now) or ns.ActiveTimers(now)

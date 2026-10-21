@@ -53,7 +53,7 @@ ns.DEFAULTS = {
   plateWidth = 100, plateHeight = 8, plateSpacing = 1, plateShowIcon = true, plateShowName = false,
   plateShowTime = true, plateShowTickCount = false, plateFontSize = 8,
   -- General
-  showChannel = true, showSelf = true, hideOutOfCombat = false, hideNoTarget = false,
+  hideMain = false, showChannel = true, showSelf = true, hideOutOfCombat = false, hideNoTarget = false,
   alpha = 1, oocAlpha = 1, showAll = false, previewInOptions = true,
 }
 
