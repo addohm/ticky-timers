@@ -10,7 +10,7 @@ it); "dev" or an older commit means the game is still running an old copy.
 
 ## To test
 
-1. **`/ticky report`** (this push). A box opens with the issues link selected; Ctrl+C copies it, typing
+1. **`/ticky report`** (7d78904). A box opens with the issues link selected; Ctrl+C copies it, typing
    can't change it, Esc or the X closes it. Also General > Report a problem, and the repo address
    in the options window's bottom right.
 2. **Health shading on nameplates** (8164a0c). Health bar tab: damage (and healing) on, "Also on
