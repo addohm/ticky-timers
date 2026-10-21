@@ -25,7 +25,9 @@ To run it in the game:
 1. Copy the `Ticky` folder into one of the folders below. On the owner's PC,
    `tools\install_beta.cmd` does this for the beta: it runs `git pull --ff-only` on the local clone,
    then mirrors `Ticky` into the beta AddOns folder with `robocopy /MIR` (files removed from the
-   repo are removed from the install too). It only installs what's pushed to GitHub. Edit the
+   repo are removed from the install too), then writes the commit into the installed `Build.lua`.
+   After a `/reload`, `/ticky debug` and the options window title show that build, so you can tell
+   which version is running. It only installs what's pushed to GitHub. Edit the
    `REPO` and `ADDON` paths at its top for another PC.
    - live: `World of Warcraft\<Forever folder>\Interface\AddOns\`
    - beta: `World of Warcraft\_classic_beta_\Interface\AddOns\`

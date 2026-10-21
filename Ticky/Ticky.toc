@@ -8,6 +8,7 @@
 ## IconTexture: Interface\Icons\Spell_Shadow_ShadowWordPain
 ## AddonCompartmentFunc: Ticky_OnAddonCompartmentClick
 
+Build.lua
 Data.lua
 Core.lua
 Bars.lua

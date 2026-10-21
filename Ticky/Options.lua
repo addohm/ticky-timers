@@ -810,7 +810,8 @@ local function Build()
   local title = W.Label(panel, "Ticky", "GameFontNormalLarge")
   title:SetPoint("TOPLEFT", 16, -14)
   local version = C_AddOns.GetAddOnMetadata(ADDON, "Version")
-  local sub = W.Label(panel, (version and ("v" .. version .. "  ") or "") .. "Buff and debuff timers with ticks",
+  local sub = W.Label(panel, (version and ("v" .. version .. " (" .. tostring(ns.Build) .. ")  ") or "")
+    .. "Buff and debuff timers with ticks",
     "GameFontDisableSmall")
   sub:SetPoint("LEFT", title, "RIGHT", 8, -1)
 

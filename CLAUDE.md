@@ -22,7 +22,8 @@ and a mocked API (see Testing).
 
 ```
 Ticky/            the addon (this folder is what players copy into Interface\AddOns)
-  Ticky.toc       manifest; load order Data, Core, Bars, Overlay, Plates, Widgets, Options
+  Ticky.toc       manifest; load order Build, Data, Core, Bars, Overlay, Plates, Widgets, Options
+  Build.lua       ns.Build = "dev"; install_beta.cmd overwrites the installed copy with the commit
   Data.lua        GENERATED spell data; never hand-edit
   Core.lua        settings, aura/channel reading, alerts, tick math, events, slash commands
   Bars.lua        bar frames, styling, drawing, preview
@@ -33,7 +34,8 @@ Ticky/            the addon (this folder is what players copy into Interface\Add
 tools/
   gen_data.py     builds Ticky/Data.lua from wago.tools CSV exports
   check_lua.py    syntax-checks Ticky/*.lua and the TOC file list
-  install_beta.cmd  (Windows) git pull, then mirror Ticky/ into the beta client's AddOns folder
+  install_beta.cmd  (Windows) git pull, mirror Ticky/ into the beta client's AddOns folder, stamp
+                    the installed Build.lua with the commit
 README.md CHANGELOG.md ROADMAP.md SECURITY.md DEPLOY.md CLAUDE.md
 TESTING.md        running list of what to check in the client (to test / confirmed / gaps)
 ```

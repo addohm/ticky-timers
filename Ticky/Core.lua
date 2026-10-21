@@ -1484,7 +1484,8 @@ function ns.Debug()
     for i = 1, select("#", ...) do parts[i] = tostring((select(i, ...))) end
     print("|cff99ccffTicky|r  " .. table.concat(parts, "  "))
   end
-  Print("debug, version " .. tostring(C_AddOns.GetAddOnMetadata(ADDON, "Version")))
+  Print("debug, version " .. tostring(C_AddOns.GetAddOnMetadata(ADDON, "Version")) .. ", build "
+    .. tostring(ns.Build))
   local names = {}
   for _, key in ipairs(ns.OrderedSpells()) do names[#names + 1] = cdb.spells[key].name end
   V("Tracked:", #names > 0 and table.concat(names, ", ") or "nothing - tick spells on the Spells tab")

@@ -5,9 +5,13 @@ it. When something is confirmed, move it to Confirmed with the date; when a chan
 it needs checked here in the same commit.
 
 If something's off: a screenshot plus `/ticky debug`, taken right then (in combat if possible).
+First check `/ticky debug`'s first line says the build you just installed (`install_beta.cmd` prints
+it); "dev" or an older commit means the game is still running an old copy.
 
 ## To test
 
+0. **Build stamp** (this commit). After `install_beta.cmd` and `/reload`, `/ticky debug`'s first line
+   and the options window title show the commit the script printed.
 1. **A miss cancels the cast** (90b6bc6). A missed first cast leaves no bar; a missed recast leaves
    the old bar running. `/ticky debug` should show the miss as "cancelled …".
 2. **A miss by someone else doesn't** (90b6bc6). In a group with melee, your DoT bars shouldn't

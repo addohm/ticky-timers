@@ -21,7 +21,14 @@ if errorlevel 8 (
   set "RESULT=1"
   goto done
 )
-echo Installed Ticky into %ADDON%
+rem Stamp the installed copy with the commit, so /ticky debug shows which build is running.
+for /f %%h in ('git -C "%REPO%" rev-parse --short HEAD') do set "BUILD=%%h"
+> "%ADDON%\Build.lua" (
+  echo local ADDON, ns = ...
+  echo ns.Build = "%BUILD%"
+)
+echo Installed Ticky build %BUILD% into %ADDON%
+echo In game: /reload, then /ticky debug should say build %BUILD%.
 set "RESULT=0"
 
 :done

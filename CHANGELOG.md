@@ -8,6 +8,8 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
 - `tools/check_lua.py`: syntax-checks the addon's Lua and the TOC file list.
 - DEPLOY.md: installing, releasing, rolling back, saved variables and troubleshooting.
 - TESTING.md: the running list of what needs checking in the game client.
+- Build stamp: `install_beta.cmd` writes the installed commit into `Build.lua`; `/ticky debug` and
+  the options window show it ("dev" for a copy taken straight from the repo).
 - `tools/install_beta.cmd`: pulls the repo and mirrors the addon into the beta client (Windows).
 - `/ticky debug`: prints what the game lets Ticky read right now (restriction state, each tracked
   spell's aura secrecy, your target's auras, aura instance IDs and durations, your recent casts).
