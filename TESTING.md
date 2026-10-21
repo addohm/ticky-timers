@@ -10,7 +10,7 @@ it); "dev" or an older commit means the game is still running an old copy.
 
 ## To test
 
-1. **The spark holds still as DoTs tick** (this push), on the unit frame and nameplates. A capture of
+1. **The spark holds still as DoTs tick** (57fb31f), on the unit frame and nameplates. A capture of
    5cdadb4 showed it hopping toward the health for about 3 frames on each tick; this sets the
    shading's length a frame after its health end moves. Try "Smooth changes" on and off. If it
    still flickers, send about 10 consecutive 60 fps frames around one tick, cropped to the bar, PNG.
