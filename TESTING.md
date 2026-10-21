@@ -95,8 +95,8 @@ it); "dev" or an older commit means the game is still running an old copy.
 ## Known gaps
 
 - The game doesn't say whose damage hit a mob: another player's same DoT ticking at the same
-  moment on the same mob can be taken for yours (tick sizes in `/ticky debug`; on a crit, the
-  spark moves).
+  moment on the same mob can be taken for yours (and yours for other damage). The spark ends up
+  in the same place; the tick sizes in `/ticky debug` can be off.
 - A `/reload` mid-fight loses timers from casts (bars and nameplates) until you recast.
 - Feign Death or Vanish with nameplates off and the mob not targeted drops its DoT bars.
 - A physical DoT can be cancelled by your own white hit being dodged in the same instant.

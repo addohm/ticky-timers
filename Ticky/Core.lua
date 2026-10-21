@@ -828,6 +828,18 @@ local function PlanCrit(t, amount)
     t.planMob)
 end
 
+-- Damage (or healing) on the mob that isn't one of your ticks: your wand, Mind Blast, a party
+-- member, an enemy healer. The health moves by it, so the spark does too (the owner: "the whole
+-- health bar would shift that much"). Kept as the plan's offset, added after its spells.
+local function PlanOther(mob, isHeal, amount)
+  local p = plan[mob]
+  if not p then return end
+  p.offset = (p.offset or 0) + (isHeal and -amount or amount)
+  drawDue = true
+  ns.ShadeLog(("other %s: spark %s%d"):format(isHeal and "healing" or "damage", isHeal and "+" or "-",
+    floor(amount + 0.5)), mob)
+end
+
 -- Take `amount` of what `t` added back off (its cast missed; it was removed or stopped early).
 -- `expires`: when the spell now ends (the timer a missed refresh leaves running).
 local function PlanTake(t, why, amount, expires)
@@ -1009,8 +1021,14 @@ end
 local trace
 function ns.TickTrace() return trace end
 
-local TICK_WINDOW = 0.35
+-- How far from its expected time a hit can be one of a timer's ticks: ticks have landed up to
+-- 0.08s off in game; lag can add more. Not so wide that one tick's window reaches the next.
+local function TickWindow(t) return math.min(0.5, t.interval * 0.25) end
 local lastHit
+-- Timers that just ended, kept half a second for their last tick, due at the expiry, which can
+-- land a moment late: unmatched, it would count as other damage and move the spark.
+local ended, endedChannel = {}, nil
+local ENDED_KEEP = 0.5
 
 local function OnTickAmount(mob, isHeal, amount, school, crit)
   local now = GetTime()
@@ -1032,16 +1050,22 @@ local function OnTickAmount(mob, isHeal, amount, school, crit)
     local dist = abs(now - (t.start + k * t.interval))
     local last = TicksPassed(t, t.expires)
     if abs(now - t.expires) < dist then k, dist = last, abs(now - t.expires) end
-    if k >= 1 and k <= last and dist <= TICK_WINDOW and k > (t.matchedTick or 0)
+    if k >= 1 and k <= last and dist <= TickWindow(t) and k > (t.matchedTick or 0)
       and (not bestDist or dist < bestDist) then
       best, bestK, bestDist = t, k, dist
     end
   end
   for _, t in pairs(timers[mob] or {}) do consider(t) end
+  for _, t in pairs(ended[mob] or {}) do
+    if now <= t.expires + ENDED_KEEP then consider(t) end
+  end
   if channel and not isHeal and mob == MobKey("target") then consider(channel) end
+  if endedChannel and not isHeal and mob == endedChannel.planMob and now <= endedChannel.endedAt + ENDED_KEEP then
+    consider(endedChannel)
+  end
   ns.ShadeLog(("hit %d%s %s"):format(amount, crit and "!" or "", best and Initials(best.name)
     or "(not a tick: " .. SchoolName(school) .. ")"), mob)
-  if not best then return end
+  if not best then return PlanOther(mob, isHeal, amount) end
   best.matchedTick = bestK
   -- Learn where this DoT's ticks really land, so the next ones are expected (and drawn) there.
   local expected = bestK == TicksPassed(best, best.expires) and best.expires or best.start + bestK * best.interval
@@ -1074,6 +1098,10 @@ local function CheckAlerts(now)
       if now >= t.expires then
         Expire(t)
         list[key] = nil
+        if t.interval and t.interval >= 0.1 then
+          ended[mob] = ended[mob] or {}
+          ended[mob][key] = t
+        end
         ns.ShadeLog("ended " .. Initials(t.name), mob)
       else
         local warn = WarnSeconds(key)
@@ -1081,6 +1109,12 @@ local function CheckAlerts(now)
       end
     end
     if not next(list) then timers[mob] = nil end
+  end
+  for mob, list in pairs(ended) do
+    for key, t in pairs(list) do
+      if now > t.expires + ENDED_KEEP then list[key] = nil end
+    end
+    if not next(list) then ended[mob] = nil end
   end
   -- A plan ends a moment after its last spell (its last tick can land a little late).
   for mob, p in pairs(plan) do
@@ -1109,6 +1143,8 @@ local function EndChannel(now)
   if channel.planTotal and channel.expires - now >= 0.15 then -- stopped early
     PlanTake(channel, "stopped", channel.planTotal * LeftShare(channel, now), now)
   end
+  channel.endedAt = now
+  endedChannel = channel
   channel = nil
 end
 
@@ -1289,6 +1325,20 @@ function ns.UnitAmounts(unit)
   end
   table.sort(damage, byMode)
   table.sort(heal, byMode)
+  -- Other damage and healing on it since (see PlanOther), at the far end: more of it moves the
+  -- spark further; the other way, it takes off the far end's spells first.
+  local offset = p.offset or 0
+  local list, color = damage, db.overlayDamageColor
+  if #damage == 0 then list, color, offset = heal, db.overlayHealColor, -offset end
+  if offset > 0 then
+    list[#list + 1] = { key = "other", amount = offset, color = color, expires = 0 }
+  else
+    for i = #list, 1, -1 do
+      if offset >= 0 then break end
+      local take = math.min(list[i].amount, -offset)
+      list[i].amount, offset = list[i].amount - take, offset + take
+    end
+  end
   return p, damage, heal
 end
 

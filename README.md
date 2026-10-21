@@ -64,7 +64,8 @@ then goes missing for a few seconds, so you can see how missing spells look too.
   moment less the DoT's total, from its tooltip (with your talents and spell power); each DoT you
   add moves it by its own total, a refresh by its total less what the old one still had to do,
   and a miss or resist takes it back. A tick that crits moves it by what it did beyond a normal
-  tick. Other ticks and other hits don't move it.
+  tick, and any other damage on the mob (your wand, Mind Blast, a party member) by its amount, as
+  the health bar moves by it (healing on it, the other way). Your other ticks don't move it.
   Off by default. One segment with the total (dark for damage, green for healing; colors are
   yours to pick) or one segment per spell in its bar color, with a line between them; opacity;
   texture; a spark where the shading ends (where the health should end up) and its color; an
@@ -148,8 +149,8 @@ your casts (see above). What that means:
 - A DoT dispelled in combat keeps its bar until the next time Ticky can read auras.
 - The damage the game reports on a mob doesn't say whose it is. Ticky matches your DoTs' ticks by
   school and timing, so another player's same DoT ticking at the same moment on the same mob can
-  be taken for yours (it only affects the tick sizes in `/ticky debug` and, on a crit, the
-  spark).
+  be taken for yours, and yours for other damage; the spark ends up in the same place, but the
+  tick sizes in `/ticky debug` can be off.
 - A spell whose tooltip doesn't give its length is timed from the last time Ticky read its aura
   (out of combat); until then it can't be timed from casts.
 - `/ticky debug` shows what the game is hiding right now.

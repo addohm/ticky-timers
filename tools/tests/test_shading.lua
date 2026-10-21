@@ -1,7 +1,7 @@
 -- Health bar shading, the owner's model: when a DoT goes on, the spark goes at the mob's health at
 -- that moment minus the DoT's total (its tooltip's amount); each further DoT moves it by its own
--- total; ticks and other hits don't move it; the shading is the part between the health now and
--- the spark. Also: misses, refreshes, the end, per-spell segments, HoTs, unit frame addons'
+-- total; your ticks don't move it, other damage on the mob does (by its amount: the health bar
+-- moves by it); the shading is the part between the health now and the spark. Also: misses, refreshes, the end, per-spell segments, HoTs, unit frame addons'
 -- bars, nameplates.
 local M, ns, check = MOCK, NS, MOCK.check
 M.start()
@@ -47,7 +47,7 @@ M.update(1.35)
 M.cast(2944, "S"); M.update(0.15); M.frame()
 check(seg.value == 30 + 152 and frozen.value == frozenAt, "DP on: the spark moves another 152, from the same health")
 
--- Ticks, other hits and health changes move only the health end.
+-- Your ticks move only the health end; someone else's hit (61, Physical) moves the spark too.
 local sets = 0
 for _, f in ipairs({ seg, frozen }) do
   local real = f.SetValue
@@ -60,8 +60,8 @@ for k = 1, 2 do
   M.update(0.4)
   M.fire("UNIT_COMBAT", "target", "WOUND", "", 61, 1); M.fire("UNIT_HEALTH", "target"); M.frame() -- someone else
 end
-check(sets == 0 and seg.value == 182 and frozen.value == frozenAt, "ticks and other hits don't move the spark: "
-  .. sets .. " sets")
+check(sets == 2 and seg.value == 182 + 122 and frozen.value == frozenAt,
+  "ticks don't move the spark, the two other hits move it 61 each: " .. sets .. " sets, " .. tostring(seg.value))
 check(mirror.value ~= h0, "the health end follows the health")
 seg.SetValue, frozen.SetValue = nil, nil
 check(cdb.tickSizes[589] == 25, "tick sizes are still learned (for /ticky debug): " .. tostring(cdb.tickSizes[589]))
@@ -69,7 +69,8 @@ check(cdb.tickSizes[589] == 25, "tick sizes are still learned (for /ticky debug)
 -- Per-spell segments, in bar order.
 db.overlayColors = "each"; M.update(0.15); M.frame()
 local dmg = shown(dclip)
-check(#dmg == 2 and dmg[1].value == 152 and dmg[2].value == 30, "per-spell segments (DP, SW:P)")
+check(#dmg == 3 and dmg[1].value == 152 and dmg[2].value == 30 and dmg[3].value == 122,
+  "per-spell segments (DP, SW:P, then the other damage)")
 check(dmg[2].points[1][2] == dmg[1]._fill and dmg[2].points[1][3] == "TOPLEFT", "second chained to the first's end")
 db.overlayColors = "single"; M.update(0.15); M.frame()
 
@@ -77,10 +78,10 @@ db.overlayColors = "single"; M.update(0.15); M.frame()
 -- one still had to do (SW:P recast at 9s of 18: half its ticks to come, 15 of 30).
 while M.now < start + 9.05 do M.update(0.05) end
 M.cast(589, "S"); M.update(0.1); M.fire("UNIT_COMBAT", "target", "MISS", "", 0, 1); M.update(0.1); M.frame()
-check(seg.value == 182, "a missed refresh: no change: " .. tostring(seg.value))
+check(seg.value == 304, "a missed refresh: no change: " .. tostring(seg.value))
 M.update(0.5)
 M.cast(589, "S"); M.update(0.15); M.frame()
-check(math.abs(seg.value - (182 + 15)) < 0.01, "a refresh halfway: +15: " .. tostring(seg.value))
+check(math.abs(seg.value - (304 + 15)) < 0.01, "a refresh halfway: +15: " .. tostring(seg.value))
 M.printed = {}
 SlashCmdList.TICKY("log")
 check((M.printed[1] or ""):find("SWP missed: spark back 15") and (M.printed[1] or ""):find("SWP on: spark %-15"),
@@ -92,10 +93,20 @@ M.fire("PLAYER_TARGET_CHANGED"); M.cast(2944, "T"); M.update(0.15); M.frame()
 check(seg.value == 152 and frozen.value ~= frozenAt, "another mob: its own spark")
 M.units.target = { guid = "Creature-1", name = "S", exists = true, canAttack = true, auras = {} }
 M.fire("PLAYER_TARGET_CHANGED"); M.update(0.15); M.frame()
-check(math.abs(seg.value - 197) < 0.01 and frozen.value == frozenAt, "back on the first: the same spark")
+check(math.abs(seg.value - 319) < 0.01 and frozen.value == frozenAt, "back on the first: the same spark")
+
+-- An enemy healer heals it 20: the spark moves back 20.
+M.fire("UNIT_COMBAT", "target", "HEAL", "", 20, 2); M.update(0.05); M.frame()
+check(math.abs(seg.value - 299) < 0.01, "healing on it moves the spark back: " .. tostring(seg.value))
+
+-- Devouring Plague's last tick, due at its expiry, lands 0.2s late (after Ticky ended it): still its tick, not other damage.
+while M.now < start + 1.5 + 24 + 0.2 do M.update(0.02) end
+local beforeLast = seg.value
+M.fire("UNIT_COMBAT", "target", "WOUND", "", 19, 32); M.fire("UNIT_HEALTH", "target"); M.frame()
+check(math.abs(seg.value - beforeLast) < 0.01, "a late last tick doesn't move the spark: " .. tostring(seg.value))
 
 -- It ends a moment after the last spell does.
-while M.now < start + 1.5 + 24 + 0.3 do M.update(0.1) end -- DP ends at 25.5; SW:P (recast) at 27.7
+while M.now < start + 1.5 + 24 + 0.3 do M.update(0.1) end -- DP ended at 25.5; SW:P (recast) ends at 27.7
 check(h.shown, "still up while one is left")
 while M.now < start + 9.75 + 18 + 0.7 do M.update(0.1) end
 check(not h.shown, "gone after the last one ends")
@@ -107,6 +118,8 @@ local heal = shown(hclip)
 check(#heal == 1 and heal[1].value == 45 and heal[1].reverse == false, "Renew 45, growing right")
 check(hclip.points[1][2] == mirror._fill and hclip.points[1][3] == "TOPRIGHT", "shown from the health now on")
 check(#shown(dclip) == 0, "no damage shading on a friend")
+M.fire("UNIT_COMBAT", "target", "WOUND", "", 10, 1); M.update(0.05); M.frame()
+check(heal[1].value == 35, "a hit on your friend takes 10 off where Renew will bring them: " .. tostring(heal[1].value))
 
 -- A unit frame addon's target frame: its health bar, not a reversed missing-health bar.
 local uf = CreateFrame("Button", "OtherUF_Target", UIParent)
