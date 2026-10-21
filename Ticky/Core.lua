@@ -1558,10 +1558,11 @@ local function ShortDebug()
   L(("Target: %s, key %s | timers: %s%s"):format(tm and (hostile and "enemy" or "friend") or "none", tm and (tm:sub(1, 6) == "plate:" and tm or tm == "target" and "target" or "GUID") or "-",
     #parts > 0 and table.concat(parts, ", ") or "none", channel and (" | channel " .. channel.name) or ""))
   local hb = ns.FindHealthBar and ns.FindHealthBar()
-  local attaches, width
-  if ns.OverlayInfo then attaches, width = ns.OverlayInfo() end
+  local attaches, width, scale
+  if ns.OverlayInfo then attaches, width, scale = ns.OverlayInfo() end
   L("Health bar shading on: " .. (hb and (ns.FramePath(hb) or "a bar with no name") or "none found")
-    .. (attaches and (" | re-anchored " .. attaches .. "x, width " .. tostring(width and floor(width * 10 + 0.5) / 10)) or ""))
+    .. (attaches and (" | re-anchored " .. attaches .. "x, width " .. tostring(width and floor(width * 10 + 0.5) / 10)
+      .. ", scale " .. tostring(scale)) or ""))
   -- And on nameplates: the bar picked on up to two plates (their names show which addon drew them).
   local plates = {}
   if C_NamePlate and C_NamePlate.GetNamePlateForUnit and ns.PlateHealthBar then

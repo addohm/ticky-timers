@@ -12,7 +12,7 @@
 -- whatever animation the unit frame's own bar has. A clipping frame cuts off what runs past.
 local ADDON, ns = ...
 
-local ipairs, pairs, pcall, type = ipairs, pairs, pcall, type
+local ipairs, pairs, pcall, type, floor = ipairs, pairs, pcall, type, math.floor
 
 local db
 local MAX_SEGMENTS = 8
@@ -221,14 +221,28 @@ end
 
 -- Anchor to a health bar (again only when it, its width or its fill direction changed: the
 -- target frame may be protected, so we avoid re-anchoring more than needed).
+-- How much bigger the bar is drawn than the holder's parent: unit frame addons often scale their
+-- frames. The holder takes the bar's scale, so the segment widths (in the bar's units) match it.
+local function ScaleOf(o, bar)
+  local ok, barScale, parentScale = pcall(function()
+    return bar:GetEffectiveScale(), o.holder:GetParent():GetEffectiveScale()
+  end)
+  if ok and not Secret(barScale) and not Secret(parentScale) and barScale and parentScale and parentScale > 0 then
+    return floor(barScale / parentScale * 1000 + 0.5) / 1000
+  end
+  return 1
+end
+
 local function Attach(o, bar)
   local ok, width = pcall(bar.GetWidth, bar)
   if not ok or Secret(width) or not width or width <= 0 then return false end
   local reverse = bar.GetReverseFill and bar:GetReverseFill()
   reverse = not Secret(reverse) and reverse == true
-  if bar == o.bar and width == o.width and reverse == o.reverse then return true end
-  o.bar, o.width, o.reverse = bar, width, reverse
+  local scale = ScaleOf(o, bar)
+  if bar == o.bar and width == o.width and reverse == o.reverse and scale == o.scale then return true end
+  o.bar, o.width, o.reverse, o.scale = bar, width, reverse, scale
   o.attaches = (o.attaches or 0) + 1
+  o.holder:SetScale(scale)
   o.holder:ClearAllPoints()
   o.holder:SetAllPoints(bar)
   o.mirror:SetReverseFill(reverse)
@@ -366,7 +380,7 @@ local targetOverlay
 -- For /ticky debug: how often the target shading had to be re-anchored (a count that keeps
 -- climbing means the bar it follows keeps changing size), and the size it last used.
 function ns.OverlayInfo()
-  if targetOverlay then return targetOverlay.attaches or 0, targetOverlay.width end
+  if targetOverlay then return targetOverlay.attaches or 0, targetOverlay.width, targetOverlay.scale end
 end
 local plateOverlays = {} -- [nameplate frame] = overlay, parented to the plate
 
