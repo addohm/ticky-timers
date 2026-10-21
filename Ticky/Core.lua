@@ -836,11 +836,10 @@ end
 -- How much the timer will still deal or heal, or nil if unknown.
 -- When does a tick count as done for the shading? Together with the health change it causes, so
 -- the shading shrinks in the same moment the health drops and its far end holds still. The game
--- reports the hit (UNIT_COMBAT) and the health change separately, and a UNIT_HEALTH in the same
--- frame as the hit can come before the new health is readable (seen in a 60 fps capture,
--- 2026-10-21: the shading shrank 2-3 frames before the health did). So a seen tick counts on the
--- first UNIT_HEALTH for its mob in a later frame, or PENDING_MAX after the hit, when the health has
--- long since arrived. A tick never seen counts once its time is UNSEEN_TICK_GRACE past.
+-- reports the hit (UNIT_COMBAT) and the health change (UNIT_HEALTH) separately, in the same frame
+-- and in either order (in game, 2026-10-21: no later health message came). A seen tick counts on
+-- its mob's UNIT_HEALTH (at once if that came earlier in the same frame), or PENDING_MAX after the
+-- hit if none came. A tick never seen counts once its time is UNSEEN_TICK_GRACE past.
 local UNSEEN_TICK_GRACE = 0.5
 local PENDING_MAX = 0.2
 -- The health end is held too: the game can update a unit's health a few frames before it sends
@@ -928,6 +927,7 @@ local function OnTickAmount(mob, isHeal, amount, school, crit)
   if not best then return end
   best.matchedTick = bestK
   best.pendingTick, best.pendingAt = bestK, now
+  local healthNow = healthAt[mob] == now -- its health message came first, in this frame
   -- Learn where this DoT's ticks really land, so the next ones are expected (and drawn) there.
   local expected = bestK == TicksPassed(best, best.expires) and best.expires or best.start + bestK * best.interval
   local off = now - expected
@@ -936,7 +936,11 @@ local function OnTickAmount(mob, isHeal, amount, school, crit)
   end
   if mob == (HasTarget() and MobKey("target")) then
     trace = { mob = mob, timer = best, name = best.name, hit = now, off = off,
-      health = nil }
+      health = healthNow and now or nil }
+  end
+  if healthNow then
+    Commit(best)
+    if ns.UpdateOverlay then ns.UpdateOverlay(now) end
   end
   if crit then return end
   local id, old = best.spellID, tickSizes[best.spellID]
@@ -1526,21 +1530,20 @@ function TB:UNIT_HEALTH(unit)
   -- Ticks seen landing on this mob count now, together with the health drop.
   local mob = not Secret(unit) and MobKey(unit)
   local committed = false
-  -- Only a tick seen in an earlier frame: a health message in the hit's own frame can be stale.
   for m, list in pairs(timers) do
     if not mob or m == mob then
       for _, t in pairs(list) do
-        if t.pendingTick and t.pendingAt < now then Commit(t); committed = true end
+        if t.pendingTick then Commit(t); committed = true end
       end
     end
   end
-  if channel and channel.pendingTick and channel.pendingAt < now and (not mob or mob == MobKey("target")) then
+  if channel and channel.pendingTick and (not mob or mob == MobKey("target")) then
     Commit(channel)
     committed = true
   end
   if mob then healthAt[mob] = now end
   local tr = mob and TraceFor(mob)
-  if tr and not tr.health and now > tr.hit then tr.health = now end
+  if tr and not tr.health and now >= tr.hit then tr.health = now end
   if not (db.overlayDamage or db.overlayHeal) then return end
   if now == healthDrawnAt and not committed then return end
   healthDrawnAt = now

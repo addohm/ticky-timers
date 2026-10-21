@@ -263,6 +263,8 @@ local function Layer(o, now)
   local bar = o.bar
   local ok, strata, level = pcall(function() return bar:GetFrameStrata(), bar:GetFrameLevel() end)
   if not ok or Secret(strata) or Secret(level) or not level then return end
+  if strata == o.strata and level == o.level then return end -- (see Fill: no needless setting)
+  o.strata, o.level = strata, level
   o.holder:SetFrameStrata(strata)
   o.holder:SetFrameLevel(level + 5)
   o.top:SetFrameLevel(level + 10)
@@ -313,6 +315,10 @@ end
 
 -- Show a chain's entries ({ amount, color }), one bar each (or one bar with the total). `smooth`:
 -- ease toward the new values like a smooth health bar does, so the far end holds still.
+-- A bar's texture and color are set only when they change: re-setting them (like its range) on
+-- every redraw seems to end the bar's easing at once, so after a tick the shading snapped to its
+-- new size while the health end was still easing, and the spark hopped toward the health for a
+-- few frames (60 fps captures, 2026-10-21).
 local function Fill(c, entries, enabled, single, color, maxHealth, smooth, height, setMax)
   local tex = ns.Lookup(ns.TEXTURES, db.overlayTexture)[2]
   local alpha = db.overlayAlpha
@@ -333,9 +339,16 @@ local function Fill(c, entries, enabled, single, color, maxHealth, smooth, heigh
       elseif i == MAX_SEGMENTS then
         for j = i + 1, #entries do amount = amount + entries[j].amount end
       end
+      if seg.tex ~= tex then
+        seg.tex = tex
+        bar:SetStatusBarTexture(tex)
+      end
+      local r, g, b = col[1], col[2], col[3]
+      if seg.r ~= r or seg.g ~= g or seg.b ~= b or seg.a ~= alpha then
+        seg.r, seg.g, seg.b, seg.a = r, g, b, alpha
+        bar:SetStatusBarColor(r, g, b, alpha)
+      end
       bar:SetValue(amount, smooth)
-      bar:SetStatusBarTexture(tex)
-      bar:SetStatusBarColor(col[1], col[2], col[3], alpha)
       seg.divider:SetShown(db.overlayDividers and not single and i < count)
       bar:Show()
     else

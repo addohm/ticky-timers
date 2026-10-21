@@ -64,13 +64,13 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
   invisible health bar of Ticky's own, fed the unit's health, instead of the unit frame's bar, so
   the health end and the shading change together and ease the same way whatever the unit frame
   does. A tick counts together with the health change it causes: the game reports the hit and
-  the health change separately, so a seen tick waits for a health change in a later frame (up to
-  a fifth of a second): one in the hit's own frame can still carry the old health, which made the
-  shading shrink a few frames before the health did. The health end is held too: the game can update a unit's health a few frames before
-  it says so, so from just before a tick is due until it's counted, the shading keeps the health
-  it last drew. Both are then set in the same moment, and the bars' range (0 to max health) is no
-  longer set again on every redraw, which had cut the smooth easing short and let the two ends
-  drift apart for a few frames on every tick (measured in 60 fps captures). The hold now starts
+  the health change separately (in the same frame, either order), so a seen tick waits for the
+  health change (up to a fifth of a second). The health end is held too: from just before a tick
+  is due until it's counted, the shading keeps the health it last drew. Both are then set in the
+  same moment, and the shading bars' range (0 to max health), texture, color and layer are no
+  longer set again on every redraw: that seems to cut the smooth easing short, so the shading
+  snapped to its new size while the health end was still easing, and the spark hopped toward the
+  health for a few frames on every tick (measured in 60 fps captures). The hold now starts
   half a second before a tick is due (ticks that landed a little early slipped through), Ticky
   learns where each DoT's ticks really land (so tick marks line up better too), and `/ticky debug`
   shows the last tick's hit, health change, counting and drawing times. The frame name on the Health bar tab can now be
