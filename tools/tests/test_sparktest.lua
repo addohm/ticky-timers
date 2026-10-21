@@ -18,10 +18,10 @@ hiddenAtReset = holder and not holder:IsShown()
 for _ = 1, 40 do M.update(1 / 60) end
 shownAtTick = holder and holder:IsShown()
 check(hiddenAtReset and shownAtTick, "the shading is hidden while it goes back to the start, shown for the tick")
-for _ = 1, 1200 do M.update(1 / 60) end
+for _ = 1, 1500 do M.update(1 / 60) end
 local lines = 0
 for _, l in ipairs(M.printed) do if l:find("^.-%d%) ") then lines = lines + 1 end end
-check(lines == 6, "a line per variant: " .. lines)
+check(lines == 7, "a line per variant: " .. lines)
 check(db.overlaySpark == false, "spark setting restored")
 check(bar and not bar:IsShown(), "test bar hidden afterwards")
 M.printed = {}

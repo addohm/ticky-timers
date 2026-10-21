@@ -847,6 +847,15 @@ local PENDING_MAX = 0.2
 -- due until it's counted (or the grace runs out), the overlay keeps the health it last drew.
 local HOLD_BEFORE = 0.5  -- wide: ticks can land a little before or after when they're expected
 local healthAt = {}      -- [mob] = when its health last changed
+local healthAtAny = 0    -- the last health message for a unit Ticky couldn't tell apart
+-- The shading is drawn from the frame update, not inside the events: after a tick or a health
+-- message it's due, and the next frame draws it (/ticky sparktest held still drawn that way).
+local drawDue = false
+
+-- When `mob`'s health last changed, for the shading: it sets its health end only then.
+function ns.HealthAt(mob)
+  return math.max(mob and healthAt[mob] or 0, healthAtAny)
+end
 
 -- The last tick on your target, step by step, for /ticky debug: when its hit came (and how far off
 -- the expected time), when the health message came, when it was counted, when the shading moved.
@@ -940,7 +949,7 @@ local function OnTickAmount(mob, isHeal, amount, school, crit)
   end
   if healthNow then
     Commit(best)
-    if ns.UpdateOverlay then ns.UpdateOverlay(now) end
+    drawDue = true
   end
   if crit then return end
   local id, old = best.spellID, tickSizes[best.spellID]
@@ -1413,11 +1422,14 @@ function TB:ADDON_LOADED(name)
     ns.UpdateBars(now)
     ns.UpdatePlates(now)
     elapsedSinceCheck = elapsedSinceCheck + elapsed
+    local draw = drawDue
+    drawDue = false
     if elapsedSinceCheck > 0.1 then
       elapsedSinceCheck = 0
       CheckAlerts(now)
-      ns.UpdateOverlay(now)
+      draw = true
     end
+    if draw then ns.UpdateOverlay(now) end
   end)
 end
 
@@ -1522,32 +1534,24 @@ end
 
 ns.plateUnits = {} -- nameplate unit tokens that are up, for Plates.lua
 
--- The health shading's mirror bar follows health as it changes (at most once a frame).
-local healthDrawnAt
+-- The health shading's mirror bar follows health as it changes (drawn in the next frame update).
 function TB:UNIT_HEALTH(unit)
   if not Secret(unit) and unit ~= "target" and not unit:find("^nameplate%d") then return end
   local now = GetTime()
   -- Ticks seen landing on this mob count now, together with the health drop.
   local mob = not Secret(unit) and MobKey(unit)
-  local committed = false
   for m, list in pairs(timers) do
     if not mob or m == mob then
       for _, t in pairs(list) do
-        if t.pendingTick then Commit(t); committed = true end
+        if t.pendingTick then Commit(t) end
       end
     end
   end
-  if channel and channel.pendingTick and (not mob or mob == MobKey("target")) then
-    Commit(channel)
-    committed = true
-  end
-  if mob then healthAt[mob] = now end
+  if channel and channel.pendingTick and (not mob or mob == MobKey("target")) then Commit(channel) end
+  if mob then healthAt[mob] = now else healthAtAny = now end
   local tr = mob and TraceFor(mob)
   if tr and not tr.health and now >= tr.hit then tr.health = now end
-  if not (db.overlayDamage or db.overlayHeal) then return end
-  if now == healthDrawnAt and not committed then return end
-  healthDrawnAt = now
-  ns.UpdateOverlay(now)
+  drawDue = true
 end
 function TB:UNIT_MAXHEALTH(unit)
   if ns.MaxHealthChanged then ns.MaxHealthChanged() end

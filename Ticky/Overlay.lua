@@ -315,10 +315,11 @@ end
 
 -- Show a chain's entries ({ amount, color }), one bar each (or one bar with the total). `smooth`:
 -- ease toward the new values like a smooth health bar does, so the far end holds still.
--- A bar's texture and color are set only when they change: re-setting them (like its range) on
--- every redraw seems to end the bar's easing at once, so after a tick the shading snapped to its
--- new size while the health end was still easing, and the spark hopped toward the health for a
--- few frames (60 fps captures, 2026-10-21).
+-- A bar's value, texture and color are set only when they change: re-setting them (like its
+-- range) on every redraw seems to end or restart the bar's easing, so after a tick the shading
+-- and the health end stopped moving together, and the spark hopped toward the health for a few
+-- frames (60 fps captures, 2026-10-21). /ticky sparktest, where each value is set once, held
+-- still.
 local function Fill(c, entries, enabled, single, color, maxHealth, smooth, height, setMax)
   local tex = ns.Lookup(ns.TEXTURES, db.overlayTexture)[2]
   local alpha = db.overlayAlpha
@@ -348,7 +349,10 @@ local function Fill(c, entries, enabled, single, color, maxHealth, smooth, heigh
         seg.r, seg.g, seg.b, seg.a = r, g, b, alpha
         bar:SetStatusBarColor(r, g, b, alpha)
       end
-      bar:SetValue(amount, smooth)
+      if seg.amount ~= amount or setMax then
+        seg.amount = amount
+        bar:SetValue(amount, smooth)
+      end
       seg.divider:SetShown(db.overlayDividers and not single and i < count)
       bar:Show()
     else
@@ -387,10 +391,13 @@ local function Draw(o, bar, unit, now)
       o.maxFor, o.maxDirty = mob, false
     end
     -- Around a DoT/HoT tick the health end waits for the tick to be counted, then it and the
-    -- shading are set in the same moment and ease the same way.
-    if newMob or not ns.HoldHealth(unit, now) then
+    -- shading are set in the same moment and ease the same way. It's set only when the health
+    -- changed (see Fill), or once a second while nothing moves, in case a change went unreported.
+    local changed = ns.HealthAt(mob)
+    if newMob or setMax or (not ns.HoldHealth(unit, now)
+      and (changed ~= o.healthAt or now - (o.mirrorAt or 0) > 1)) then
       o.mirror:SetValue(UnitHealth(unit), smooth)
-      o.heldMob = mob
+      o.heldMob, o.healthAt, o.mirrorAt = mob, changed, now
       local tr = unit == "target" and ns.TickTrace()
       if tr and tr.counted and not tr.drawn then tr.drawn = now end
     end
@@ -471,6 +478,7 @@ local TEST_VARIANTS = {
   { "instant, same frame", false, 0 },
   { "instant, shading 1 frame later", false, 1 },
   { "instant, shading 2 frames later", false, 2 },
+  { "smooth, same frame, both set again every 0.1s", true, 0, true }, -- how the real shading used to be fed
 }
 local TEST_SHOW = 12 -- the frame the shading shows again after going back to the start
 local TEST_SETTLE, TEST_WATCH, TEST_REST, TEST_REPS = 30, 40, 20, 2
@@ -539,6 +547,7 @@ local function TestStep()
     TestSet(500, nil, how)
   end
   if f == TEST_SETTLE + v[3] then TestSet(nil, 200, how) end
+  if v[4] and f > TEST_SETTLE and (f - TEST_SETTLE) % 6 == 0 then TestSet(500, 200, how) end
   if f >= TEST_SETTLE and f < TEST_SETTLE + TEST_WATCH then
     local x = TestSparkX()
     if x and s.x0 then
@@ -592,7 +601,7 @@ function ns.SparkTest()
   for i in ipairs(TEST_VARIANTS) do test.results[i] = { frames = {} } end
   test.sparkWas, db.overlaySpark = db.overlaySpark, true
   test.driver:SetScript("OnUpdate", TestStep)
-  TestPrint("spark test: watch the bar in the middle of the screen (about 20 seconds). Note which "
+  TestPrint("spark test: watch the bar in the middle of the screen (about 25 seconds). Note which "
     .. "numbered test, if any, keeps its spark still, then paste the lines it prints.")
 end
 

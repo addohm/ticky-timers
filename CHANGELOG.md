@@ -20,8 +20,9 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
 - Build stamp: `install_beta.cmd` writes the installed commit into `Build.lua`; `/ticky debug` and
   the options window show it ("dev" for a copy taken straight from the repo).
 - `/ticky sparktest`: a big test bar in the middle of the screen, built like the health bar
-  shading but with plain values, runs six variants of a tick (eased or instant, the shading set
-  0-2 frames after the health; the shading is hidden while it goes back to the start) and prints how far the spark strayed in each, frame by frame.
+  shading but with plain values, runs seven variants of a tick (eased or instant, the shading set
+  0-2 frames after the health, or both set again every 0.1s; the shading is hidden while it goes
+  back to the start) and prints how far the spark strayed in each, frame by frame.
 - `tools/install_beta.cmd`: pulls the repo and mirrors the addon into the beta client (Windows).
 - `/ticky debug`: a five-line report that fits in a chat message (build, combat, learned lengths and
   ticks, target timers, casts, misses); `/ticky debug all` prints the long one: what the game lets
@@ -70,10 +71,11 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
   the health change separately (in the same frame, either order), so a seen tick waits for the
   health change (up to a fifth of a second). The health end is held too: from just before a tick
   is due until it's counted, the shading keeps the health it last drew. Both are then set in the
-  same moment, and the shading bars' range (0 to max health), texture, color and layer are no
-  longer set again on every redraw: that seems to cut the smooth easing short, so the shading
-  snapped to its new size while the health end was still easing, and the spark hopped toward the
-  health for a few frames on every tick (measured in 60 fps captures). The hold now starts
+  same moment. The shading is fed the way `/ticky sparktest` showed holding still: drawn from
+  the frame update rather than inside the game's events, and each value (health, amounts, range,
+  texture, color, layer) set only when it changes. Setting them again on every redraw seems to
+  cut the smooth easing short or restart it, so the two ends drifted apart and the spark hopped
+  toward the health for a few frames on every tick (measured in 60 fps captures). The hold now starts
   half a second before a tick is due (ticks that landed a little early slipped through), Ticky
   learns where each DoT's ticks really land (so tick marks line up better too), and `/ticky debug`
   shows the last tick's hit, health change, counting and drawing times. The frame name on the Health bar tab can now be
