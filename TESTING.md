@@ -10,7 +10,7 @@ it); "dev" or an older commit means the game is still running an old copy.
 
 ## To test
 
-1. **Shading holds still and has a spark** (this push). With DoTs ticking, the far (left) end of the
+1. **Shading holds still and has a spark** (5a37229). With DoTs ticking, the far (left) end of the
    shading, where the spark is, stays put as ticks land. Health bar tab, "Look": spark color,
    outline, "Smooth changes" (try it off to compare). The shading's right end may trail the unit
    frame's own health animation for a moment; that's expected.
