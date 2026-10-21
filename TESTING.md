@@ -10,7 +10,7 @@ it); "dev" or an older commit means the game is still running an old copy.
 
 ## To test
 
-1. **One shading segment** (this push). With two DoTs on a mob, the shading is one dark segment
+1. **One shading segment** (d5cd7ea). With two DoTs on a mob, the shading is one dark segment
    from the health edge covering both DoTs' remaining damage together. Health bar tab, "Segments"
    switches to one per spell.
 2. **Health shading on the right side** (3832bb0). With a DoT on a mob, the shading covers the end of
