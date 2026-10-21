@@ -24,13 +24,14 @@ function W.Label(parent, text, template)
   return fs
 end
 
-function W.Header(parent, text)
+-- A section title with a rule after it; `width` is the whole header's width (default 320).
+function W.Header(parent, text, width)
   local fs = W.Label(parent, text, "GameFontNormal")
   local line = parent:CreateTexture(nil, "ARTWORK")
   line:SetColorTexture(1, 0.82, 0, 0.25)
   line:SetHeight(1)
   line:SetPoint("LEFT", fs, "RIGHT", 6, 0)
-  line:SetWidth(math.max(20, 320 - fs:GetStringWidth()))
+  line:SetWidth(math.max(20, (width or 320) - fs:GetStringWidth()))
   return fs
 end
 

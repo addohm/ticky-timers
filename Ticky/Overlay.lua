@@ -1,5 +1,6 @@
--- Ticky health bar overlay: on your target's health bar, the part your DoTs will still take off
--- (ending at the current health) and the part your HoTs will still heal (starting there).
+-- Ticky health bar overlay: on your target's health bar (and, if chosen, every nameplate's), the
+-- part your DoTs will still take off (ending at the current health) and the part your HoTs will
+-- still heal (starting there).
 --
 -- Target health is secret on Forever, so Lua can't work out where on the bar that is, but a
 -- StatusBar can: Blizzard's API accepts secret min/max values. Each spell gets a StatusBar as wide
@@ -13,11 +14,6 @@ local ipairs, pairs, pcall, type = ipairs, pairs, pcall, type
 
 local db
 local MAX_SEGMENTS = 8
-
-local holder      -- clips to the health bar
-local chains = {} -- damage and heal: { segs = { { bar, divider } } }
-local attached, attachedWidth, attachedReverse
-local layerCheckedAt = 0
 
 local function Secret(v) return ns.Secret(v) end
 
@@ -115,10 +111,10 @@ function ns.FindHealthBar()
 end
 
 ---------------------------------------------------------------------------
--- Frames
+-- Overlays: one for the target frame's health bar, one per nameplate
 ---------------------------------------------------------------------------
 
-local function NewChain()
+local function NewChain(holder)
   local c = { segs = {} }
   for i = 1, MAX_SEGMENTS do
     local bar = CreateFrame("StatusBar", nil, holder)
@@ -133,12 +129,16 @@ local function NewChain()
   return c
 end
 
-local function Build()
-  holder = CreateFrame("Frame", nil, UIParent)
-  holder:SetClipsChildren(true)
-  holder:Hide()
-  chains.damage = NewChain()
-  chains.heal = NewChain()
+-- An overlay: a clipping holder (child of `parent`) with a damage and a heal chain.
+local function NewOverlay(parent)
+  local o = { layerAt = 0 }
+  o.holder = CreateFrame("Frame", nil, parent)
+  o.holder.tickyOwned = true -- not a health bar to anchor to (see Plates.lua's search)
+  o.holder:SetClipsChildren(true)
+  o.holder:Hide()
+  o.damage = NewChain(o.holder)
+  o.heal = NewChain(o.holder)
+  return o
 end
 
 -- Lay a chain out from the health fill's `edge` side, growing left or right: bar 1 is pinned to
@@ -164,41 +164,38 @@ end
 
 -- Anchor to a health bar (again only when it, its width or its fill direction changed: the
 -- target frame may be protected, so we avoid re-anchoring more than needed).
-local function Attach(bar)
+local function Attach(o, bar)
   local ok, width = pcall(bar.GetWidth, bar)
   if not ok or Secret(width) or not width or width <= 0 then return false end
   local reverse = bar.GetReverseFill and bar:GetReverseFill()
   reverse = not Secret(reverse) and reverse == true
-  if bar == attached and width == attachedWidth and reverse == attachedReverse then return true end
-  attached, attachedWidth, attachedReverse = bar, width, reverse
-  holder:ClearAllPoints()
-  holder:SetAllPoints(bar)
+  if bar == o.bar and width == o.width and reverse == o.reverse then return true end
+  o.bar, o.width, o.reverse = bar, width, reverse
+  o.holder:ClearAllPoints()
+  o.holder:SetAllPoints(bar)
   -- Health ends at the fill's right end (left end on a bar that fills from the right). Damage
   -- grows from there into the health, healing into the missing part.
   local fill = bar:GetStatusBarTexture()
   local edge = reverse and "LEFT" or "RIGHT"
-  LayChain(chains.damage, fill, edge, not reverse, width)
-  LayChain(chains.heal, fill, edge, reverse, width)
-  layerCheckedAt = 0
+  LayChain(o.damage, fill, edge, not reverse, width)
+  LayChain(o.heal, fill, edge, reverse, width)
+  o.layerAt = 0
   return true
 end
 
 -- Keep the overlay just above the health bar; frames can be re-layered at any time.
-local function Layer(bar, now)
-  if now - layerCheckedAt < 1 then return end
-  layerCheckedAt = now
+local function Layer(o, now)
+  if now - o.layerAt < 1 then return end
+  o.layerAt = now
+  local bar = o.bar
   local ok, strata, level = pcall(function() return bar:GetFrameStrata(), bar:GetFrameLevel() end)
   if not ok or Secret(strata) or Secret(level) or not level then return end
-  holder:SetFrameStrata(strata)
-  holder:SetFrameLevel(level + 5)
+  o.holder:SetFrameStrata(strata)
+  o.holder:SetFrameLevel(level + 5)
 end
 
----------------------------------------------------------------------------
--- Drawing
----------------------------------------------------------------------------
-
-local function Hide()
-  if holder and holder:IsShown() then holder:Hide() end
+local function HideOverlay(o)
+  if o and o.holder:IsShown() then o.holder:Hide() end
 end
 
 -- Show a chain's entries ({ amount, color }), one bar each (or one bar with the total).
@@ -232,25 +229,60 @@ local function Fill(c, entries, enabled, single, color, maxHealth)
   return count > 0
 end
 
-function ns.UpdateOverlay(now)
-  if not db then return end
-  if not (db.overlayDamage or db.overlayHeal) then return Hide() end
-  local damage, heal = ns.TargetAmounts(now)
-  if not damage or (#damage == 0 and #heal == 0) then return Hide() end
-  local bar = ns.FindHealthBar()
-  if not bar or not Visible(bar) then return Hide() end
-  if not holder then Build() end
-  if not Attach(bar) then return Hide() end
-  Layer(bar, now)
+-- Draw what your DoTs and HoTs on `unit` will still do onto `bar` (its health bar).
+local function Draw(o, bar, unit, now)
+  local damage, heal = ns.UnitAmounts(unit, now)
+  if not damage or (#damage == 0 and #heal == 0) or not Visible(bar) then return HideOverlay(o) end
+  if not Attach(o, bar) then return HideOverlay(o) end
+  Layer(o, now)
   local single = db.overlayColors == "single"
   local drawn = false
   local ok = pcall(function()
-    local maxHealth = UnitHealthMax("target")
-    drawn = Fill(chains.damage, damage, db.overlayDamage, single, single and db.overlayDamageColor, maxHealth)
-    drawn = Fill(chains.heal, heal, db.overlayHeal, single, single and db.overlayHealColor, maxHealth) or drawn
+    local maxHealth = UnitHealthMax(unit)
+    drawn = Fill(o.damage, damage, db.overlayDamage, single, single and db.overlayDamageColor, maxHealth)
+    drawn = Fill(o.heal, heal, db.overlayHeal, single, single and db.overlayHealColor, maxHealth) or drawn
   end)
-  if not ok or not drawn then return Hide() end
-  holder:Show()
+  if not ok or not drawn then return HideOverlay(o) end
+  o.holder:Show()
+end
+
+---------------------------------------------------------------------------
+-- Updating
+---------------------------------------------------------------------------
+
+local targetOverlay
+local plateOverlays = {} -- [nameplate frame] = overlay, parented to the plate
+
+local function UpdatePlateOverlays(now, on)
+  local used = {}
+  if on and C_NamePlate and C_NamePlate.GetNamePlateForUnit then
+    for unit in pairs(ns.plateUnits) do
+      local ok, plate = pcall(C_NamePlate.GetNamePlateForUnit, unit)
+      local bar = ok and type(plate) == "table" and not Secret(plate) and ns.PlateHealthBar(plate)
+      if bar then
+        local o = plateOverlays[plate]
+        if not o then
+          o = NewOverlay(plate)
+          plateOverlays[plate] = o
+        end
+        used[plate] = true
+        Draw(o, bar, unit, now)
+      end
+    end
+  end
+  for plate, o in pairs(plateOverlays) do
+    if not used[plate] then HideOverlay(o) end
+  end
+end
+
+function ns.UpdateOverlay(now)
+  if not db then return end
+  local on = db.overlayDamage or db.overlayHeal
+  UpdatePlateOverlays(now, on and db.overlayPlates)
+  local bar = on and ns.HasTarget() and ns.FindHealthBar()
+  if not bar then return HideOverlay(targetOverlay) end
+  if not targetOverlay then targetOverlay = NewOverlay(UIParent) end
+  Draw(targetOverlay, bar, "target", now)
 end
 
 function ns.CreateOverlay()

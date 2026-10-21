@@ -30,6 +30,10 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
 - Text: stack counts, name and time colors, time on the left or right, when to show tenths of a
   second, text shadow. Tick height.
 - "Hide bars when you have no target".
+- Nameplates: "Their own look" (texture, background color and opacity, border and its color, fill
+  direction, spark, tick color, font, outline) instead of copying the main bars, and the health bar
+  shading on every nameplate's health bar ("Shade what DoTs/HoTs will still do", also "Also on
+  nameplates" on the Health bar tab). The Nameplates tab is laid out in three columns.
 - Bars on nameplates (new Nameplates tab, off by default): your tracked buffs and debuffs on each mob,
   as small bars above or below its nameplate, always as wide as the plate's health bar (the largest
   status bar on the plate, so nameplate addons work too), with the height a share of that width. All

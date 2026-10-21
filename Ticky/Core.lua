@@ -45,13 +45,16 @@ ns.DEFAULTS = {
   msgWarn = false, msgExpire = false, msgRemove = false,
   customSounds = {}, -- sound file paths or file IDs the player added
   -- Health bar overlay
-  overlayDamage = false, overlayHeal = false, overlayColors = "each",
+  overlayDamage = false, overlayHeal = false, overlayPlates = false, overlayColors = "each",
   overlayDamageColor = { 0.9, 0.1, 0.1 }, overlayHealColor = { 0.2, 1, 0.3 }, overlayAlpha = 0.6,
   overlayTexture = "Flat", overlayDividers = true, overlayFrame = "",
   -- Nameplates
   plateEnabled = false, plateWhich = "others", plateAnchor = "TOP", plateOffsetY = 4,
   plateHeightPct = 0.07, plateSpacing = 1, plateShowIcon = true, plateShowName = false,
   plateShowTime = true, plateShowTickCount = false, plateFontSize = 8,
+  plateOwnLook = false, plateTexture = "Blizzard", plateBgColor = { 0, 0, 0 }, plateBgAlpha = 0.6,
+  plateBorderSize = 1, plateBorderColor = { 0, 0, 0 }, plateFillMode = "drain", plateSpark = false,
+  plateTickColor = { 1, 1, 1 }, plateFont = "Friz Quadrata", plateOutline = "OUTLINE",
   -- General
   hideMain = false, showChannel = true, showSelf = true, hideOutOfCombat = false, hideNoTarget = false,
   alpha = 1, oocAlpha = 1, showAll = false, previewInOptions = true,
@@ -1066,14 +1069,18 @@ function ns.UnitTimers(unit, now, out)
 end
 ns.MobKey = MobKey
 
--- What your DoTs and HoTs on the target will still deal and heal, for the health bar overlay:
--- two lists of { key, amount, color } in bar order (reused tables), or nil when there's no target.
+-- What your DoTs and HoTs on a unit (the target, a nameplate) will still deal and heal, for the
+-- health bar overlay: two lists of { key, amount, color } in bar order (reused tables, so use them
+-- before the next call), or nil when the unit isn't there or is dead.
 local damageList, healList, amountsSrc = {}, {}, {}
-function ns.TargetAmounts(now)
-  if not HasTarget() or IsDead("target") then return end
-  local mob = MobKey("target")
+function ns.UnitAmounts(unit, now)
+  local exists = UnitExists(unit)
+  if (not Secret(exists) and not exists) or IsDead(unit) then return end
+  local mob = MobKey(unit)
   ListOf(mob, amountsSrc)
-  if channel and channel.expires > now and SpellKind(channel.spellID or 0) ~= "help" then
+  -- Your channel is on your target.
+  if channel and channel.expires > now and SpellKind(channel.spellID or 0) ~= "help"
+    and mob and mob == (HasTarget() and MobKey("target")) then
     amountsSrc[#amountsSrc + 1] = channel
   end
   table.sort(amountsSrc, byMode)

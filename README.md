@@ -59,14 +59,17 @@ then goes missing for a few seconds, so you can see how missing spells look too.
 - **Health bar**: on your target's health bar, shade the part your DoTs (and channel) will still
   take off, ending at its current health, and the part your HoTs will still heal, starting there.
   Off by default. Each spell in its own bar color (with a line between them) or one color for damage
-  and one for healing; opacity; texture. It finds a unit frame addon's target frame (or Blizzard's)
+  and one for healing; opacity; texture. "Also on nameplates" shades each nameplate's health bar the
+  same way, for your DoTs and HoTs on that mob. It finds a unit frame addon's target frame (or Blizzard's)
   by itself; if it picks the wrong bar, enter the health bar's frame name (find it with `/fstack`).
 - **Nameplates**: small timer bars on each mob's nameplate for your tracked buffs and debuffs on
   it. Off by default. On every nameplate but your target's (your target has the main bars), on all,
   or only your target's; above or below the plate, with a distance. The bars always span the
   nameplate's health bar (Blizzard's, or a nameplate addon's built on it), and their height
   is a share of that width, so they keep their shape when plates change size. Spacing, font size,
-  icon, name, time and ticks left. Colors, texture, ticks and font follow the main bars.
+  icon, name, time and ticks left. They look like the main bars, or, with "Their own look", have
+  their own texture, background color and opacity, border, fill direction, spark, tick color, font
+  and outline. "Shade what DoTs/HoTs will still do" puts the health bar shading on each plate.
   Needs nameplates turned on. "Hide the main bars" (also on the General tab) leaves just the
   nameplate bars.
 - **General**: lock/unlock (drag the blue handle), channel bar, tracked auras on yourself,

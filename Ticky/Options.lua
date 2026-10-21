@@ -622,20 +622,23 @@ local function BuildHealthPage()
   g, s = S("overlayHeal")
   Place(p, W.Check(p, "Healing your HoTs will still do", g, s,
     "Covers the part your HoTs will still heal, starting at your target's current health."), 0, -46)
+  g, s = S("overlayPlates")
+  Place(p, W.Check(p, "Also on nameplates", g, s,
+    "Shade each nameplate's health bar too, for your DoTs and HoTs on that mob."), 0, -72)
   g, s = S("overlayColors")
   Place(p, W.Cycle(p, "Colors", { { "each", "Each spell's bar color" },
-    { "single", "One for damage, one for healing" } }, g, s), 4, -80)
+    { "single", "One for damage, one for healing" } }, g, s), 4, -106)
   g, s = S("overlayDamageColor")
-  Place(p, W.Swatch(p, "Damage color (one-color mode)", g, s), 4, -128)
+  Place(p, W.Swatch(p, "Damage color (one-color mode)", g, s), 4, -154)
   g, s = S("overlayHealColor")
-  Place(p, W.Swatch(p, "Healing color (one-color mode)", g, s), 4, -154)
+  Place(p, W.Swatch(p, "Healing color (one-color mode)", g, s), 4, -180)
   g, s = S("overlayAlpha")
-  Place(p, W.Slider(p, "Opacity", 0.1, 1, 0.05, g, s, pct), 4, -182)
+  Place(p, W.Slider(p, "Opacity", 0.1, 1, 0.05, g, s, pct), 4, -208)
   g, s = S("overlayTexture")
-  Place(p, W.Cycle(p, "Texture", Choices(ns.TEXTURES), g, s), 4, -222)
+  Place(p, W.Cycle(p, "Texture", Choices(ns.TEXTURES), g, s), 4, -248)
   g, s = S("overlayDividers")
-  Place(p, W.Check(p, "Line between spells", g, s), 0, -268)
-  Note(p, "Any spell can be left out with \"On the target's health bar\" on the Spells tab.", 4, -298, 300)
+  Place(p, W.Check(p, "Line between spells", g, s), 0, -294)
+  Note(p, "Any spell can be left out with \"On the target's health bar\" on the Spells tab.", 4, -324, 300)
 
   W.Header(p, "Which health bar"):SetPoint("TOPLEFT", COL2, 0)
   local status = W.Label(p, "", "GameFontHighlightSmall")
@@ -679,43 +682,77 @@ end
 local function BuildPlatesPage()
   local p = NewPage("Nameplates")
   local S = W.Setting
+  -- Three columns: what shows, size and text, look.
+  local A, B, C, HW = 0, 262, 524, 230
 
-  W.Header(p, "Bars on nameplates"):SetPoint("TOPLEFT", 0, 0)
+  W.Header(p, "Bars on nameplates", HW):SetPoint("TOPLEFT", A, 0)
   local g, s = S("plateEnabled")
   Place(p, W.Check(p, "Show timer bars on nameplates", g, s,
-    "Your tracked buffs and debuffs on each mob, on its nameplate. Needs nameplates turned on."), 0, -20)
+    "Your tracked buffs and debuffs on each mob, on its nameplate. Needs nameplates turned on."), A, -20)
   g, s = S("hideMain")
-  Place(p, W.Check(p, "Hide the main bars", g, s, "Your channel bar too. Sounds, nameplate bars and the health bar overlay keep working. The preview still shows them while this window is open."), 0, -46)
+  Place(p, W.Check(p, "Hide the main bars", g, s, "Your channel bar too. Sounds, nameplate bars and the health bar overlay keep working. The preview still shows them while this window is open."), A, -46)
   g, s = S("plateWhich")
   Place(p, W.Cycle(p, "Which nameplates", { { "others", "All but your target's" }, { "all", "All" },
-    { "target", "Only your target's" } }, g, s), 4, -78)
+    { "target", "Only your target's" } }, g, s), A + 4, -78)
   g, s = S("plateAnchor")
   Place(p, W.Cycle(p, "Where", { { "TOP", "Above the nameplate" }, { "BOTTOM", "Below the nameplate" } }, g, s),
-    4, -124)
+    A + 4, -124)
   g, s = S("plateOffsetY")
-  Place(p, W.Slider(p, "Distance from the nameplate", -20, 60, 1, g, s), 4, -170)
-  Note(p, "Colors, texture, background, border, ticks and font follow the Bars and Text & Ticks tabs. "
-    .. "Each spell can be left off nameplates on the Spells tab.\n\n"
-    .. "A mob only gets bars for what Ticky knows is on it: your casts on it, or its auras when the game "
-    .. "lets addons read them.", 4, -214, 320)
+  Place(p, W.Slider(p, "Distance from the nameplate", -20, 60, 1, g, s), A + 4, -170)
+  W.Header(p, "Health shading", HW):SetPoint("TOPLEFT", A, -218)
+  g, s = S("overlayPlates")
+  Place(p, W.Check(p, "Shade what DoTs/HoTs will still do", g, s,
+    "On each nameplate's health bar, like the Health bar tab does on your target's. Uses that tab's "
+    .. "damage/healing switches, colors, opacity and texture."), A, -238)
+  Note(p, "A mob only gets bars and shading for what Ticky knows is on it: your casts on it, or its "
+    .. "auras when the game lets addons read them. Each spell can be left off nameplates on the "
+    .. "Spells tab.", A + 4, -270, 240)
 
-  W.Header(p, "Size and text"):SetPoint("TOPLEFT", COL2, 0)
-  Note(p, "Bars always span the nameplate's health bar.", COL2 + 4, -20, 300)
+  W.Header(p, "Size and text", HW):SetPoint("TOPLEFT", B, 0)
+  Note(p, "Bars always span the nameplate's health bar.", B + 4, -20, 230)
   g, s = S("plateHeightPct")
   Place(p, W.Slider(p, "Height (share of the width)", 0.03, 0.25, 0.01, g, s, pct,
-    "Bars keep this shape as nameplates get wider or narrower."), COL2 + 4, -40)
+    "Bars keep this shape as nameplates get wider or narrower."), B + 4, -40)
   g, s = S("plateSpacing")
-  Place(p, W.Slider(p, "Space between bars", 0, 6, 1, g, s), COL2 + 4, -80)
+  Place(p, W.Slider(p, "Space between bars", 0, 6, 1, g, s), B + 4, -80)
   g, s = S("plateFontSize")
-  Place(p, W.Slider(p, "Font size", 6, 16, 1, g, s), COL2 + 4, -120)
+  Place(p, W.Slider(p, "Font size", 6, 16, 1, g, s), B + 4, -120)
   g, s = S("plateShowIcon")
-  Place(p, W.Check(p, "Show spell icon", g, s), COL2, -162)
+  Place(p, W.Check(p, "Show spell icon", g, s), B, -162)
   g, s = S("plateShowName")
-  Place(p, W.Check(p, "Show spell name", g, s), COL2, -188)
+  Place(p, W.Check(p, "Show spell name", g, s), B, -188)
   g, s = S("plateShowTime")
-  Place(p, W.Check(p, "Show time left", g, s), COL2, -214)
+  Place(p, W.Check(p, "Show time left", g, s), B, -214)
   g, s = S("plateShowTickCount")
-  Place(p, W.Check(p, "Show ticks left", g, s), COL2, -240)
+  Place(p, W.Check(p, "Show ticks left", g, s), B, -240)
+
+  W.Header(p, "Look", HW):SetPoint("TOPLEFT", C, 0)
+  g, s = S("plateOwnLook")
+  Place(p, W.Check(p, "Their own look", g, s,
+    "Off: nameplate bars look like the main bars (Bars and Text & Ticks tabs). On: the settings "
+    .. "below."), C, -20)
+  g, s = S("plateTexture")
+  Place(p, W.Cycle(p, "Texture", Choices(ns.TEXTURES), g, s), C + 4, -50)
+  g, s = S("plateBgColor")
+  Place(p, W.Swatch(p, "Background color", g, s), C + 4, -98)
+  g, s = S("plateBgAlpha")
+  Place(p, W.Slider(p, "Background opacity", 0, 1, 0.05, g, s, pct), C + 4, -124)
+  g, s = S("plateBorderSize")
+  Place(p, W.Cycle(p, "Border", { { 0, "None" }, { 1, "Thin" }, { 2, "Medium" }, { 3, "Thick" } }, g, s),
+    C + 4, -166)
+  g, s = S("plateBorderColor")
+  Place(p, W.Swatch(p, "Border color", g, s), C + 4, -214)
+  g, s = S("plateFillMode")
+  Place(p, W.Cycle(p, "Bar fill", { { "drain", "Empties as time runs out" }, { "fill", "Fills as time passes" } },
+    g, s), C + 4, -242)
+  g, s = S("plateSpark")
+  Place(p, W.Check(p, "Spark at the edge of the fill", g, s), C, -288)
+  g, s = S("plateTickColor")
+  Place(p, W.Swatch(p, "Tick color", g, s), C + 4, -316)
+  g, s = S("plateFont")
+  Place(p, W.Cycle(p, "Font", Choices(ns.FONTS), g, s), C + 4, -344)
+  g, s = S("plateOutline")
+  Place(p, W.Cycle(p, "Outline", ns.OUTLINES, g, s), C + 4, -390)
 end
 
 ---------------------------------------------------------------------------

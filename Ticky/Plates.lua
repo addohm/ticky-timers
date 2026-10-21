@@ -22,9 +22,15 @@ local PLATE_KEYS = {
   spacing = "plateSpacing", showIcon = "plateShowIcon", fontSize = "plateFontSize",
   showName = "plateShowName", showTime = "plateShowTime", showTickCount = "plateShowTickCount",
 }
+-- With "Their own look" on, these come from the Nameplates tab too.
+local PLATE_LOOK = {
+  texture = "plateTexture", bgColor = "plateBgColor", bgAlpha = "plateBgAlpha",
+  borderSize = "plateBorderSize", borderColor = "plateBorderColor", fillMode = "plateFillMode",
+  spark = "plateSpark", tickColor = "plateTickColor", font = "plateFont", outline = "plateOutline",
+}
 local function PlateValue(k)
   if k == "growUp" then return db.plateAnchor == "TOP" end -- stack away from the plate
-  local pk = PLATE_KEYS[k]
+  local pk = PLATE_KEYS[k] or (db.plateOwnLook and PLATE_LOOK[k])
   if pk then return db[pk] end
   return db[k]
 end
@@ -42,14 +48,14 @@ local function Visible(f)
   return ok and not Secret(v) and v == true
 end
 
-local ours = {} -- our own holder frames, left out of the search
+-- Our own frames (holders, overlays) are marked tickyOwned and left out of the search.
 
 -- The largest visible status bar inside the plate (a health bar is at least as wide as a cast or
 -- power bar and usually taller), a few levels of child frames deep.
 local function LargestBar(plate)
   local best, bestArea
   local function visit(f, d)
-    if ours[f] then return end
+    if rawget(f, "tickyOwned") then return end
     if IsBar(f) and Visible(f) then
       local ok, w, h = pcall(function() return f:GetWidth(), f:GetHeight() end)
       if ok and not Secret(w) and not Secret(h) and w and h and w * h > (bestArea or 0) then
@@ -95,6 +101,9 @@ local function PlateBar(plate)
   return s.bar
 end
 
+-- For Overlay.lua: the plate's health bar, for the DoT/HoT shading on nameplates.
+ns.PlateHealthBar = PlateBar
+
 ---------------------------------------------------------------------------
 -- Holders
 ---------------------------------------------------------------------------
@@ -116,7 +125,7 @@ end
 local function Anchor(h, plate, bar)
   if not h.frame then
     h.frame = CreateFrame("Frame", nil, plate)
-    ours[h.frame] = true
+    h.frame.tickyOwned = true
   end
   local f, to = h.frame, bar or plate
   f:ClearAllPoints()

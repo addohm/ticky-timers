@@ -14,11 +14,11 @@
    bars and HoT/DoT split rely on it).
 8. More WeakAuras-style options: vertical bars, glow effects, missing bars for your own buffs,
    a movable on-screen message, per-spell "only show in the last N seconds", per-spell text color.
-9. The health bar overlay on nameplates and the focus frame.
+9. The health bar overlay on the focus frame.
 
 ## Done
-- Unreleased: timers from your casts (bars in combat), health bar overlay for DoTs and HoTs, bars on
-  nameplates.
+- Unreleased: timers from your casts (bars in combat), health bar overlay for DoTs and HoTs (target
+  and nameplates), bars on nameplates with their own look.
 - Unreleased: your own bar order (fixed slots, channel in its slot), missing-spell bars, sounds for
   every event (apply, refresh, tick, warning, end, removed) per spell, text to speech, custom sound
   files, on-screen messages, and more bar/text styling.
