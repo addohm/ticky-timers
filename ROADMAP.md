@@ -15,6 +15,8 @@
 8. More WeakAuras-style options: vertical bars, glow effects, missing bars for your own buffs,
    a movable on-screen message, per-spell "only show in the last N seconds", per-spell text color.
 9. The health bar overlay on the focus frame.
+10. The health shading's spark still hops now and then (accepted at 3e3c896). Notes, evidence and
+    next steps: [docs/health-shading-spark.md](docs/health-shading-spark.md).
 
 ## Done
 - Unreleased: timers from your casts (bars in combat), health bar overlay for DoTs and HoTs (target

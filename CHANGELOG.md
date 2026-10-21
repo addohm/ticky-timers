@@ -8,6 +8,8 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
 - `tools/check_lua.py`: syntax-checks the addon's Lua and the TOC file list.
 - DEPLOY.md: installing, releasing, rolling back, saved variables and troubleshooting.
 - TESTING.md: the running list of what needs checking in the game client.
+- docs/health-shading-spark.md: notes on the shading spark's remaining hop (evidence, every
+  attempt, what's ruled out and still open, how to pick it up again).
 - `tools/tests/`: behaviour tests against a stand-in Forever client (`python tools/tests/run.py`).
 - "Ticky beep" and "Ticky chime": two sound files that come with Ticky (`Ticky/Sounds`, made by
   `tools/make_sounds.py`). They also show whether the game plays addon sound files at all. The Sounds
