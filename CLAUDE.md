@@ -139,8 +139,9 @@ UNIT_COMBAT WOUND/HEAL            -> OnTickAmount: match to a timer on that mob 
 every 0.1s (and on each seen tick) -> ns.UpdateOverlay: UnitAmounts per unit (ticks left x
                                      ExpectedTick: learned, else tooltip total / tick count; a seen
                                      tick (t.matchedTick) is held as t.pendingTick until the mob's
-                                     UNIT_HEALTH (or 0.25s), or counts at once if the health changed
-                                     <=0.1s before, then t.lastTick; unseen: 0.5s after its time).
+                                     next UNIT_HEALTH in a later frame (or 0.2s), then t.lastTick:
+                                     one in the hit's own frame can carry the old health (60 fps
+                                     capture, 2026-10-21); unseen: 0.5s after its time).
                                      ns.HoldHealth keeps the mirror's health from 0.5s before a tick
                                      is due until it's counted; each matched tick moves the timer's
                                      start/expiry half way to where it really landed. The last
