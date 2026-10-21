@@ -74,10 +74,10 @@ No environment variables or secrets. Settings live in the game's saved variables
   Also check the folder is `AddOns\Ticky\Ticky.toc`, not nested one level deeper.
 - **Lua errors**: turn on `/console scriptErrors 1`, or use an error-catching addon, and note the
   file and line.
-- **No bars in combat**: aura details are secret in combat on Forever and Ticky skips secret
-  auras (see README, "Forever limitations"). Run `/ticky debug` in combat with your DoTs up to see
-  what's readable. Also check the spells are ticked on the Spells tab: nothing is tracked by
-  default.
+- **No bars**: check the spells are ticked on the Spells tab (nothing is tracked by default). In
+  combat, bars come from your casts (aura details are secret; see README, "Forever limitations"),
+  so a DoT that was already on the mob before Ticky loaded won't show until you recast it.
+  `/ticky debug` shows what the game lets Ticky read right now.
 - **Ticks in the wrong place for a spell**: check its entry in `Ticky/Data.lua` and whether the data
   is from the current Forever build (`ns.DataBuild`).
 - **Settings look broken after an update**: `/ticky reset`, or delete the saved-variable files

@@ -1,21 +1,21 @@
 # Roadmap
 
 ## Next (priority order)
-1. Bars in combat. First in-game test (2026-10-20): SW:P and Devouring Plague on a mob in the open
-   world, no bars. The API docs say aura data is secret whenever combat restrictions are active, and
-   `UnitGUID` is secret for non-player units. Get `/ticky debug` output in combat, then rebuild
-   around what's readable: likely your own casts (`UNIT_SPELLCAST_SUCCEEDED` is readable for the
-   player), aura instance IDs (`GetUnitAuraInstanceIDs`), and `GetAuraDuration` duration objects
-   drawn with `StatusBar:SetTimerDuration`. Per-target memory and alerts can't key on mob GUIDs.
-   Then confirm interface 16001 and channel reads.
-2. Check how Forever handles refreshing a DoT (does the tick timer restart?) and adjust tick phase.
-3. Nameplate bars for DoTs on non-target enemies.
-4. Profiles (copy settings between characters).
-5. Regenerate Data.lua when Forever's launch build lands (Nov 4, 2026).
-6. In the client, confirm: `PlaySoundFile` (not in the generated API docs) plays custom files and
+1. Test cast tracking in the client: bars appear in combat for SW:P / Devouring Plague; tab-dotting
+   puts them on the right mob; resists drop them; durations match after a talent (learned from an
+   out-of-combat read); timers survive switching targets in the open world; nameplate keys in a
+   dungeon; channel reads. If `/ticky debug` shows aura instance IDs and duration objects readable
+   in combat, `StatusBar:SetTimerDuration` could draw exact bars even for secret auras.
+2. Detect DoTs dispelled in combat: their ticks stop. `UNIT_COMBAT` shows tick amounts and schools;
+   match them to DoTs as Does It Die does, and drop a DoT after missed ticks.
+3. Check how Forever handles refreshing a DoT (does the tick timer restart?) and adjust tick phase.
+4. Nameplate bars for DoTs on non-target enemies.
+5. Profiles (copy settings between characters).
+6. Regenerate Data.lua when Forever's launch build lands (Nov 4, 2026).
+7. In the client, confirm: `PlaySoundFile` (not in the generated API docs) plays custom files and
    file IDs; text-to-speech works in combat; apply/refresh/removed sounds fire once each (refresh
    timing, ROADMAP item 2); `C_Spell.IsSpellHarmful`/`IsSpellHelpful` classify spells correctly.
-7. More WeakAuras-style options: vertical bars, glow effects, missing bars for your own buffs,
+8. More WeakAuras-style options: vertical bars, glow effects, missing bars for your own buffs,
    a movable on-screen message, per-spell "only show in the last N seconds", per-spell text color.
 
 ## Done

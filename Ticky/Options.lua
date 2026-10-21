@@ -202,7 +202,8 @@ local function BuildSpellDetail(p)
     function(v)
       cfg().anyCaster = v or nil
       changed()
-    end, "For example a buff another player puts on you, or a debuff a raid member applies to the boss."), 0, -56)
+    end, "For example a buff another player puts on you, or a debuff a raid member applies to the boss. "
+      .. "Only while the game lets addons read auras (usually out of combat)."), 0, -56)
   anyone.label:SetFontObject("GameFontHighlightSmall")
 
   Keep(W.Label(c, "Bar text (blank = spell name)", "GameFontHighlightSmall"), 4, -86)

@@ -55,15 +55,23 @@ for that PC (variables at the top). `.gitattributes` keeps `*.cmd` files CRLF.
    Old globals (`GetSpellInfo`, `UnitAura`, `GetSpellBookItemInfo`, `GetNumSpellTabs`,
    `CombatLogGetCurrentEventInfo`) don't exist on Forever. Don't add compat shims for other clients.
 2. **No combat log.** Registering `COMBAT_LOG_EVENT_UNFILTERED` errors. Everything comes from
-   `UNIT_AURA`, aura queries, channel events and spell data.
+   your casts (`UNIT_SPELLCAST_SENT/SUCCEEDED`), `UNIT_COMBAT`, aura queries when they work,
+   channel events, spell tooltips and spell data.
 3. **Secret values.** Combat values (aura fields, GUIDs, haste, channel info, `UnitExists`) can be
    secret. Aura data is secret whenever *combat* restrictions are active (open world too:
    `SecretWhenUnitAuraRestricted`), unless the spell is flagged never-secret
    (`C_Secrets.GetSpellAuraSecrecy`). `UnitGUID` is secret for units that aren't player-controlled.
-   Event payloads can be secret too (`UNIT_AURA` is `SecretWhenAurasRestricted`). Check `ns.Secret(v)` before comparing, branching, indexing or doing math on them. Skip
-   secret data; never let it error the UI (aura scans run in `pcall`).
-4. **No hand-entered timing.** Durations come from the aura; tick periods come from
-   `Ticky/Data.lua`. Don't hard-code intervals and don't add "tick every N" settings: the owner
+   Event payloads can be secret too (`UNIT_AURA` is `SecretWhenAurasRestricted`). Check
+   `ns.Secret(v)` before comparing, branching, indexing or doing math on them. Skip secret data;
+   never let it error the UI (aura scans run in `pcall`).
+   Verified in the Forever 1.60.1 client by Does It Die (https://github.com/swirllyman/DoesItDie,
+   MIT): in combat, reading the target's auras errors; your own casts
+   (`UNIT_SPELLCAST_SENT/SUCCEEDED`), `C_Spell.GetSpellDescription` and `UNIT_COMBAT` amounts,
+   schools and outcomes stay readable; enemy GUIDs are readable in the open world and secret in
+   instances; the first DoT tick lands about one interval after the cast.
+4. **No hand-entered timing.** Durations come from the aura when it's readable, else the duration
+   last read for that spell (`TickyCharDB.durations`), else the spell's tooltip; tick periods come
+   from `Ticky/Data.lua`. Don't hard-code intervals and don't add "tick every N" settings: the owner
    wants nothing configured by hand.
 5. **Display and sound only.** Never automate combat decisions, call protected functions, or touch
    Blizzard unit frames.
@@ -93,14 +101,26 @@ Globals (keep this list short): `TickyDB`, `TickyCharDB`, `SLASH_TICKY1`, `Slash
 ### Data flow
 
 ```
-UNIT_AURA (target/player/nameplateN), PLAYER_TARGET_CHANGED, NAME_PLATE_UNIT_ADDED
-  -> Refresh(unit) -> ScanUnit(unit)              all HARMFUL + HELPFUL auras, in pcall
+timers[mob][spellKey]   mob = MobKey(unit): GUID if readable, else "plate:nameplateN",
+                        else "target" (forgotten on target change)
+
+UNIT_SPELLCAST_SENT (player)      -> sentTo[castGUID] = MobForCast(spell, target name)
+UNIT_SPELLCAST_SUCCEEDED (player) -> OnCast: tracked, not a channel -> Store(mob, timer)
+                                     start = now, length = CastDuration (learned, else tooltip);
+                                     apply / refresh sound; recentCast[mob] for resists
+UNIT_COMBAT RESIST/IMMUNE/EVADE   -> OnAvoided: drop that cast (or restore the one it refreshed)
+
+UNIT_AURA (target/player/nameplateN), PLAYER_TARGET_CHANGED, NAME_PLATE_UNIT_ADDED,
+PLAYER_REGEN_ENABLED, and each cast timer once it's 1.1s old
+  -> ReadUnit(unit) -> ScanUnit(unit)             all HARMFUL + HELPFUL auras, in pcall;
+                                                  nil when reading fails (combat)
        -> TimerFromAura(aura)                      skip secret; keep tracked spells you cast
                                                    (or any caster if cfg.anyCaster)
-       -> timer { key, name, icon, start, expires, interval = AuraPeriod(spellID) }
-  -> Remember(unit, list)                          watch[guid][key]; apply / refresh sounds;
-                                                   vanished early -> gone[guid][key] (0.3s grace)
-  -> targetTimers / selfTimers
+     readable timers replace estimates and teach learned[spellID] (your own only);
+     if every aura was readable, tracked timers missing from it (and not cast in the last 1s)
+     ended or went to gone[mob][key] (0.3s grace, then "removed")
+NAME_PLATE_UNIT_ADDED/REMOVED     -> ForgetMob("plate:" .. token); a dead GUID mob is forgotten
+target dead                       -> ForgetMob(target's key), silently
 
 UNIT_SPELLCAST_CHANNEL_* (player) -> ReadChannel() -> channel timer (interval = ChannelPeriod)
 
@@ -116,11 +136,11 @@ OnUpdate (every frame)  -> ns.UpdateBars(now) -> ActiveTimers(now) or PreviewTim
 - `AuraPeriod(id)`: `Data[id].p` (divided by haste if `h`), `nil` for non-ticking data entries,
   tooltip "every N sec" for spells missing from the data.
 - Alerts: each event (`SOUND_EVENTS`: apply, refresh, tick, warn, expire, remove) uses the spell's
-  own choice or the account default (`SoundFor`). Apply/refresh only fire for an aura that started
-  under 1s ago, so targeting something with your DoT already on it is silent. An aura that vanishes
-  more than 0.5s before expiry and doesn't come back within 0.3s (a refresh can drop it briefly)
-  was removed early; one that vanishes at expiry, or whose expiry passes while watched, has ended.
-  Tick sounds are only for your target, yourself and your channel.
+  own choice or the account default (`SoundFor`). Apply/refresh come from your casts; an aura read
+  only alerts them for an aura that started under 1s ago and wasn't just cast (someone else's with
+  "from anyone"), so targeting something with your DoT already on it is silent. "Removed" is a
+  resist/immunity after the cast, or an aura read showing it gone more than 0.5s early. Tick sounds
+  are only for your target, yourself and your channel.
 - Missing spells: with a target (alive, and in combat if `missingOnlyInCombat`), every tracked spell
   not present gets a placeholder `{ missing = "space" | "show" }` unless its mode is "hide". In
   "custom" order the channel sits in its spell's slot; otherwise it's on top.
@@ -135,7 +155,8 @@ add a migration in `ADDON_LOADED` when changing the meaning of an existing key (
 
 `TickyCharDB` (per character): `spells[lowerCaseName] = { name, id, icon, color, order, label,
 speech, missing, warnSeconds, anyCaster, isChannel, applySound, refreshSound, tickSound, warnSound,
-expireSound, removeSound }` and `nextOrder`. Unset per-spell fields mean "use the default". Spells
+expireSound, removeSound }`, `nextOrder`, and `durations[spellID]` (seconds, learned from your own
+readable auras; used to time casts in combat). Unset per-spell fields mean "use the default". Spells
 are keyed by lower-case name so every rank matches; `id` is the rank that was added (used for data
 lookups in the UI). `order` is the "Your order" slot (`MoveSpell` renumbers 1..n).
 
@@ -285,5 +306,6 @@ Game data (spell tables) for Forever is on wago.tools under product `wowf`; see
 - Assuming wago.tools lacked Forever data. It has it (product `wowf`).
 - Designing around the combat log (measuring ticks). It isn't available on Forever.
 - Assuming secret values only show up in raids and dungeons. Aura data is secret in any combat, so
-  0.5/0.6 showed no bars for DoTs on a mob in the open world. Read `SecretPredicatesDocumentation.lua`
-  for what each `SecretWhen...` flag means before relying on an API.
+  0.5 showed no bars for DoTs on a mob in the open world; fixed by timing from casts, as Does It Die
+  does. Read `SecretPredicatesDocumentation.lua` for what each `SecretWhen...` flag means, and check
+  Does It Die's notes on what's verified in the client, before relying on an API.

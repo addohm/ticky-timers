@@ -54,6 +54,7 @@ ns.CHAR_DEFAULTS = {
   --   anyCaster, isChannel, applySound, refreshSound, tickSound, warnSound, expireSound, removeSound }
   spells = {},
   nextOrder = 1,
+  durations = {}, -- [spellID] = seconds the aura lasted when last read (so talents are included)
 }
 
 -- The alert events a spell can play a sound for, in the order the options show them.
@@ -130,10 +131,7 @@ local PALETTE = {
 local AURA_FILTERS = { "HARMFUL", "HELPFUL" }
 
 local db, cdb
-local targetTimers = {}   -- tracked auras on your target
-local selfTimers = {}     -- tracked auras on you
 local channel            -- the player's current tracked channel
-local watch = {}         -- [unitGUID][key] = timer, for expiry alerts on every unit we've seen
 local playerGUID
 local inCombat = false
 
@@ -175,7 +173,25 @@ local function HasteMult()
   return haste
 end
 
--- Tooltip fallback for spells missing from Data.lua: "every N sec", "for N sec".
+-- Seconds in "18 sec", "2 min", "1 hour" (or nil).
+local UNIT_SECONDS = { sec = 1, min = 60, hour = 3600 }
+local function Seconds(n, unit) return tonumber(n) and UNIT_SECONDS[unit] and tonumber(n) * UNIT_SECONDS[unit] end
+
+-- How long a spell's aura lasts according to its tooltip: the last "over N sec" (the periodic
+-- part), else "lasts N sec", else the first "for N sec". The tooltip is the client's current one.
+local function DescriptionDuration(d)
+  local over
+  for n, u in d:gmatch("over ([%d%.]+) (%a+)") do over = Seconds(n, u:gsub("s$", "")) or over end
+  if over then return over end
+  local n, u = d:match("lasts ([%d%.]+) (%a+)")
+  local lasts = n and Seconds(n, u:gsub("s$", ""))
+  if lasts then return lasts end
+  n, u = d:match("for ([%d%.]+) (%a+)")
+  return n and Seconds(n, u:gsub("s$", ""))
+end
+
+-- What a spell's tooltip says: "every N sec" ticks, whether it's timed, and for how long.
+-- Also the fallback for spells missing from Data.lua.
 local descCache = {}
 local function DescriptionInfo(id)
   if not id then return end
@@ -192,6 +208,7 @@ local function DescriptionInfo(id)
   c = {
     every = every,
     periodic = periodic,
+    duration = DescriptionDuration(d),
     timed = periodic or d:find("for [%d%.]+ sec") ~= nil or d:find("for [%d%.]+ min") ~= nil
       or d:find("lasts [%d%.]+ sec") ~= nil or d:find("lasts [%d%.]+ min") ~= nil,
   }
@@ -219,6 +236,20 @@ local function ChannelPeriod(id, span)
   return AuraPeriod(id)
 end
 
+-- "harm" (cast on enemies), "help" (on friends or yourself) or "any".
+local kindCache = {}
+local function SpellKind(id)
+  local k = kindCache[id]
+  if k == nil then
+    local harm = C_Spell.IsSpellHarmful and C_Spell.IsSpellHarmful(id)
+    local help = C_Spell.IsSpellHelpful and C_Spell.IsSpellHelpful(id)
+    if Secret(harm) or Secret(help) then return "any" end
+    k = (harm and not help and "harm") or (help and not harm and "help") or "any"
+    kindCache[id] = k
+  end
+  return k
+end
+
 function ns.SpellCfg(key) return cdb and cdb.spells[key] end
 function ns.DB() return db end
 function ns.CharDB() return cdb end
@@ -234,6 +265,7 @@ local function FromMe(aura)
   return source ~= nil and not Secret(source) and (source == "player" or source == "pet")
 end
 
+-- A timer from a readable aura, or nil (secret, untracked, someone else's, or no duration).
 local function TimerFromAura(aura)
   if Secret(aura) then return end
   local id, duration, expires = aura.spellId, aura.duration, aura.expirationTime
@@ -243,29 +275,32 @@ local function TimerFromAura(aura)
   local key = name:lower()
   local cfg = cdb.spells[key]
   if not cfg or cfg.isChannel then return end
-  if not cfg.anyCaster and not FromMe(aura) then return end
+  local mine = FromMe(aura)
+  if not cfg.anyCaster and not mine then return end
   local stacks = aura.applications
   if Secret(stacks) or type(stacks) ~= "number" then stacks = nil end
   return {
-    key = key, name = name, icon = icon or cfg.icon, stacks = stacks,
+    key = key, name = name, icon = icon or cfg.icon, stacks = stacks, spellID = id, mine = mine,
     start = expires - duration, expires = expires, interval = AuraPeriod(id),
   }
 end
 
--- Tracked auras on a unit, or nil if they couldn't be read (secret, restricted, etc.).
+-- Tracked auras on a unit. Returns nil if they couldn't be read at all (on Forever, reading a
+-- target's auras in combat fails), else the timers and whether every aura was readable.
 local function ScanUnit(unit)
-  local out = {}
+  local out, complete = {}, true
   local ok = pcall(function()
     for _, filter in ipairs(AURA_FILTERS) do
       for i = 1, 255 do
         local aura = C_UnitAuras.GetAuraDataByIndex(unit, i, filter)
         if aura == nil then break end
+        if Secret(aura) or Secret(aura.spellId) or Secret(aura.expirationTime) then complete = false end
         local t = TimerFromAura(aura)
         if t then out[#out + 1] = t end
       end
     end
   end)
-  if ok then return out end
+  if ok then return out, complete end
 end
 
 local function HasTarget()
@@ -274,15 +309,47 @@ local function HasTarget()
 end
 ns.HasTarget = HasTarget
 
--- Is the target you? Then its bars are your own and only shown once.
-local function TargetIsMe()
-  local same = UnitIsUnit("target", "player")
-  return not Secret(same) and same == true
-end
-
 local function IsDead(unit)
   local dead = UnitIsDeadOrGhost(unit)
   return not Secret(dead) and dead == true
+end
+
+local function NameOf(unit)
+  local n = UnitName(unit)
+  if n and not Secret(n) then return n end
+end
+
+-- The nameplate token ("nameplate3") showing the mob behind `unit`, or nil.
+local function PlateToken(unit)
+  if unit:match("^nameplate%d+$") then return unit end
+  if not (C_NamePlate and C_NamePlate.GetNamePlateForUnit) then return end
+  local ok, plate = pcall(C_NamePlate.GetNamePlateForUnit, unit)
+  if not ok or not plate or Secret(plate) or type(plate) ~= "table" then return end
+  local token = plate.namePlateUnitToken or (plate.UnitFrame and plate.UnitFrame.unit)
+  if type(token) == "string" and not Secret(token) and token:match("^nameplate%d+$") then return token end
+end
+
+-- A stable key for the unit's mob: its GUID when readable (open world, players), else
+-- "plate:nameplateN" while it has a nameplate (instances hide creature GUIDs), else "target"
+-- for the current target only. nil if the unit can't be tracked.
+local function MobKey(unit)
+  if not unit or Secret(unit) then return end
+  local g = GuidOf(unit)
+  if g then return g end
+  local exists = UnitExists(unit)
+  if not Secret(exists) and not exists then return end
+  local token = PlateToken(unit)
+  if token then return "plate:" .. token end
+  if unit == "target" then return "target" end
+end
+
+-- The unit token for a mob key right now, if it has one (for death checks).
+local function UnitForMob(mob)
+  if not mob or mob == "target" then return mob end
+  local token = mob:match("^plate:(nameplate%d+)$")
+  if token then return token end
+  token = UnitTokenFromGUID and UnitTokenFromGUID(mob)
+  if token and not Secret(token) then return token end
 end
 
 -- Alerts -----------------------------------------------------------------
@@ -356,11 +423,11 @@ end
 
 local function AlertAllowed(t)
   if db.alertOnlyInCombat and not inCombat then return false end
-  if t.guid ~= GuidOf("target") and t.guid ~= playerGUID then
+  if t.mob ~= MobKey("target") and t.mob ~= playerGUID then
     if not db.alertOtherTargets then return false end
     -- Don't announce DoTs falling off something that died.
-    local token = UnitTokenFromGUID and UnitTokenFromGUID(t.guid)
-    if token and not Secret(token) and IsDead(token) then return false end
+    local unit = UnitForMob(t.mob)
+    if unit and IsDead(unit) then return false end
   end
   return true
 end
@@ -405,74 +472,206 @@ local function CheckTick(t, now)
   t.tickN = n
 end
 
--- Auras that vanished early wait a moment before counting as removed: a refresh can
--- briefly drop the aura before the new one arrives.
-local gone = {} -- [guid] = { [key] = { t = timer, at = time } }
-local REMOVE_GRACE = 0.3
+-- Timers ---------------------------------------------------------------------
+--
+-- timers[mob][spellKey] holds every tracked buff and debuff Ticky knows about, on every mob.
+-- Two sources feed it:
+--   * your casts (UNIT_SPELLCAST_SENT/SUCCEEDED stay readable in combat): the timer starts at
+--     the cast and lasts the spell's duration (learned from an earlier aura read, else its
+--     tooltip). This is what works in combat, where Forever hides aura details.
+--   * aura reads, whenever the game allows them (usually out of combat): exact times and stacks,
+--     and they correct or remove cast timers.
 
--- Record a unit's current timers. Anything that vanished well before its expiry was
--- dispelled or overwritten; anything vanishing right at expiry has ended.
-local function Remember(unit, list)
-  local guid = GuidOf(unit)
-  if not guid then return end
-  local now, old, new = GetTime(), watch[guid], {}
-  local lost = gone[guid]
+local timers = {}
+local learned -- cdb.durations: [spellID] = seconds, from aura reads (talents and ranks included)
+
+-- Auras that vanished early (seen by an aura read) wait a moment before counting as removed:
+-- a refresh can briefly drop the aura before the new one arrives.
+local gone = {} -- [mob] = { [key] = { t = timer, at = time } }
+local REMOVE_GRACE = 0.3
+-- A cast timer isn't judged by aura reads until its aura has had time to arrive.
+local CAST_SETTLE = 1
+
+local function MobTimers(mob)
+  local list = timers[mob]
+  if not list then
+    list = {}
+    timers[mob] = list
+  end
+  return list
+end
+
+-- Drop a mob's timers without alerts (it died, its plate went to another mob, ...).
+local function ForgetMob(mob)
+  if mob then timers[mob], gone[mob] = nil, nil end
+end
+
+local function Removed(t)
+  if t.expires - GetTime() > 0.5 then Alert(t, "removeSound") end
+end
+
+-- Put a timer on a mob; returns the timer it replaced.
+local function Store(mob, t)
+  t.mob = mob
+  local list = MobTimers(mob)
+  local prev = list[t.key]
+  list[t.key] = t
+  return prev
+end
+
+-- Read a unit's auras, if the game allows it, and merge them in.
+local function ReadUnit(unit)
+  local mob = MobKey(unit)
+  if not mob then return end
+  local list, complete = ScanUnit(unit)
+  if not list then return end
+  local now = GetTime()
+  local mine = MobTimers(mob)
+  local seen = {}
   for _, t in ipairs(list) do
-    local prev = old and old[t.key]
-    local back = lost and lost[t.key]
-    if back then lost[t.key] = nil end
-    t.guid = guid
+    seen[t.key] = true
+    t.mob = mob
+    if t.mine and t.spellID then learned[t.spellID] = floor((t.expires - t.start) * 10 + 0.5) / 10 end
+    local prev = mine[t.key]
+    local lost = gone[mob] and gone[mob][t.key]
+    if lost then gone[mob][t.key] = nil end
     if prev and abs(prev.expires - t.expires) < 0.1 then
       t.warned, t.expired, t.tickN = prev.warned, prev.expired, prev.tickN
-    elseif now - t.start < 1 then
-      -- Cast just now (not merely noticed by targeting it).
-      Alert(t, (prev or back) and "refreshSound" or "applySound")
+    elseif not (prev and prev.castAt and now - prev.castAt < CAST_SETTLE + 0.5) and now - t.start < 1 then
+      -- Applied just now and not by a cast we saw (out of combat someone else's, for example).
+      Alert(t, (prev or lost) and "refreshSound" or "applySound")
+    elseif prev then
+      t.warned, t.tickN = prev.warned, prev.tickN
     end
-    new[t.key] = t
+    Store(mob, t)
   end
-  if old then
-    for key, prev in pairs(old) do
-      if not new[key] then
+  if complete then
+    for key, prev in pairs(mine) do
+      if not seen[key] and not (prev.castAt and now - prev.castAt < CAST_SETTLE) then
+        mine[key] = nil
         if prev.expires - now < 0.5 then
-          if guid == GuidOf("target") or guid == playerGUID then CheckTick(prev, prev.expires) end
+          if mob == MobKey("target") or mob == playerGUID then CheckTick(prev, prev.expires) end
           Expire(prev)
-        elseif not IsDead(unit) then
-          gone[guid] = gone[guid] or {}
-          gone[guid][key] = { t = prev, at = now }
+        else
+          gone[mob] = gone[mob] or {}
+          gone[mob][key] = { t = prev, at = now }
         end
       end
     end
   end
-  if lost and not next(lost) then gone[guid] = nil end
-  watch[guid] = next(new) and new or nil
+  if gone[mob] and not next(gone[mob]) then gone[mob] = nil end
+  if not next(mine) then timers[mob] = nil end
 end
 
+-- Casts ----------------------------------------------------------------------
+
+local sentTo = {}  -- [castGUID] = { mob, at }: where each cast was aimed when it was sent
+local recentCast = {} -- [mob] = { t, prev, at }: the last tracked cast on each mob, for resists
+
+-- The mob a spell cast at `name` goes to. UNIT_SPELLCAST_SENT only gives a name, and you may
+-- have tabbed away by the time the cast lands, so this is worked out when it's sent.
+local function MobForCast(spellID, name)
+  local helpful = SpellKind(spellID) == "help"
+  local me = NameOf("player")
+  if helpful and (not name or name == "" or name == me) then return playerGUID end
+  if name and name ~= "" then
+    for _, unit in ipairs({ "target", "focus", "mouseover" }) do
+      if NameOf(unit) == name then return MobKey(unit) end
+    end
+  end
+  if helpful and not (HasTarget() and UnitCanAssist("player", "target") == true) then return playerGUID end
+  return HasTarget() and MobKey("target") or nil
+end
+
+local function CastDuration(spellID)
+  local d = learned[spellID]
+  if d then return d end
+  local info = DescriptionInfo(spellID)
+  return info and info.duration
+end
+
+-- One of your tracked spells landed: start (or restart) its timer on the mob it was aimed at.
+local function OnCast(castGUID, spellID)
+  local sent = castGUID and not Secret(castGUID) and sentTo[castGUID]
+  if sent then sentTo[castGUID] = nil end
+  local name, icon = SpellInfo(spellID)
+  if not name then return end
+  local key = name:lower()
+  local cfg = cdb.spells[key]
+  local d = ns.Data[spellID]
+  if not cfg or cfg.isChannel or (d and d.d) then return end
+  local mob
+  if sent then mob = sent.mob else mob = MobForCast(spellID, nil) end
+  local duration = CastDuration(spellID)
+  if not mob or not duration or duration <= 0 then return end
+  local now = GetTime()
+  local t = {
+    key = key, name = name, icon = icon or cfg.icon, spellID = spellID, castAt = now,
+    start = now, expires = now + duration, interval = AuraPeriod(spellID),
+  }
+  local prev = Store(mob, t)
+  if prev and prev.expires > now then
+    t.stacks = prev.stacks
+    Alert(t, "refreshSound")
+  else
+    Alert(t, "applySound")
+  end
+  recentCast[mob] = { t = t, prev = prev, at = now }
+end
+
+-- A resist or immunity right after a tracked cast means it never landed.
+local AVOIDED = { RESIST = true, IMMUNE = true, EVADE = true }
+local AVOID_WINDOW = 0.6
+
+local function OnAvoided(mob)
+  local c = recentCast[mob]
+  if not c or GetTime() - c.at > AVOID_WINDOW or SpellKind(c.t.spellID) == "help" then return end
+  recentCast[mob] = nil
+  local list = timers[mob]
+  if not list or list[c.t.key] ~= c.t then return end
+  if c.prev and c.prev.expires > GetTime() then
+    list[c.t.key] = c.prev -- a resisted refresh leaves the old one running
+  else
+    list[c.t.key] = nil
+    Removed(c.t)
+  end
+end
+
+local toRead = {}
 local function CheckAlerts(now)
-  local targetGUID = GuidOf("target")
-  for guid, timers in pairs(watch) do
-    local ticking = guid == targetGUID or guid == playerGUID
-    for key, t in pairs(timers) do
+  local targetMob = HasTarget() and MobKey("target")
+  if targetMob and IsDead("target") then ForgetMob(targetMob) end
+  wipe(toRead)
+  for mob, list in pairs(timers) do
+    local ticking = mob == targetMob or mob == playerGUID
+    for key, t in pairs(list) do
       if ticking then CheckTick(t, now) end
+      -- Once a cast's aura has had time to arrive, read it if the game lets us (out of combat).
+      if t.castAt and not t.checked and now - t.castAt > CAST_SETTLE + 0.1 then
+        t.checked = true
+        toRead[#toRead + 1] = UnitForMob(mob)
+      end
       if now >= t.expires then
         Expire(t)
-        timers[key] = nil
+        list[key] = nil
       else
         local warn = WarnSeconds(key)
         if not t.warned and warn > 0 and t.expires - now <= warn then Warn(t) end
       end
     end
-    if not next(timers) then watch[guid] = nil end
+    if not next(list) then timers[mob] = nil end
   end
-  for guid, lost in pairs(gone) do
+  for mob, lost in pairs(gone) do
     for key, g in pairs(lost) do
       if now - g.at > REMOVE_GRACE then
         lost[key] = nil
-        if g.t.expires - now > 0.5 then Alert(g.t, "removeSound") end
+        Removed(g.t)
       end
     end
-    if not next(lost) then gone[guid] = nil end
+    if not next(lost) then gone[mob] = nil end
   end
   if channel then CheckTick(channel, now) end
+  for _, unit in ipairs(toRead) do ReadUnit(unit) end
 end
 
 -- A channel that ran its course (or nearly) gets its last tick before it goes.
@@ -498,20 +697,9 @@ local function byMode(a, b)
   return ka < kb
 end
 
-local function Refresh(unit)
-  local list = ScanUnit(unit)
-  if list then Remember(unit, list) end
-  if unit == "target" then
-    targetTimers = list or {}
-  elseif unit == "player" then
-    selfTimers = list or {}
-    for _, t in ipairs(selfTimers) do t.onSelf = true end
-  end
-end
-
 local function RefreshDisplay()
-  if HasTarget() then Refresh("target") else targetTimers = {} end
-  Refresh("player")
+  if HasTarget() then ReadUnit("target") end
+  ReadUnit("player")
 end
 ns.RefreshDisplay = RefreshDisplay
 
@@ -523,11 +711,11 @@ local function ReadChannel()
   if not cfg then return end
   if not cfg.isChannel then
     cfg.isChannel = true -- some channels also leave a debuff; show them once, as a channel
-    RefreshDisplay()
+    for _, list in pairs(timers) do list[key] = nil end
   end
   local start, finish = startMS / 1000, endMS / 1000
   local t = {
-    key = key, name = name, icon = icon, channel = true, guid = playerGUID,
+    key = key, name = name, icon = icon, channel = true, mob = playerGUID,
     start = start, expires = finish, interval = ChannelPeriod(spellID, finish - start),
   }
   if channel and channel.key == key and abs(channel.start - start) < 0.1 then t.tickN = channel.tickN end
@@ -541,20 +729,6 @@ local function MissingMode(cfg)
   local m = cfg.missing
   if m and m ~= "DEFAULT" then return m end
   return db.missingMode
-end
-
--- Can this spell go on your target? Damage spells on enemies, heals and buffs on friends.
-local kindCache = {}
-local function SpellKind(id)
-  local k = kindCache[id]
-  if k == nil then
-    local harm = C_Spell.IsSpellHarmful and C_Spell.IsSpellHarmful(id)
-    local help = C_Spell.IsSpellHelpful and C_Spell.IsSpellHelpful(id)
-    if Secret(harm) or Secret(help) then return "any" end
-    k = (harm and not help and "harm") or (help and not harm and "help") or "any"
-    kindCache[id] = k
-  end
-  return k
 end
 
 local function FitsTarget(cfg)
@@ -625,16 +799,28 @@ function ns.BuildDisplay(now, targetList, selfList, chan, missingTest, youTag)
   return active
 end
 
+-- A mob's timers as a list (reused tables; the display reads them right away).
+local targetList, selfList = {}, {}
+local function ListOf(mob, out)
+  wipe(out)
+  local list = mob and timers[mob]
+  if list then
+    for _, t in pairs(list) do out[#out + 1] = t end
+  end
+  return out
+end
+
 function ns.ActiveTimers(now)
   if channel and channel.expires <= now then EndChannel(now) end
   local hasTarget = HasTarget()
-  local targetIsMe = hasTarget and TargetIsMe()
+  local targetMob = hasTarget and MobKey("target")
+  if targetMob and IsDead("target") then ForgetMob(targetMob) end
   local missingTest
   if hasTarget and not IsDead("target") and (inCombat or not db.missingOnlyInCombat) then
     missingTest = FitsTarget
   end
-  local selfList = (db.showSelf and not targetIsMe) and selfTimers or nil
-  return ns.BuildDisplay(now, targetTimers, selfList, channel, missingTest, hasTarget)
+  local mine = (db.showSelf and targetMob ~= playerGUID) and ListOf(playerGUID, selfList) or nil
+  return ns.BuildDisplay(now, ListOf(targetMob, targetList), mine, channel, missingTest, hasTarget)
 end
 
 ---------------------------------------------------------------------------
@@ -744,7 +930,7 @@ function ns.Untrack(key)
   if not cfg then return false, "Not tracking \"" .. key .. "\"." end
   cdb.spells[key] = nil
   if channel and channel.key == key then channel = nil end
-  for _, timers in pairs(watch) do timers[key] = nil end
+  for _, list in pairs(timers) do list[key] = nil end
   for _, lost in pairs(gone) do lost[key] = nil end
   RefreshDisplay()
   return true, "Stopped tracking " .. cfg.name .. "."
@@ -828,6 +1014,7 @@ function TB:ADDON_LOADED(name)
   end
   db = ns.CopyDefaults(ns.DEFAULTS, TickyDB)
   cdb = TickyCharDB
+  learned = cdb.durations
 
   ns.CreateBars()
 
@@ -842,6 +1029,9 @@ function TB:ADDON_LOADED(name)
   self:RegisterUnitEvent("UNIT_SPELLCAST_CHANNEL_UPDATE", "player")
   self:RegisterUnitEvent("UNIT_SPELLCAST_CHANNEL_STOP", "player")
   self:RegisterUnitEvent("UNIT_SPELLCAST_SUCCEEDED", "player")
+  self:RegisterUnitEvent("UNIT_SPELLCAST_SENT", "player")
+  self:RegisterEvent("UNIT_COMBAT")
+  self:RegisterEvent("NAME_PLATE_UNIT_REMOVED")
 
   local elapsedSinceCheck = 0
   self:SetScript("OnUpdate", function(_, elapsed)
@@ -865,9 +1055,15 @@ function TB:PLAYER_LOGIN()
   end
 end
 
-function TB:PLAYER_TARGET_CHANGED() RefreshDisplay() end
+function TB:PLAYER_TARGET_CHANGED()
+  ForgetMob("target") -- only used while the target's GUID is secret and it has no nameplate
+  RefreshDisplay()
+end
 function TB:PLAYER_REGEN_DISABLED() inCombat = true end
-function TB:PLAYER_REGEN_ENABLED() inCombat = false end
+function TB:PLAYER_REGEN_ENABLED()
+  inCombat = false
+  RefreshDisplay() -- auras are readable again: correct the timers we estimated from casts
+end
 
 -- What UNIT_AURA and your casts looked like, for /ticky debug.
 local seen = { auraEvents = 0, secretUnits = 0, added = 0, addedSecret = 0, casts = {} }
@@ -888,16 +1084,42 @@ function TB:UNIT_AURA(unit, info)
     seen.secretUnits = seen.secretUnits + 1
     RefreshDisplay()
   elseif unit == "target" or unit == "player" or unit:find("^nameplate%d") then
-    Refresh(unit)
+    ReadUnit(unit)
   end
 end
 
-function TB:UNIT_SPELLCAST_SUCCEEDED(_, _, spellID)
-  table.insert(seen.casts, 1, { GetTime(), Secret(spellID) and "secret" or spellID })
-  seen.casts[6] = nil
+function TB:UNIT_SPELLCAST_SENT(_, name, castGUID, spellID)
+  if Secret(castGUID) or Secret(spellID) or not castGUID then return end
+  local now = GetTime()
+  for g, s in pairs(sentTo) do
+    if now - s.at > 10 then sentTo[g] = nil end
+  end
+  sentTo[castGUID] = { mob = MobForCast(spellID, not Secret(name) and name or nil), at = now }
 end
 
-function TB:NAME_PLATE_UNIT_ADDED(unit) Refresh(unit) end
+function TB:UNIT_SPELLCAST_SUCCEEDED(_, castGUID, spellID)
+  table.insert(seen.casts, 1, { GetTime(), Secret(spellID) and "secret" or spellID })
+  seen.casts[6] = nil
+  if not Secret(spellID) then OnCast(castGUID, spellID) end
+end
+
+-- Resists and immunities on a mob, to drop a cast that didn't land.
+function TB:UNIT_COMBAT(unit, action)
+  if Secret(unit) or Secret(action) or not AVOIDED[action] then return end
+  local mob = MobKey(unit)
+  if mob then OnAvoided(mob) end
+end
+
+function TB:NAME_PLATE_UNIT_ADDED(unit)
+  ForgetMob("plate:" .. unit) -- the token now shows another mob
+  ReadUnit(unit)
+end
+
+function TB:NAME_PLATE_UNIT_REMOVED(unit)
+  ForgetMob("plate:" .. unit)
+  local g = GuidOf(unit)
+  if g and IsDead(unit) then ForgetMob(g) end
+end
 
 function TB:SPELLS_CHANGED()
   wipe(descCache)
@@ -1004,7 +1226,13 @@ function ns.Debug()
   else
     V("Your debuffs by instance ID:", ok and Show(ids) or "error")
   end
-  V("Ticky's bars for target:", #targetTimers, "| channel", channel and channel.name or "-")
+  local tm, fromCasts, n = HasTarget() and MobKey("target"), 0, 0
+  for _, t in pairs(tm and timers[tm] or {}) do
+    n = n + 1
+    if t.castAt then fromCasts = fromCasts + 1 end
+  end
+  V("Ticky's timers on target:", n, "| from your casts", fromCasts, "| key", Show(tm),
+    "| channel", channel and channel.name or "-")
 
   local casts = {}
   for _, c in ipairs(seen.casts) do

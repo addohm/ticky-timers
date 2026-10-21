@@ -26,6 +26,12 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
   second, text shadow. Tick height.
 - "Hide bars when you have no target".
 ### Fixed
+- Bars now show in combat. Forever hides aura details from addons in combat, so Ticky starts each
+  timer from your cast instead (on the mob you targeted when casting, so tab-dotting works). Its
+  length is the one last read from that spell's aura (talents included), else the tooltip. Exact
+  times and stacks replace the estimate whenever auras are readable, a resist or immunity right
+  after the cast drops it, and mobs are tracked by nameplate in dungeons where their IDs are hidden.
+  Approach from Does It Die.
 - `UNIT_AURA` with a secret unit token no longer risks an error; Ticky re-reads target and self.
 ### Changed
 - The options window is larger and has six tabs: Spells, Bars, Layout, Text & Ticks, Sounds

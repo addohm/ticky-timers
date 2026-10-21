@@ -68,8 +68,16 @@ Ticky read about your target's auras and your casts right now; run it in combat)
 
 ## How tick placement is worked out
 
-- **Duration** comes from the aura, so talents (Improved Shadow Word: Pain: 18s → 24s), gear and
-  rank are already included.
+- **Start and duration.** In combat Forever hides aura details from addons, so a timer starts when
+  your cast lands, aimed at the mob you targeted when you cast it (tab-dotting works). Its length is
+  what Ticky last read from that spell's aura (talents such as Improved Shadow Word: Pain's 18s →
+  24s included), or, until it has seen one, the spell's tooltip ("over 18 sec"). Whenever the game
+  does let Ticky read the aura (usually out of combat), the exact times and stacks replace the
+  estimate, and a spell that was dispelled or never landed is removed. A resist or immunity right
+  after the cast drops it too.
+- Mobs are remembered by their ID in the open world, so switching targets and back keeps their
+  timers. In dungeons, where mob IDs are hidden, Ticky uses the mob's nameplate instead (turn
+  enemy nameplates on), or only your current target.
 - **Tick period** comes from the game's own spell data for Forever (`SpellEffect.EffectAuraPeriod`),
   in [Ticky/Data.lua](Ticky/Data.lua), divided by spell haste for spells the data marks as
   haste-affected. Buffs and debuffs that don't tick get a plain timer. Spells missing from the
@@ -81,11 +89,20 @@ Ticky read about your target's auras and your casts right now; run it in combat)
 ## Forever limitations
 
 Forever uses the modern Mainline addon API with Midnight's combat restrictions. The combat log is
-not available to addons, and some values can be "secret". According to the game's API
-documentation, aura details (which spell, its timing, who cast it) become secret whenever you're
-**in combat**, not only in dungeons and raids, unless the game marks that spell as never secret.
-Ticky currently skips secret auras, so in combat its bars may not appear. `/ticky debug` shows what
-the game is hiding; a version that works with secret auras is in progress (see ROADMAP.md).
+not available to addons, and in combat aura details (which spell, its timing, who cast it) are
+"secret": addons can't read them. Your own casts stay readable, so Ticky times your spells from
+your casts (see above). What that means:
+
+- Your own casts are tracked in combat. "Track it from anyone" (someone else's buff or debuff) only
+  works while auras are readable, usually out of combat.
+- A DoT dispelled in combat keeps its bar until the next time Ticky can read auras.
+- Until Ticky has read a spell's aura once, its length comes from the tooltip, which may not
+  include talents.
+- `/ticky debug` shows what the game is hiding right now.
+
+The approach (casts, tooltips and `UNIT_COMBAT`, mobs keyed by nameplate where IDs are hidden)
+follows [Does It Die](https://github.com/swirllyman/DoesItDie), whose author verified these
+restrictions in the Forever client.
 
 ## Regenerating the spell data
 
