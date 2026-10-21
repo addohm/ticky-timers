@@ -702,20 +702,23 @@ local AVOIDED = {
   RESIST = true, IMMUNE = true, EVADE = true, MISS = true, DODGE = true, PARRY = true,
   REFLECT = true, DEFLECT = true,
 }
-local AVOID_AFTER = 0.6  -- seconds after a cast is done that its result may still arrive
-local AVOID_BEFORE = 0.4 -- ...and before
+-- In game the result arrived in the same tenth of a second as the cast (2026-10-21); keeping the
+-- windows tight keeps other players' misses on the mob from being taken for yours.
+local AVOID_AFTER = 0.3  -- seconds after a cast is done that its result may still arrive
+local AVOID_BEFORE = 0.3 -- ...and before
 local avoidLog = {}      -- the last few, for /ticky debug
 
 -- Could this avoid be the spell's own? UNIT_COMBAT reports every attack on the mob, yours or
--- anyone's, so: spells can't be dodged, parried or blocked, so those only count for physical
--- spells; and an avoid the game puts in a different school than the spell's (a party member's
--- melee missing as you cast a Shadow DoT) isn't the spell's.
+-- anyone's. Spells can't be dodged, parried or blocked, so those only count for physical spells.
+-- The game labels a spell's own miss Physical (school 1, seen in game 2026-10-21), so Physical
+-- says nothing; another non-Physical school than the spell's does rule it out.
 local MELEE_ONLY = { DODGE = true, PARRY = true, BLOCK = true }
 local function SchoolFits(school, spellID, action)
   local info = DescriptionInfo(spellID)
   local spellSchool = info and info.school
-  if MELEE_ONLY[action] and spellSchool and spellSchool ~= 1 then return false end
-  return not (school and school > 0 and spellSchool and spellSchool ~= school)
+  if MELEE_ONLY[action] then return not spellSchool or spellSchool == 1 end
+  if not school or school <= 1 or not spellSchool then return true end
+  return school == spellSchool
 end
 
 -- One of your tracked spells landed: start (or restart) its timer on the mob it was aimed at.
@@ -763,7 +766,10 @@ end
 -- about to be reported. `school`: the avoided attack's school, if the game said.
 local function OnAvoided(mob, action, school, unit)
   local now = GetTime()
-  local entry = { at = now, action = action, school = school, unit = unit }
+  -- The same result arrives for each unit token showing the mob (target, softenemy, nameplateN).
+  local last = avoidLog[1]
+  if last and last.mob == mob and last.action == action and now - last.at < 0.05 then return end
+  local entry = { at = now, action = action, school = school, unit = unit, mob = mob }
   table.insert(avoidLog, 1, entry)
   avoidLog[6] = nil
   local c = recentCast[mob]

@@ -118,11 +118,13 @@ UNIT_COMBAT MISS/DODGE/PARRY/RESIST/IMMUNE/EVADE/REFLECT/DEFLECT
                                   -> OnAvoided: within 0.6s after a done cast on that mob, drop
                                      it (or restore the one it refreshed); otherwise mark casts at
                                      that mob still under way (sentTo), and OnCast drops one whose
-                                     mark is under 0.4s old. UNIT_COMBAT reports anyone's attacks,
-                                     so SchoolFits: DODGE/PARRY/BLOCK only for physical spells, and
-                                     never an avoid in another school than the spell's. How the game
-                                     labels a spell's own miss is unconfirmed. avoidLog (with each
-                                     decision) feeds /ticky debug
+                                     mark is under 0.3s old (window after: 0.3s; in game the result
+                                     came in the same tenth as the cast). UNIT_COMBAT reports
+                                     anyone's attacks, once per unit token showing the mob (deduped).
+                                     SchoolFits: DODGE/PARRY/BLOCK only for physical spells; the game
+                                     labels a spell's own MISS school 1, so school 1 proves nothing,
+                                     another non-Physical school rules it out. avoidLog feeds
+                                     /ticky debug
 UNIT_COMBAT WOUND/HEAL            -> OnTickAmount: match to a timer on that mob (or the channel) by
                                      school and tick time (+-0.35s, each tick once); non-crits
                                      teach tickSizes[spellID] (60/40 running average)

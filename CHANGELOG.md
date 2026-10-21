@@ -43,8 +43,9 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
   resists, immunities and evades were caught, and only when the game reported them after the cast.
   All of them now cancel the cast (a missed refresh leaves the old timer running), including when
   the result arrives while the cast is still under way. The game reports everyone's attacks on a
-  mob, so dodges and parries only count for physical DoTs (spells can't be dodged), and an avoid in
-  a different school than the spell's (a party member's melee missing) is ignored.
+  mob and labels a spell's own miss Physical, so a miss counts only within 0.3s of your cast,
+  dodges and parries only count for physical DoTs (spells can't be dodged), and an avoid in a
+  different non-Physical school than the spell's is ignored.
   `/ticky debug` lists the last few and what Ticky did with each. A miss in a different school than the spell's, such as your pet's
   melee being dodged as you cast a Shadow DoT, is ignored.
 - DoTs on a mob that died out of sight (not your target, no nameplate) kept their timers and played
