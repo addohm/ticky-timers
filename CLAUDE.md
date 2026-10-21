@@ -179,10 +179,10 @@ OnUpdate (every frame)  -> ns.UpdatePlates(now) -> per ns.plateUnits token: Unit
 
 `TickyDB` (account-wide, defaults in `ns.DEFAULTS`, filled by `CopyDefaults` on load): look,
 layout, text, sound and general settings as flat keys, plus `point`, `version` and
-`customSounds` (list of file paths / IDs; kept by reset). Bump `DB_VERSION` (now 6) in Core.lua and
+`customSounds` (list of file paths / IDs; kept by reset). Bump `DB_VERSION` (now 7) in Core.lua and
 add a migration in `ADDON_LOADED` when changing the meaning of an existing key (5 renamed
 `sortMode` "added" to "custom"; 6 gives `warnSeconds` 3 when a warning sound is set but the time
-was 0).
+was 0; 7 switches `overlayColors` "each" to "single" and the old red damage color to dark).
 
 `TickyCharDB` (per character): `spells[lowerCaseName] = { name, id, icon, color, order, label,
 speech, missing, warnSeconds, anyCaster, isChannel, applySound, refreshSound, tickSound, warnSound,

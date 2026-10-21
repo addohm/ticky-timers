@@ -59,8 +59,9 @@ then goes missing for a few seconds, so you can see how missing spells look too.
   load when the game starts). Picking a warning sound while the warning time is Off sets it to 3s.
 - **Health bar**: on your target's health bar, shade the part your DoTs (and channel) will still
   take off, ending at its current health, and the part your HoTs will still heal, starting there.
-  Off by default. Each spell in its own bar color (with a line between them) or one color for damage
-  and one for healing; opacity; texture. "Also on nameplates" shades each nameplate's health bar the
+  Off by default. One segment with the total (dark for damage, green for healing; colors are
+  yours to pick) or one segment per spell in its bar color, with a line between them; opacity;
+  texture. "Also on nameplates" shades each nameplate's health bar the
   same way, for your DoTs and HoTs on that mob. It finds a unit frame addon's target frame (or
   Blizzard's) by itself, picking the bar named like a health bar over absorb or missing-health bars,
   and shows which bar it's drawing on; if it picks the wrong one, enter the health bar's frame name

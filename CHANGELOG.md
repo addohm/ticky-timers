@@ -55,6 +55,10 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
   still heal. Per-spell colors or one color each, opacity, texture, dividers; per-spell opt-out.
   Finds a unit frame addon's target frame or Blizzard's, or takes a frame name. Amounts
   come from the tooltip until Ticky has seen the spell's ticks land, then from the real ticks.
+### Changed
+- Health bar shading: one segment with the total of all your DoTs (and one for your HoTs) is now the
+  default, in a dark color that shows on any health bar; a segment per spell is still an option
+  ("Segments"). Existing settings switch over unless you'd changed the color.
 ### Fixed
 - The health bar shading could cover the missing part of the target's health instead of the part
   your DoTs will take off. Unit frames also hold full-size bars for missing health, absorbs or

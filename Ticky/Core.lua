@@ -14,7 +14,7 @@ local ADDON, ns = ...
 
 local GetTime, ipairs, pairs, wipe, tonumber, floor, abs, min = GetTime, ipairs, pairs, wipe, tonumber, math.floor, math.abs, math.min
 
-local DB_VERSION = 6
+local DB_VERSION = 7
 
 ns.REPO_URL = "https://github.com/addohm/ticky-timers"
 ns.ISSUES_URL = ns.REPO_URL .. "/issues"
@@ -48,8 +48,8 @@ ns.DEFAULTS = {
   msgWarn = false, msgExpire = false, msgRemove = false,
   customSounds = {}, -- sound file paths or file IDs the player added
   -- Health bar overlay
-  overlayDamage = false, overlayHeal = false, overlayPlates = false, overlayColors = "each",
-  overlayDamageColor = { 0.9, 0.1, 0.1 }, overlayHealColor = { 0.2, 1, 0.3 }, overlayAlpha = 0.6,
+  overlayDamage = false, overlayHeal = false, overlayPlates = false, overlayColors = "single",
+  overlayDamageColor = { 0.1, 0.1, 0.1 }, overlayHealColor = { 0.2, 1, 0.3 }, overlayAlpha = 0.6,
   overlayTexture = "Flat", overlayDividers = true, overlayFrame = "",
   -- Nameplates
   plateEnabled = false, plateWhich = "others", plateAnchor = "TOP", plateOffsetY = 4,
@@ -1296,6 +1296,13 @@ function TB:ADDON_LOADED(name)
       if cfg.warnSound and cfg.warnSound ~= "NONE" then wantsWarning = true end
     end
     if wantsWarning and (TickyDB.warnSeconds or 0) == 0 then TickyDB.warnSeconds = 3 end
+    -- 0.6.0: the health bar shading shows one segment with the total by default, in a dark color
+    -- that reads on any health bar color (the old red vanished on red enemy bars).
+    if (TickyDB.version or 0) < 7 then
+      if TickyDB.overlayColors == "each" then TickyDB.overlayColors = "single" end
+      local c = TickyDB.overlayDamageColor
+      if c and c[1] == 0.9 and c[2] == 0.1 and c[3] == 0.1 then TickyDB.overlayDamageColor = { 0.1, 0.1, 0.1 } end
+    end
     TickyDB.version = DB_VERSION
   end
   db = ns.CopyDefaults(ns.DEFAULTS, TickyDB)

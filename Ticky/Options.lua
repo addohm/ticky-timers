@@ -628,12 +628,12 @@ local function BuildHealthPage()
   Place(p, W.Check(p, "Also on nameplates", g, s,
     "Shade each nameplate's health bar too, for your DoTs and HoTs on that mob."), 0, -72)
   g, s = S("overlayColors")
-  Place(p, W.Cycle(p, "Colors", { { "each", "Each spell's bar color" },
-    { "single", "One for damage, one for healing" } }, g, s), 4, -106)
+  Place(p, W.Cycle(p, "Segments", { { "single", "One: the total" },
+    { "each", "One per spell, in its bar color" } }, g, s), 4, -106)
   g, s = S("overlayDamageColor")
-  Place(p, W.Swatch(p, "Damage color (one-color mode)", g, s), 4, -154)
+  Place(p, W.Swatch(p, "Damage color (one segment)", g, s), 4, -154)
   g, s = S("overlayHealColor")
-  Place(p, W.Swatch(p, "Healing color (one-color mode)", g, s), 4, -180)
+  Place(p, W.Swatch(p, "Healing color (one segment)", g, s), 4, -180)
   g, s = S("overlayAlpha")
   Place(p, W.Slider(p, "Opacity", 0.1, 1, 0.05, g, s, pct), 4, -208)
   g, s = S("overlayTexture")
