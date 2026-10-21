@@ -338,10 +338,19 @@ function ns.InCombat() return inCombat end
 -- Reading auras and channels
 ---------------------------------------------------------------------------
 
+-- Cast by you (or your pet or vehicle): the aura's caster is you, as Blizzard's own check does it
+-- (AuraUtil's IsAuraFromPlayer: UnitIsUnit("player", sourceUnit)). Not isFromPlayerOrPlayerPet:
+-- that's "cast by a player", any player, so another priest's Shadow Word: Pain or Fortitude counted
+-- as yours, with your sounds (and its length as yours: 2026-10-21).
 local function FromMe(aura)
-  local mine, source = aura.isFromPlayerOrPlayerPet, aura.sourceUnit
-  if mine ~= nil and not Secret(mine) then return mine end
-  return source ~= nil and not Secret(source) and (source == "player" or source == "pet")
+  local source = aura.sourceUnit
+  if source == nil or Secret(source) then return false end
+  if source == "player" or source == "pet" or source == "vehicle" then return true end
+  for _, me in ipairs({ "player", "pet" }) do
+    local ok, same = pcall(UnitIsUnit, me, source)
+    if ok and not Secret(same) and same == true then return true end
+  end
+  return false
 end
 
 -- A timer from a readable aura, or nil (secret, untracked, someone else's, or no duration).

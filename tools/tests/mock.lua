@@ -339,10 +339,14 @@ function M.update(dt)
 end
 -- One rendered frame (60 fps): what Ticky queued for "the next frame" happens here.
 function M.frame() M.update(1 / 60) end
+-- opts.mine = false: cast by another player (opts.source, default "party1"); as in game,
+-- isFromPlayerOrPlayerPet is true for any player's aura, and only sourceUnit says whose.
 function M.aura(spellID, dur, opts)
   opts = opts or {}
+  local mine = opts.mine ~= false
   return { spellId = spellID, duration = dur, expirationTime = (opts.start or M.now) + dur,
-    isFromPlayerOrPlayerPet = opts.mine ~= false, harmful = opts.harmful ~= false, applications = opts.stacks or 0 }
+    sourceUnit = mine and "player" or (opts.source or "party1"), isFromPlayerOrPlayerPet = true,
+    harmful = opts.harmful ~= false, applications = opts.stacks or 0 }
 end
 M.castN = 0
 -- Cast a tracked spell at the unit named `name` (UNIT_SPELLCAST_SENT then _SUCCEEDED).

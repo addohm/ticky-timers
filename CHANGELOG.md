@@ -80,6 +80,10 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
   default, in a dark color that shows on any health bar; a segment per spell is still an option
   ("Segments"). Existing settings switch over unless you'd changed the color.
 ### Fixed
+- Another player's spells counted as yours when Ticky could read auras (usually out of combat):
+  another priest's Shadow Word: Pain on your target or Fortitude on you made a bar and played your
+  sounds, and its length was learned as yours. Ticky took the game's "cast by a player" for "cast
+  by you"; it now checks the aura's caster. "Track it from anyone" still shows other players'.
 - The health bar shading could cover the missing part of the target's health instead of the part
   your DoTs will take off. Unit frames also hold full-size bars for missing health, absorbs or
   incoming heals, often filling from the other side, and Ticky took the largest bar it found. It

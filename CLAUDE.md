@@ -14,9 +14,9 @@ original-Azeroth content (level 60, vanilla-era spells, ranks and talents) runni
 **modern Mainline addon API** (12.x family), TOC interface **16001**. It is *not* Classic Era and
 *not* TBC. The owner's old TBC WeakAuras were inspiration only.
 
-Status: 0.5.0 plus unreleased work. The addon loads in the Forever client and its options window
-opens, but bars, ticks and sounds haven't been confirmed in game; that verification is syntax checks
-and a mocked API (see Testing).
+Status: 0.5.0 plus unreleased work, tested by the owner in the Forever beta client: bars timed from
+casts, sounds, misses/resists and the health bar shading are confirmed in game (TESTING.md's
+Confirmed list); the rest is checked with syntax checks and the mocked API (see Testing).
 
 ## Layout
 
@@ -175,7 +175,9 @@ PLAYER_REGEN_ENABLED, and each cast timer once it's 1.1s old
   -> ReadUnit(unit) -> ScanUnit(unit)             all HARMFUL + HELPFUL auras, in pcall;
                                                   nil when reading fails (combat)
        -> TimerFromAura(aura)                      skip secret; keep tracked spells you cast
-                                                   (or any caster if cfg.anyCaster)
+                                                   (FromMe: sourceUnit is you, by UnitIsUnit;
+                                                   not isFromPlayerOrPlayerPet, which is any
+                                                   player) or any caster if cfg.anyCaster
      readable timers replace estimates and teach learned[spellID] (your own only);
      if every aura was readable, tracked timers missing from it (and not cast in the last 1s)
      ended or went to gone[mob][key] (0.3s grace, then "removed")
@@ -390,6 +392,10 @@ Game data (spell tables) for Forever is on wago.tools under product `wowf`; see
   added, refreshed or taken back. Ask what the owner wants something to mean before engineering
   around it, and prefer the simplest model that does it. docs/health-shading-spark.md has the
   history.
+- Taking `isFromPlayerOrPlayerPet` for "cast by me". It means cast by a player, any player:
+  another priest's Shadow Word: Pain or Fortitude counted as the owner's, with sounds, and taught
+  Ticky its (untalented) length. Whose an aura is comes from `sourceUnit` (`UnitIsUnit("player",
+  sourceUnit)`, as Blizzard's AuraUtil does).
 - Copying from or crediting other addons. The owner wants Ticky's code and docs to be its own: no
   code, patterns or frame names taken from other addons, and no references to them. Work from
   Blizzard's UI source and API docs, and from tests in the client.

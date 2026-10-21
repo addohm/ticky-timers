@@ -5,8 +5,9 @@ timer bar for it. Spells that work over time (DoTs, HoTs, channels) also get a m
 tick. Switching targets shows that target's bars; your own buffs show below them.
 Inspired by Woat's Shadow Priest WeakAuras ([example](https://wago.io/AYC53i2vy)).
 
-**Status:** 0.5.0 plus unreleased changes. Loads in the Forever client; bars, ticks and sounds are
-checked against a mocked Forever API but not yet confirmed in game. Spell data
+**Status:** 0.5.0 plus unreleased changes, tested in the Forever beta client: bars timed from your
+casts, sounds, misses and resists, and the health bar shading work in game; the rest is checked
+against a stand-in for the Forever API (TESTING.md lists what's confirmed). Spell data
 covers all 1,928 class spells that leave a timed buff or debuff (598 of them tick), generated from
 Forever build 1.60.1.70245.
 
@@ -145,6 +146,10 @@ your casts (see above). What that means:
 - Your own casts are tracked in combat. "Track it from anyone" (someone else's buff or debuff) only
   works while auras are readable, usually out of combat.
 - A DoT dispelled in combat keeps its bar until the next time Ticky can read auras.
+- The damage the game reports on a mob doesn't say whose it is. Ticky matches your DoTs' ticks by
+  school and timing, so another player's same DoT ticking at the same moment on the same mob can
+  be taken for yours (it only affects the tick sizes in `/ticky debug` and, on a crit, the
+  spark).
 - A spell whose tooltip doesn't give its length is timed from the last time Ticky read its aura
   (out of combat); until then it can't be timed from casts.
 - `/ticky debug` shows what the game is hiding right now.
