@@ -61,8 +61,10 @@ then goes missing for a few seconds, so you can see how missing spells look too.
   itself; for another addon's, enter its health bar's frame name (find it with `/fstack`).
 - **Nameplates**: small timer bars on each mob's nameplate for your tracked buffs and debuffs on
   it. Off by default. On every nameplate but your target's (your target has the main bars), on all,
-  or only your target's; above or below the plate, with an offset; width, height, spacing, font
-  size, icon, name, time and ticks left. Colors, texture, ticks and font follow the main bars.
+  or only your target's; above or below the plate, with a distance. The bars always span the
+  nameplate's health bar (Blizzard's, EllesmereUI's, or another nameplate addon's), and their height
+  is a share of that width, so they keep their shape when plates change size. Spacing, font size,
+  icon, name, time and ticks left. Colors, texture, ticks and font follow the main bars.
   Needs nameplates turned on. "Hide the main bars" (also on the General tab) leaves just the
   nameplate bars.
 - **General**: lock/unlock (drag the blue handle), channel bar, tracked auras on yourself,

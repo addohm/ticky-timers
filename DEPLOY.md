@@ -72,8 +72,9 @@ No environment variables or secrets. Settings live in the game's saved variables
   unit frame addon other than EllesmereUI, enter its target health bar's frame name (`/fstack`
   while hovering it). Nothing shows while your target has none of your DoTs or HoTs.
 - **No bars on nameplates**: turn them on in the Nameplates tab and turn nameplates on in the game
-  (V). A mob only gets bars for spells Ticky saw you cast on it (or read from its auras). With a
-  nameplate addon, the bars follow Blizzard's plate position; adjust the offsets to fit.
+  (V). A mob only gets bars for spells Ticky saw you cast on it (or read from its auras). The bars
+  sit on the plate's health bar: Blizzard's, EllesmereUI's, or one found by searching another
+  nameplate addon's frames for a "health" status bar; if none is found they use the whole plate.
 - **"Say it" is silent**: it uses the game's text-to-speech voice (Options > Accessibility > Text
   to Speech); check a voice is installed and the volume there.
 - **Addon not listed or "out of date"**: interface number mismatch; see First-time setup step 3.

@@ -49,8 +49,8 @@ ns.DEFAULTS = {
   overlayDamageColor = { 0.9, 0.1, 0.1 }, overlayHealColor = { 0.2, 1, 0.3 }, overlayAlpha = 0.6,
   overlayTexture = "Flat", overlayDividers = true, overlayFrame = "",
   -- Nameplates
-  plateEnabled = false, plateWhich = "others", plateAnchor = "TOP", plateOffsetX = 0, plateOffsetY = 4,
-  plateWidth = 100, plateHeight = 8, plateSpacing = 1, plateShowIcon = true, plateShowName = false,
+  plateEnabled = false, plateWhich = "others", plateAnchor = "TOP", plateOffsetY = 4,
+  plateHeightPct = 0.07, plateSpacing = 1, plateShowIcon = true, plateShowName = false,
   plateShowTime = true, plateShowTickCount = false, plateFontSize = 8,
   -- General
   hideMain = false, showChannel = true, showSelf = true, hideOutOfCombat = false, hideNoTarget = false,
@@ -1150,6 +1150,7 @@ function TB:ADDON_LOADED(name)
     TickyDB.version = DB_VERSION
   end
   db = ns.CopyDefaults(ns.DEFAULTS, TickyDB)
+  db.plateWidth, db.plateHeight, db.plateOffsetX = nil, nil, nil -- replaced by plateHeightPct
   cdb = TickyCharDB
   learned = cdb.durations
   tickSizes = cdb.tickSizes

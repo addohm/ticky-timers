@@ -26,8 +26,10 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
   second, text shadow. Tick height.
 - "Hide bars when you have no target".
 - Bars on nameplates (new Nameplates tab, off by default): your tracked buffs and debuffs on each mob,
-  as small bars above or below its nameplate. All plates but your target's, all, or only your
-  target's; position, offset, size, spacing, font size, icon/name/time/ticks; per-spell opt-out.
+  as small bars above or below its nameplate, always as wide as the plate's health bar (Blizzard's,
+  EllesmereUI's, or found on another nameplate addon), with the height a share of that width. All
+  plates but your target's, all, or only your target's; distance, spacing, font size,
+  icon/name/time/ticks; per-spell opt-out.
   The options window is wider for the eighth tab.
 - "Hide the main bars" (General and Nameplates tabs), e.g. to use only nameplate bars. Sounds,
   nameplate bars and the health bar overlay keep working; the options preview still shows them.

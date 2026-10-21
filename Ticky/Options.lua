@@ -659,30 +659,28 @@ local function BuildPlatesPage()
     4, -124)
   g, s = S("plateOffsetY")
   Place(p, W.Slider(p, "Distance from the nameplate", -20, 60, 1, g, s), 4, -170)
-  g, s = S("plateOffsetX")
-  Place(p, W.Slider(p, "Left / right", -60, 60, 1, g, s), 4, -210)
   Note(p, "Colors, texture, background, border, ticks and font follow the Bars and Text & Ticks tabs. "
     .. "Each spell can be left off nameplates on the Spells tab.\n\n"
     .. "A mob only gets bars for what Ticky knows is on it: your casts on it, or its auras when the game "
-    .. "lets addons read them.", 4, -254, 320)
+    .. "lets addons read them.", 4, -214, 320)
 
   W.Header(p, "Size and text"):SetPoint("TOPLEFT", COL2, 0)
-  g, s = S("plateWidth")
-  Place(p, W.Slider(p, "Width", 30, 200, 5, g, s), COL2 + 4, -22)
-  g, s = S("plateHeight")
-  Place(p, W.Slider(p, "Height", 3, 24, 1, g, s), COL2 + 4, -62)
+  Note(p, "Bars always span the nameplate's health bar.", COL2 + 4, -20, 300)
+  g, s = S("plateHeightPct")
+  Place(p, W.Slider(p, "Height (share of the width)", 0.03, 0.25, 0.01, g, s, pct,
+    "Bars keep this shape as nameplates get wider or narrower."), COL2 + 4, -40)
   g, s = S("plateSpacing")
-  Place(p, W.Slider(p, "Space between bars", 0, 6, 1, g, s), COL2 + 4, -102)
+  Place(p, W.Slider(p, "Space between bars", 0, 6, 1, g, s), COL2 + 4, -80)
   g, s = S("plateFontSize")
-  Place(p, W.Slider(p, "Font size", 6, 16, 1, g, s), COL2 + 4, -142)
+  Place(p, W.Slider(p, "Font size", 6, 16, 1, g, s), COL2 + 4, -120)
   g, s = S("plateShowIcon")
-  Place(p, W.Check(p, "Show spell icon", g, s), COL2, -184)
+  Place(p, W.Check(p, "Show spell icon", g, s), COL2, -162)
   g, s = S("plateShowName")
-  Place(p, W.Check(p, "Show spell name", g, s), COL2, -210)
+  Place(p, W.Check(p, "Show spell name", g, s), COL2, -188)
   g, s = S("plateShowTime")
-  Place(p, W.Check(p, "Show time left", g, s), COL2, -236)
+  Place(p, W.Check(p, "Show time left", g, s), COL2, -214)
   g, s = S("plateShowTickCount")
-  Place(p, W.Check(p, "Show ticks left", g, s), COL2, -262)
+  Place(p, W.Check(p, "Show ticks left", g, s), COL2, -240)
 end
 
 ---------------------------------------------------------------------------
