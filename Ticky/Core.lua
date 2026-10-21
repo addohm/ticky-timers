@@ -1527,7 +1527,10 @@ function TB:UNIT_HEALTH(unit)
   healthDrawnAt = now
   ns.UpdateOverlay(now)
 end
-TB.UNIT_MAXHEALTH = TB.UNIT_HEALTH
+function TB:UNIT_MAXHEALTH(unit)
+  if ns.MaxHealthChanged then ns.MaxHealthChanged() end
+  self:UNIT_HEALTH(unit)
+end
 
 function TB:NAME_PLATE_UNIT_ADDED(unit)
   if Secret(unit) then return end

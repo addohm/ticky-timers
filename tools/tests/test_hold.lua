@@ -1,6 +1,6 @@
--- The shading's far end (the spark) holds still as DoT ticks land: the health end moves once the
--- tick is counted (whichever of the hit and the health message comes first, with routine redraws in
--- between), and the shading follows on the very next frame, when its position has caught up.
+-- The shading's far end (the spark) holds still as DoT ticks land: the health end and the shading
+-- are set in the same moment once the tick is counted (whichever of the hit and the health message
+-- comes first, with routine redraws in between), and the bars' range isn't touched on every redraw.
 local M, ns, check = MOCK, NS, MOCK.check
 M.start()
 local db = ns.DB()
@@ -26,10 +26,7 @@ M.fire("UNIT_COMBAT", "target", "WOUND", "", 5, 32)
 for _ = 1, 4 do M.update(0.02) end
 check(hp() == hA and seg.value == sA, "after the hit, neither end moves before the health message")
 M.fire("UNIT_HEALTH", "target")
-local hA2 = hp()
-check(hA2 ~= hA and seg.value == sA, "health message: the health end moves, the shading waits a frame")
-M.frame()
-check(seg.value == sA - 5 and hp() == hA2, "next frame: the shading follows, the health end stays")
+check(hp() ~= hA and seg.value == sA - 5, "health message: both ends move in the same moment")
 
 -- Health message first, hit a few frames later.
 while M.now < 1000 + 5.98 do M.update(0.02) end
@@ -38,9 +35,7 @@ M.fire("UNIT_HEALTH", "target")
 M.update(0.02); M.update(0.02)
 check(hp() == hB and seg.value == sB, "health first: the health end waits for the hit")
 M.fire("UNIT_COMBAT", "target", "WOUND", "", 5, 32)
-check(hp() ~= hB and seg.value == sB, "hit arrives: the health end moves")
-M.frame()
-check(seg.value == sB - 5, "next frame: the shading follows")
+check(hp() ~= hB and seg.value == sB - 5, "hit arrives: both ends move in the same moment")
 
 -- A tick never seen: both release together when its grace runs out.
 while M.now < 1000 + 8.98 do M.update(0.02) end
@@ -49,7 +44,17 @@ M.update(0.1)
 check(hp() == hC and seg.value == sC, "unseen tick: still holding just after it was due")
 for _ = 1, 12 do M.update(0.02) end
 M.frame()
-check(hp() ~= hC and seg.value == sC - 5, "unseen tick: both ends release (a frame apart)")
+check(hp() ~= hC and seg.value == sC - 5, "unseen tick: both ends release together")
+
+-- The range (0 to max health) isn't set again on ordinary redraws, only for a new mob or a change.
+local setCount = 0
+local realSet = mirror.SetMinMaxValues
+mirror.SetMinMaxValues = function(self, a, b) setCount = setCount + 1; return realSet(self, a, b) end
+for _ = 1, 10 do M.update(0.11) end
+check(setCount == 0, "ordinary redraws leave the range alone: " .. setCount)
+M.fire("UNIT_MAXHEALTH", "target"); M.update(0.11)
+check(setCount == 1, "max health changed: set once: " .. setCount)
+mirror.SetMinMaxValues = nil
 
 -- A new target is drawn at once, health included.
 M.units.target = { guid = "Creature-2", name = "T", exists = true, canAttack = true, auras = {} }

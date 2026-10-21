@@ -313,13 +313,16 @@ end
 
 -- Show a chain's entries ({ amount, color }), one bar each (or one bar with the total). `smooth`:
 -- ease toward the new values like a smooth health bar does, so the far end holds still.
-local function Fill(c, entries, enabled, single, color, maxHealth, smooth, height)
+local function Fill(c, entries, enabled, single, color, maxHealth, smooth, height, setMax)
   local tex = ns.Lookup(ns.TEXTURES, db.overlayTexture)[2]
   local alpha = db.overlayAlpha
   local count = enabled and #entries or 0
   if single and count > 0 then count = 1 end
   local total = 0
   for _, e in ipairs(entries) do total = total + e.amount end
+  if setMax then
+    for _, seg in ipairs(c.segs) do seg.bar:SetMinMaxValues(0, maxHealth) end -- hidden ones too
+  end
   for i, seg in ipairs(c.segs) do
     local bar = seg.bar
     if i <= count then
@@ -330,7 +333,6 @@ local function Fill(c, entries, enabled, single, color, maxHealth, smooth, heigh
       elseif i == MAX_SEGMENTS then
         for j = i + 1, #entries do amount = amount + entries[j].amount end
       end
-      bar:SetMinMaxValues(0, maxHealth)
       bar:SetValue(amount, smooth)
       bar:SetStatusBarTexture(tex)
       bar:SetStatusBarColor(col[1], col[2], col[3], alpha)
@@ -344,47 +346,10 @@ local function Fill(c, entries, enabled, single, color, maxHealth, smooth, heigh
   return count > 0
 end
 
--- The segments are set one frame after the mirror. They're pinned to the mirror's fill end, and
--- the game moves a frame that's pinned to another frame's fill a frame after that fill changes,
--- while a bar's own fill changes at once; set together, the segments would be shortened before
--- they've moved and the far end would hop toward the health for a few frames on every tick (seen
--- in a 60 fps capture, 2026-10-21). One frame later, both have caught up together.
-local queued = {} -- [overlay] = the segment values to set on the next frame
-
-local function Apply(o, q)
-  local drawn = false
-  local ok = pcall(function()
-    drawn = Fill(o.damage, q.damage, db.overlayDamage, q.single, q.single and db.overlayDamageColor, q.maxHealth,
-      q.smooth, q.height)
-    drawn = Fill(o.heal, q.heal, db.overlayHeal, q.single, q.single and db.overlayHealColor, q.maxHealth,
-      q.smooth, q.height) or drawn
-  end)
-  if not ok or not drawn then return HideOverlay(o) end
-  o.holder:Show()
-end
-
-local nextFrame = CreateFrame("Frame")
-nextFrame:SetScript("OnUpdate", function()
-  local now = GetTime()
-  for o, q in pairs(queued) do
-    if now > q.at then -- a later frame than the one that queued it
-      queued[o] = nil
-      Apply(o, q)
-    end
-  end
-end)
-
-local function Copy(list)
-  local out = {}
-  for i, e in ipairs(list) do out[i] = { amount = e.amount, color = e.color } end
-  return out
-end
-
 -- Draw what your DoTs and HoTs on `unit` will still do onto `bar` (its health bar).
 local function Draw(o, bar, unit, now)
   local damage, heal = ns.UnitAmounts(unit, now)
   if not damage or (#damage == 0 and #heal == 0) or not Visible(bar) or not Attach(o, bar) then
-    queued[o] = nil
     return HideOverlay(o)
   end
   Layer(o, now)
@@ -397,28 +362,30 @@ local function Draw(o, bar, unit, now)
   local hok, height = pcall(bar.GetHeight, bar)
   height = hok and not Secret(height) and height or 12
   local newMob = mob ~= o.heldMob
-  local maxHealth
+  -- The bars' range (0 to max health) is set only for a new mob or when its max health changed:
+  -- setting it on every redraw cut the easing short, so the health end and the shading stopped
+  -- moving together.
+  local setMax = newMob or o.maxFor ~= mob or o.maxDirty
+  local drawn = false
   local ok = pcall(function()
-    maxHealth = UnitHealthMax(unit)
-    o.mirror:SetMinMaxValues(0, maxHealth)
-    -- Around a DoT/HoT tick the health end waits for the tick to be counted, so both move as one.
+    local maxHealth = setMax and UnitHealthMax(unit)
+    if setMax then
+      o.mirror:SetMinMaxValues(0, maxHealth)
+      o.maxFor, o.maxDirty = mob, false
+    end
+    -- Around a DoT/HoT tick the health end waits for the tick to be counted, then it and the
+    -- shading are set in the same moment and ease the same way.
     if newMob or not ns.HoldHealth(unit, now) then
       o.mirror:SetValue(UnitHealth(unit), smooth)
       o.heldMob = mob
     end
+    drawn = Fill(o.damage, damage, db.overlayDamage, single, single and db.overlayDamageColor, maxHealth, smooth,
+      height, setMax)
+    drawn = Fill(o.heal, heal, db.overlayHeal, single, single and db.overlayHealColor, maxHealth, smooth, height,
+      setMax) or drawn
   end)
-  if not ok then
-    queued[o] = nil
-    return HideOverlay(o)
-  end
-  local q = { at = now, damage = Copy(damage), heal = Copy(heal), single = single, maxHealth = maxHealth,
-    smooth = smooth, height = height }
-  if newMob then
-    queued[o] = nil
-    Apply(o, q) -- a different mob: draw it all at once
-  else
-    queued[o] = q
-  end
+  if not ok or not drawn then return HideOverlay(o) end
+  o.holder:Show()
 end
 
 ---------------------------------------------------------------------------
@@ -426,13 +393,19 @@ end
 ---------------------------------------------------------------------------
 
 local targetOverlay
+local plateOverlays = {} -- [nameplate frame] = overlay, parented to the plate
+
+-- A unit's max health changed: set the range again on its next redraw.
+function ns.MaxHealthChanged()
+  if targetOverlay then targetOverlay.maxDirty = true end
+  for _, o in pairs(plateOverlays) do o.maxDirty = true end
+end
 
 -- For /ticky debug: how often the target shading had to be re-anchored (a count that keeps
 -- climbing means the bar it follows keeps changing size), and the size it last used.
 function ns.OverlayInfo()
   if targetOverlay then return targetOverlay.attaches or 0, targetOverlay.width, targetOverlay.scale end
 end
-local plateOverlays = {} -- [nameplate frame] = overlay, parented to the plate
 
 local function UpdatePlateOverlays(now, on)
   local used = {}
