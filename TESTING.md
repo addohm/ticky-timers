@@ -10,7 +10,7 @@ it); "dev" or an older commit means the game is still running an old copy.
 
 ## To test
 
-1. **The spark's drops to the left** (9a70539). `/ticky debug`'s Spells line should say "Shadow Word:
+1. **The spark's drops to the left** (32ca102). `/ticky debug`'s Spells line should say "Shadow Word:
    Pain 24s" (with "(read 18s)" after it until an aura read updates it), and its bar should run 24
    seconds. DoT a mob, nothing else hitting it: the spark holds still as ticks land, drifts slowly
    after a crit, and doesn't drop when a DoT ends. If it still drops: `/ticky log` right after.
