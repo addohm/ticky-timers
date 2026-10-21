@@ -55,7 +55,13 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
   still heal. Per-spell colors or one color each, opacity, texture, dividers; per-spell opt-out.
   Finds a unit frame addon's target frame or Blizzard's, or takes a frame name. Amounts
   come from the tooltip until Ticky has seen the spell's ticks land, then from the real ticks.
+### Added
+- Health bar shading style: a spark where the shading ends (on by default) and its color, an
+  outline (none, thin, thick) and its color, and "Smooth changes".
 ### Changed
+- Health bar shading: its far end no longer jumps on each tick. A tick counts as done the moment
+  Ticky sees it land (and the shading is redrawn right then) instead of by the clock, and the
+  shading eases to its new size the way smooth health bars move.
 - Health bar shading: one segment with the total of all your DoTs (and one for your HoTs) is now the
   default, in a dark color that shows on any health bar; a segment per spell is still an option
   ("Segments"). Existing settings switch over unless you'd changed the color.

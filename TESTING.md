@@ -10,51 +10,54 @@ it); "dev" or an older commit means the game is still running an old copy.
 
 ## To test
 
-1. **One shading segment** (d5cd7ea). With two DoTs on a mob, the shading is one dark segment
+1. **Shading holds still and has a spark** (acd88f8). With DoTs ticking, the far (left) end of the
+   shading stays put as ticks land instead of jumping and settling. A white spark marks that end.
+   Health bar tab, "Look": spark color, outline, "Smooth changes" (try it off to compare).
+2. **One shading segment** (d5cd7ea). With two DoTs on a mob, the shading is one dark segment
    from the health edge covering both DoTs' remaining damage together. Health bar tab, "Segments"
    switches to one per spell.
-2. **Health shading on the right side** (3832bb0). With a DoT on a mob, the shading covers the end of
+3. **Health shading on the right side** (3832bb0). With a DoT on a mob, the shading covers the end of
    the green (the health your DoT will take off), not the missing part. With two DoTs (or two HoTs)
    there are two segments end to end. The Health bar tab and `/ticky debug` ("Health bar shading
    on") say which bar it's on; if the shading is still wrong, send that line. On nameplates (with
    "Also on nameplates"): same check; `/ticky debug`'s "Nameplate health bars" line names the bar
    picked on up to two plates.
-3. **Built-in sound files** (6b7bbe5). After installing, restart the game (new files only load at
+4. **Built-in sound files** (6b7bbe5). After installing, restart the game (new files only load at
    startup). Sounds tab: set a sound to "Ticky beep" or "Ticky chime" and press Test. If you hear
    it, addon sound files work and the problem is your own file's location or path; if not, the game
    isn't playing addon sound files at all. Then for your own file: where it is on disk (full path),
    what the "Added files" list shows, and the message next to Test.
-4. **Health shading on nameplates** (8164a0c). Health bar tab: damage (and healing) on, "Also on
+5. **Health shading on nameplates** (8164a0c). Health bar tab: damage (and healing) on, "Also on
    nameplates" on. Each mob's nameplate health bar shows its own DoTs' remaining damage from the
    health edge; the timer bars still sit on the plate's health bar, not on the shading.
-5. **Nameplate bars' own look** (8164a0c). Nameplates tab, "Their own look": texture, border,
+6. **Nameplate bars' own look** (8164a0c). Nameplates tab, "Their own look": texture, border,
    background, font etc. change only the nameplate bars, not the main bars; off again, they match
    the main bars.
-6. **A missed recast** (90b6bc6) leaves the old bar running, and **with several mobs** a miss on one
+7. **A missed recast** (90b6bc6) leaves the old bar running, and **with several mobs** a miss on one
    doesn't touch the DoTs on the others. `/ticky debug` should show it as "cancelled …".
-7. **A miss by someone else doesn't** (90b6bc6). In a group with melee, your DoT bars shouldn't
+8. **A miss by someone else doesn't** (90b6bc6). In a group with melee, your DoT bars shouldn't
    vanish when a party member's swing misses as you cast.
-8. **Nameplate bars stay on their own mob** (f0bf01b). Two or three mobs with plate bars on "All",
+9. **Nameplate bars stay on their own mob** (f0bf01b). Two or three mobs with plate bars on "All",
    including as mobs die and new ones come into view.
-9. **No "ended" sounds after a fight** for mobs that died (dd71ea1). Buffs and HoTs (Renew,
+10. **No "ended" sounds after a fight** for mobs that died (dd71ea1). Buffs and HoTs (Renew,
    Fortitude) should still count down and alert after combat.
-10. **Warning sound** (ff9d0b1). About 3s before a DoT ends on a living mob you hear it and the bar
+11. **Warning sound** (ff9d0b1). About 3s before a DoT ends on a living mob you hear it and the bar
    flashes.
-11. **Health bar overlay after the rewrite** (f6f6aa4). On your EllesmereUI target frame: starts at
+12. **Health bar overlay after the rewrite** (f6f6aa4). On your EllesmereUI target frame: starts at
    the edge of the health fill, drawn above the frame.
-12. **Nameplate bars after the rewrite** (f6f6aa4). They sit on the plate's health bar and match its
+13. **Nameplate bars after the rewrite** (f6f6aa4). They sit on the plate's health bar and match its
    width.
-13. **Recasting a running DoT.** The bar restarts at full length and the tick marks still line up
+14. **Recasting a running DoT.** The bar restarts at full length and the tick marks still line up
    with the damage numbers.
-14. **Tab-dotting.** Cast and tab away at once; the bar is on the mob you cast at.
-15. **A full resist** drops the bar.
-16. **A dying mob** clears its bars without an "ended" sound.
-17. **Dungeon, enemy nameplates on.** Bars stay with the right mob across several mobs.
-18. **Feign Death or Vanish** (hunter or rogue) with the mob targeted: DoT bars survive combat
+15. **Tab-dotting.** Cast and tab away at once; the bar is on the mob you cast at.
+16. **A full resist** drops the bar.
+17. **A dying mob** clears its bars without an "ended" sound.
+18. **Dungeon, enemy nameplates on.** Bars stay with the right mob across several mobs.
+19. **Feign Death or Vanish** (hunter or rogue) with the mob targeted: DoT bars survive combat
     dropping.
-19. **A dodge or parry on a physical DoT** (warrior Rend, rogue) cancels it.
-20. **Mind Flay** tick marks match its damage ticks.
-21. **"Say it"** speaks in combat.
+20. **A dodge or parry on a physical DoT** (warrior Rend, rogue) cancels it.
+21. **Mind Flay** tick marks match its damage ticks.
+22. **"Say it"** speaks in combat.
 
 ## Confirmed
 

@@ -134,8 +134,11 @@ UNIT_COMBAT MISS/DODGE/PARRY/RESIST/IMMUNE/EVADE/REFLECT/DEFLECT
 UNIT_COMBAT WOUND/HEAL            -> OnTickAmount: match to a timer on that mob (or the channel) by
                                      school and tick time (+-0.35s, each tick once); non-crits
                                      teach tickSizes[spellID] (60/40 running average)
-every 0.1s                        -> ns.UpdateOverlay: TargetAmounts (ticks left x ExpectedTick:
-                                     learned, else tooltip total / tick count) -> segment values
+every 0.1s (and on each seen tick) -> ns.UpdateOverlay: UnitAmounts per unit (ticks left x
+                                     ExpectedTick: learned, else tooltip total / tick count; a tick
+                                     is done when seen (t.lastTick) or 0.4s after its time) ->
+                                     segment values, eased (ExponentialEaseOut) while the mob stays
+                                     the same; spark and outline (Trim) anchored to our own bars
 
 UNIT_AURA (target/player/nameplateN), PLAYER_TARGET_CHANGED, NAME_PLATE_UNIT_ADDED,
 PLAYER_REGEN_ENABLED, and each cast timer once it's 1.1s old

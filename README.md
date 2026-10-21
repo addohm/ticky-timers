@@ -61,7 +61,9 @@ then goes missing for a few seconds, so you can see how missing spells look too.
   take off, ending at its current health, and the part your HoTs will still heal, starting there.
   Off by default. One segment with the total (dark for damage, green for healing; colors are
   yours to pick) or one segment per spell in its bar color, with a line between them; opacity;
-  texture. "Also on nameplates" shades each nameplate's health bar the
+  texture; a spark where the shading ends (where the health should end up) and its color; an
+  outline and its color; smooth changes (the shading eases down like a smooth health bar, so its
+  far end holds still as ticks land). "Also on nameplates" shades each nameplate's health bar the
   same way, for your DoTs and HoTs on that mob. It finds a unit frame addon's target frame (or
   Blizzard's) by itself, picking the bar named like a health bar over absorb or missing-health bars,
   and shows which bar it's drawing on; if it picks the wrong one, enter the health bar's frame name
