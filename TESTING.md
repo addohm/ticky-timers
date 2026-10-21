@@ -10,11 +10,10 @@ it); "dev" or an older commit means the game is still running an old copy.
 
 ## To test
 
-1. **The spark's drops to the left** (6e43e1a). DoT a mob (SW:P and DP), nothing else hitting it.
-   It should hold still as ticks land, drift slowly after a crit, and not drop when a DoT ends.
-   If it still drops: `/ticky log` right after, which shows the school of any hit that wasn't a
-   tick and when each DoT was let go ("ended SWP"). Also: does SW:P last 18s or 24s on the mob
-   now (`/ticky debug`'s "lasts")?
+1. **The spark's drops to the left** (9a70539). `/ticky debug`'s Spells line should say "Shadow Word:
+   Pain 24s" (with "(read 18s)" after it until an aura read updates it), and its bar should run 24
+   seconds. DoT a mob, nothing else hitting it: the spark holds still as ticks land, drifts slowly
+   after a crit, and doesn't drop when a DoT ends. If it still drops: `/ticky log` right after.
 2. **One shading segment** (d5cd7ea). With two DoTs on a mob, the shading is one dark segment
    from the health edge covering both DoTs' remaining damage together. Health bar tab, "Segments"
    switches to one per spell.
