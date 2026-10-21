@@ -56,6 +56,11 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
   Finds a unit frame addon's target frame or Blizzard's, or takes a frame name. Amounts
   come from the tooltip until Ticky has seen the spell's ticks land, then from the real ticks.
 ### Fixed
+- The health bar shading could cover the missing part of the target's health instead of the part
+  your DoTs will take off. Unit frames also hold full-size bars for missing health, absorbs or
+  incoming heals, often filling from the other side, and Ticky took the largest bar it found. It
+  now prefers a bar named like a health bar and skips ones named for absorbs, losses, predictions
+  or power (nameplates too). The Health bar tab and `/ticky debug` show the chosen bar's name.
 - A missed, dodged or parried cast (and a reflected or deflected one) restarted the timer; only
   resists, immunities and evades were caught, and only when the game reported them after the cast.
   All of them now cancel the cast (a missed refresh leaves the old timer running), including when

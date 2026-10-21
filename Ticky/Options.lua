@@ -669,8 +669,9 @@ local function BuildHealthPage()
     local bar, what = ns.FindHealthBar()
     local custom = db().overlayFrame ~= ""
     if bar then
-      status:SetText("Drawing on: |cff66ff66" .. what .. "|r"
-        .. ((custom and what ~= db().overlayFrame) and " (|cffff6666your frame name wasn't found|r)" or ""))
+      local path = ns.FramePath(bar)
+      local missing = (custom and what ~= db().overlayFrame) and " (|cffff6666your frame name wasn't found|r)" or ""
+      status:SetText("Drawing on: |cff66ff66" .. what .. "|r" .. missing .. (path and ("\n" .. path) or ""))
     else
       status:SetText("|cffff6666No target health bar found.|r Is a target frame shown?")
     end

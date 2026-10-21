@@ -1525,6 +1525,8 @@ local function ShortDebug()
   hostile = not Secret(hostile) and hostile == true
   L(("Target: %s, key %s | timers: %s%s"):format(tm and (hostile and "enemy" or "friend") or "none", tm and (tm:sub(1, 6) == "plate:" and tm or tm == "target" and "target" or "GUID") or "-",
     #parts > 0 and table.concat(parts, ", ") or "none", channel and (" | channel " .. channel.name) or ""))
+  local hb = ns.FindHealthBar and ns.FindHealthBar()
+  L("Health bar shading on: " .. (hb and (ns.FramePath(hb) or "a bar with no name") or "none found"))
 
   local casts = {}
   for _, c in ipairs(seen.casts) do

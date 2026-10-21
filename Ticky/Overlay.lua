@@ -41,15 +41,42 @@ local function Visible(f)
   return ok and not Secret(v) and v == true
 end
 
--- The health bar of a unit frame: of the visible status bars inside it, the one with the most
--- area (health bars are at least as wide as power bars and usually taller).
-local function LargestBar(frame, depth)
-  local best, bestArea
+-- A frame's path as the game names it ("SomeAddon_Target.Health"), or nil.
+local function PathOf(f)
+  local ok, name = pcall(f.GetDebugName, f, true)
+  if ok and type(name) == "string" and not Secret(name) then return name end
+end
+ns.FramePath = PathOf
+
+-- Unit frames hold more full-size status bars than the health bar: missing-health backgrounds,
+-- absorb shields and incoming heals often fill from the other side. Names tell them apart.
+local NOT_HEALTH = { "absorb", "shield", "loss", "missing", "predict", "incoming", "power", "mana",
+  "energy", "rage", "cast", "background", "bg" }
+
+local function Score(f)
+  local name = (PathOf(f) or ""):lower()
+  local last = name:match("([^%.]+)$") or name -- its own key, not its parents'
+  for _, word in ipairs(NOT_HEALTH) do
+    if last:find(word, 1, true) then return -1 end
+  end
+  if last:find("health", 1, true) or last == "hp" or last:find("hpbar", 1, true) then return 2 end
+  return 1
+end
+
+-- The health bar inside a unit frame or nameplate: of the visible status bars inside `frame`, the
+-- best-named one (see Score), then the largest. `depth` levels of child frames; frames we made
+-- ourselves are skipped.
+function ns.HealthBarIn(frame, depth)
+  local best, bestScore, bestArea
   local function visit(f, d)
+    if rawget(f, "tickyOwned") then return end
     if IsBar(f) and Visible(f) then
       local ok, w, h = pcall(function() return f:GetWidth(), f:GetHeight() end)
-      if ok and not Secret(w) and not Secret(h) and w and h and w * h > (bestArea or 0) then
-        best, bestArea = f, w * h
+      if ok and not Secret(w) and not Secret(h) and w and h and w > 0 and h > 0 then
+        local score, area = Score(f), w * h
+        if not best or score > bestScore or (score == bestScore and area > bestArea) then
+          best, bestScore, bestArea = f, score, area
+        end
       end
     end
     if d < depth then
@@ -60,8 +87,9 @@ local function LargestBar(frame, depth)
     end
   end
   visit(frame, 0)
-  return best
+  if best and bestScore >= 0 then return best end
 end
+local LargestBar = ns.HealthBarIn
 
 -- Blizzard's target frame bar (from Forever's TargetFrame.xml).
 local function BlizzardBar()

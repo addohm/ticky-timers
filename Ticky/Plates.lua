@@ -50,28 +50,8 @@ end
 
 -- Our own frames (holders, overlays) are marked tickyOwned and left out of the search.
 
--- The largest visible status bar inside the plate (a health bar is at least as wide as a cast or
--- power bar and usually taller), a few levels of child frames deep.
-local function LargestBar(plate)
-  local best, bestArea
-  local function visit(f, d)
-    if rawget(f, "tickyOwned") then return end
-    if IsBar(f) and Visible(f) then
-      local ok, w, h = pcall(function() return f:GetWidth(), f:GetHeight() end)
-      if ok and not Secret(w) and not Secret(h) and w and h and w * h > (bestArea or 0) then
-        best, bestArea = f, w * h
-      end
-    end
-    if d < 5 then
-      local ok, kids = pcall(function() return { f:GetChildren() } end)
-      if ok then
-        for _, k in ipairs(kids) do visit(k, d + 1) end
-      end
-    end
-  end
-  visit(plate, 0)
-  return best
-end
+-- The plate's health bar, picked by name and size (Overlay.lua's ns.HealthBarIn).
+local function LargestBar(plate) return ns.HealthBarIn(plate, 5) end
 
 -- Is `frame` inside `plate`? Blizzard pools the frames inside nameplates (the health bar
 -- included) and moves them between plates as mobs come and go, so a bar found on one plate can
