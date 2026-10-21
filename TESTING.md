@@ -10,7 +10,7 @@ it); "dev" or an older commit means the game is still running an old copy.
 
 ## To test
 
-1. **The shading on the owner's model** (642506b). Put SW:P on a mob: the spark goes left of the health
+1. **The shading on the owner's model** (040e432). Put SW:P on a mob: the spark goes left of the health
    by SW:P's total (203 with your talents) and stays there as it ticks. Add DP: the spark moves
    another 160 left, then stays. Ticks and other hits only move the health end toward the spark;
    a tick that crits moves the spark by its extra (38 against a normal 25: 13 left). A missed DoT doesn't move it; recasting SW:P early moves it by about what the old one
