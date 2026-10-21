@@ -10,7 +10,8 @@ it); "dev" or an older commit means the game is still running an old copy.
 
 ## To test
 
-1. **Every health change moves the spark** (93034cb). On a mob someone else is fighting, with your DoTs
+1. **Every health change moves the spark** (93034cb; nameplates confirmed, see below). On the unit
+   frame too: on a mob someone else is fighting, with your DoTs
    on it: the spark moves with the health bar for their damage too, so the health doesn't run
    past it. Your own ticks don't move it (crits by their extra), your wand and Mind Blast do.
    When a DoT goes on, the spark moves left by its total. If the health still overruns it:
@@ -67,6 +68,8 @@ it); "dev" or an older commit means the game is still running an old copy.
 
 ## Confirmed
 
+- 2026-10-21: health bar shading spark on nameplates (93034cb, hanging from the health end): "looks
+  good".
 - 2026-10-21: health bar shading on the owner's model (040e432): the spark goes at the health when
   a DoT goes on less its total, moves by each DoT added and by a crit's extra, and otherwise holds
   still. "This worked very well."
