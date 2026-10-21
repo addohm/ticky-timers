@@ -21,9 +21,15 @@ check(hiddenAtReset and shownAtTick, "the shading is hidden while it goes back t
 for _ = 1, 1500 do M.update(1 / 60) end
 local lines = 0
 for _, l in ipairs(M.printed) do if l:find("^.-%d%) ") then lines = lines + 1 end end
-check(lines == 7, "a line per variant: " .. lines)
+check(lines == 6, "a line per variant: " .. lines)
 check(db.overlaySpark == false, "spark setting restored")
 check(bar and not bar:IsShown(), "test bar hidden afterwards")
+local hiddenLine
+for _, l in ipairs(M.printed) do if l:find("3%) ") then hiddenLine = l end end
+check(hiddenLine and hiddenLine:find("only watched") and not hiddenLine:find("didn't hide"),
+  "hidden-value tests ran with hidden values: " .. tostring(hiddenLine))
 M.printed = {}
 SlashCmdList.TICKY("sparktest")
-check(bar:IsShown(), "runs again")
+local again
+for _, f in ipairs(M.frames) do if f.tickyOwned and f.w == 600 and f ~= bar and f:IsShown() then again = f end end
+check(again ~= nil, "runs again, on a fresh bar")

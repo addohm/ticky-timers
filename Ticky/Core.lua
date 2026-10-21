@@ -944,7 +944,7 @@ local function OnTickAmount(mob, isHeal, amount, school, crit)
     best.start, best.expires = best.start + off * 0.5, best.expires + off * 0.5
   end
   if mob == (HasTarget() and MobKey("target")) then
-    trace = { mob = mob, timer = best, name = best.name, hit = now, off = off,
+    trace = { mob = mob, timer = best, name = best.name, hit = now, off = off, amount = amount,
       health = healthNow and now or nil }
   end
   if healthNow then
@@ -1674,9 +1674,11 @@ local function ShortDebug()
   L("Casts: " .. (#casts > 0 and table.concat(casts, ", ") or "-"))
   local tr = ns.TickTrace()
   local function at(v) return v and ("%+.3f"):format(v - tr.hit) or "never" end
-  L(tr and ("Last tick on target (%s, %.2fs %s than expected): hit 0, health %s, counted %s, drawn %s, %s ago")
+  L(tr and ("Last tick on target (%s, %.2fs %s than expected): hit 0, health %s, counted %s, drawn %s, %s ago; "
+    .. "%s hit, shading %s")
     :format(tr.name, math.abs(tr.off), tr.off < 0 and "earlier" or "later", at(tr.health), at(tr.counted), at(tr.drawn),
-      ago(tr.hit)) or "Last tick on target: none seen yet")
+      ago(tr.hit), tostring(tr.amount), tr.shrink and ("%+d"):format(floor(-tr.shrink + 0.5)) or "?")
+    or "Last tick on target: none seen yet")
 
   local avoids = {}
   for _, a in ipairs(avoidLog) do

@@ -227,6 +227,17 @@ end
 function UnitSpellHaste() return 0 end
 function UnitAffectingCombat() return false end
 function UnitHealthMax() return { __secret = true } end
+-- Curves (C_CurveUtil): a curve evaluated on a hidden percentage gives a hidden value.
+C_CurveUtil = {
+  CreateCurve = function()
+    local c = { points = {} }
+    function c:AddPoint(x, y) self.points[#self.points + 1] = { x, y } end
+    return c
+  end,
+}
+function UnitHealthPercent(unit, usePredicted, curve)
+  return { __secret = true, curveY = curve and curve.points[1] and curve.points[1][2] }
+end
 function UnitHealth()
   M.healthN = M.healthN + 1 -- a new (secret) value per read, so tests can see when it's read
   return { __secret = true, n = M.healthN }
