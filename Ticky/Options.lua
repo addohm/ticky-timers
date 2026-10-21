@@ -805,9 +805,67 @@ local function BuildGeneralPage()
 
   W.Header(p, "Commands"):SetPoint("TOPLEFT", COL2, -110)
   local help = W.Label(p, "/ticky - this window\n/ticky lock | unlock\n/ticky preview\n/ticky add <spell>\n"
-    .. "/ticky remove <spell>\n/ticky list\n/ticky reset\n/ticky debug [all]", "GameFontHighlightSmall")
+    .. "/ticky remove <spell>\n/ticky list\n/ticky reset\n/ticky debug [all]\n/ticky report",
+    "GameFontHighlightSmall")
   help:SetPoint("TOPLEFT", COL2 + 4, -132)
   help:SetSpacing(3)
+
+  W.Header(p, "Found a problem?"):SetPoint("TOPLEFT", COL2, -276)
+  W.Button(p, "Report a problem", 160, function() ns.ShowReport() end):SetPoint("TOPLEFT", COL2 + 4, -298)
+  Note(p, "Opens the link to Ticky's issue page to copy into your browser. Please include what "
+    .. "/ticky debug shows right after the problem.", COL2 + 4, -326, 300)
+end
+
+---------------------------------------------------------------------------
+-- Report dialog: the issues link in a box, selected, ready to copy (the game can't open links)
+---------------------------------------------------------------------------
+
+local report
+function ns.ShowReport()
+  if not report then
+    report = CreateFrame("Frame", "TickyReport", UIParent)
+    report:SetSize(470, 130)
+    report:SetPoint("CENTER", 0, 160)
+    report:SetFrameStrata("FULLSCREEN_DIALOG")
+    report:EnableMouse(true)
+    report:SetMovable(true)
+    report:RegisterForDrag("LeftButton")
+    report:SetScript("OnDragStart", report.StartMoving)
+    report:SetScript("OnDragStop", report.StopMovingOrSizing)
+    tinsert(UISpecialFrames, "TickyReport")
+    local bg = report:CreateTexture(nil, "BACKGROUND")
+    bg:SetAllPoints()
+    bg:SetColorTexture(0.05, 0.05, 0.08, 0.97)
+    local edge = report:CreateTexture(nil, "BORDER")
+    edge:SetPoint("TOPLEFT")
+    edge:SetPoint("TOPRIGHT")
+    edge:SetHeight(1)
+    edge:SetColorTexture(1, 0.82, 0, 0.35)
+    local title = W.Label(report, "Report a problem", "GameFontNormalLarge")
+    title:SetPoint("TOPLEFT", 14, -12)
+    local text = W.Label(report, "Press Ctrl+C to copy the link, then open it in your browser. Please "
+      .. "include what /ticky debug shows right after the problem.", "GameFontHighlightSmall")
+    text:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -8)
+    text:SetWidth(440)
+    local box = W.EditBox(report, 420)
+    box:SetPoint("TOPLEFT", text, "BOTTOMLEFT", 6, -10)
+    -- Read-only: typing puts the link back, and focusing selects it.
+    box:SetScript("OnTextChanged", function(self, userInput)
+      if userInput then
+        self:SetText(ns.ISSUES_URL)
+        self:HighlightText()
+      end
+    end)
+    box:SetScript("OnEditFocusGained", function(self) self:HighlightText() end)
+    box:SetScript("OnEscapePressed", function() report:Hide() end)
+    report.box = box
+    local close = CreateFrame("Button", nil, report, "UIPanelCloseButton")
+    close:SetPoint("TOPRIGHT", 2, 2)
+  end
+  report:Show()
+  report.box:SetText(ns.ISSUES_URL)
+  report.box:SetFocus()
+  report.box:HighlightText()
 end
 
 ---------------------------------------------------------------------------
@@ -876,6 +934,8 @@ local function Build()
       ns.SetPreview(v)
     end, "Sample timers loop on the bars so you can see your styling.")
   preview:SetPoint("BOTTOMLEFT", 12, 10)
+  local site = W.Label(panel, (ns.REPO_URL:gsub("^https://", "")), "GameFontDisableSmall")
+  site:SetPoint("BOTTOMRIGHT", -14, 16)
 
   panel:SetScript("OnShow", function()
     preview:Refresh()

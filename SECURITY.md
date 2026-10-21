@@ -1,7 +1,8 @@
 # Security
 
 ## Reporting
-Open an issue or contact the author (Addohm) privately for anything sensitive.
+Open an issue at https://github.com/addohm/ticky-timers/issues, or contact the author (Addohm)
+privately for anything sensitive.
 
 ## What the addon can access
 Only the in-game WoW addon API: your own and your target's auras, your channeled casts, and your spellbook.

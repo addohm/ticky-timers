@@ -16,6 +16,9 @@ local GetTime, ipairs, pairs, wipe, tonumber, floor, abs, min = GetTime, ipairs,
 
 local DB_VERSION = 6
 
+ns.REPO_URL = "https://github.com/addohm/ticky-timers"
+ns.ISSUES_URL = ns.REPO_URL .. "/issues"
+
 -- Account-wide look and behaviour. Spell choices are per character (TickyCharDB).
 ns.DEFAULTS = {
   version = DB_VERSION,
@@ -1656,7 +1659,12 @@ SlashCmdList.TICKY = function(msg)
     Print("Appearance, layout and sound settings reset. Your spells are unchanged.")
   elseif cmd == "debug" then
     ns.Debug(rest:lower() == "all")
+  elseif cmd == "report" then
+    Print("report a problem or ask for a feature at " .. ns.ISSUES_URL
+      .. " (include what /ticky debug shows right after it happens).")
+    if ns.ShowReport then ns.ShowReport() end
   else
-    Print("/ticky [options | lock | unlock | add <spell> | remove <spell> | list | preview | reset | debug]")
+    Print("/ticky [options | lock | unlock | add <spell> | remove <spell> | list | preview | reset | debug "
+      .. "| report]")
   end
 end

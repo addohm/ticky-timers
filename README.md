@@ -86,7 +86,14 @@ Commands: `/ticky`, `/ticky lock | unlock`, `/ticky preview`, `/ticky add <spell
 `/ticky remove <spell>`, `/ticky list`, `/ticky reset`, `/ticky debug` (a short report, small
 enough to paste into a chat message: build, combat state, each spell's learned length and tick,
 the timers on your target, your last casts, and the last misses/resists and what Ticky did with
-them) and `/ticky debug all` (the long version, with what the game is hiding).
+them), `/ticky debug all` (the long version, with what the game is hiding) and `/ticky report`
+(the link for reporting a problem, ready to copy).
+
+## Reporting problems
+
+Open an issue at https://github.com/addohm/ticky-timers/issues (`/ticky report` or General >
+Report a problem in game gives you the link to copy). Say what happened and what you expected, and
+paste what `/ticky debug` shows right after it happens: its first line says which build you have.
 
 ## How tick placement is worked out
 

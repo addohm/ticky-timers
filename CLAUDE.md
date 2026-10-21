@@ -37,6 +37,7 @@ tools/
   install_beta.cmd  (Windows) git pull, mirror Ticky/ into the beta client's AddOns folder, stamp
                     the installed Build.lua with the commit
 README.md CHANGELOG.md ROADMAP.md SECURITY.md DEPLOY.md CLAUDE.md
+.github/ISSUE_TEMPLATE/  bug report (asks for build and /ticky debug) and idea templates; the repo is public
 TESTING.md        running list of what to check in the client (to test / confirmed / gaps)
 ```
 
@@ -101,11 +102,11 @@ call another file's `ns` functions at runtime, not at load time, unless that fil
 | `Overlay.lua` | Health bar overlay: finding the target health bar (custom path; another addon's unit button whose `unit` attribute is "target", its largest StatusBar; else Blizzard's). An overlay object (`NewOverlay`) is a clipping holder with a chain of StatusBars per group (damage, heal) as wide as the health bar, scaled to the unit's secret max health, the first pinned to the fill edge and each next to the end of the previous one's fill. One for the target (parented to UIParent), one per nameplate (parented to the plate, on `ns.PlateHealthBar(plate)`, when `overlayPlates`); amounts from `ns.UnitAmounts(unit)` | `FindHealthBar`, `UpdateOverlay`, `CreateOverlay` |
 | `Plates.lua` | Bars on nameplates: a holder per (recycled) nameplate frame, parented to it and anchored to both edges of the plate's health bar (`PlateBar`: the largest visible StatusBar among the plate's child frames, which covers Blizzard's plates and addons that build on them; re-checked every frame with `IsUnder`, because Blizzard pools the plates' UnitFrames, health bar included, and moves them between plates). Its width sets the bars' size (`plateHeightPct`); Bars.lua's bars are drawn with a per-plate style proxy (`PLATE_KEYS` swap in the `plate*` text settings, `PLATE_LOOK` the `plate*` look settings when `plateOwnLook`, `growUp` from `plateAnchor`). Our own frames are marked `tickyOwned` so the health bar search skips them | `UpdatePlates`, `LayoutPlates`, `CreatePlates`, `PlateHealthBar` |
 | `Widgets.lua` | Option controls | `ns.W` (`Label`, `Header`, `Button`, `Check`, `Slider`, `Cycle`, `Swatch`, `EditBox`, `Setting`) |
-| `Options.lua` | Options window, Settings-panel entry, shift-click link hook | `ToggleOptions`, `RefreshOptions` |
+| `Options.lua` | Options window, Settings-panel entry, shift-click link hook, the report dialog (issues link to copy) | `ToggleOptions`, `RefreshOptions`, `ShowReport` |
 
 Globals (keep this list short): `TickyDB`, `TickyCharDB`, `SLASH_TICKY1`, `SlashCmdList.TICKY`,
 `Ticky_OnAddonCompartmentClick`, and frame names `TickyAnchor`, `TickyOptions`,
-`TickyOptionsSpellScroll`, `TickyOptionsDetailScroll`.
+`TickyOptionsSpellScroll`, `TickyOptionsDetailScroll`, `TickyReport`.
 
 ### Data flow
 

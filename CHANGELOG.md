@@ -8,6 +8,10 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
 - `tools/check_lua.py`: syntax-checks the addon's Lua and the TOC file list.
 - DEPLOY.md: installing, releasing, rolling back, saved variables and troubleshooting.
 - TESTING.md: the running list of what needs checking in the game client.
+- `/ticky report` and General > Report a problem: the issues link
+  (https://github.com/addohm/ticky-timers/issues) in a box, selected for copying. The repo address
+  is in the options window's footer and the TOC (`X-Website`). GitHub issue templates ask for the
+  build and `/ticky debug` output.
 - Build stamp: `install_beta.cmd` writes the installed commit into `Build.lua`; `/ticky debug` and
   the options window show it ("dev" for a copy taken straight from the repo).
 - `tools/install_beta.cmd`: pulls the repo and mirrors the addon into the beta client (Windows).
