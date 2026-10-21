@@ -8,6 +8,8 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
 - `tools/check_lua.py`: syntax-checks the addon's Lua and the TOC file list.
 - DEPLOY.md: installing, releasing, rolling back, saved variables and troubleshooting.
 - `tools/install_beta.cmd`: pulls the repo and mirrors the addon into the beta client (Windows).
+- `/ticky debug`: prints what the game lets Ticky read right now (restriction state, each tracked
+  spell's aura secrecy, your target's auras, aura instance IDs and durations, your recent casts).
 - Your own bar order: Move up / Move down on the Spells tab, and "Your order" under Layout >
   "Order bars by". Your channel takes its slot in that order instead of sitting on top.
 - Missing spells: a tracked spell that isn't on your target can be hidden (as before), keep its slot
@@ -23,6 +25,8 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
 - Text: stack counts, name and time colors, time on the left or right, when to show tenths of a
   second, text shadow. Tick height.
 - "Hide bars when you have no target".
+### Fixed
+- `UNIT_AURA` with a secret unit token no longer risks an error; Ticky re-reads target and self.
 ### Changed
 - The options window is larger and has six tabs: Spells, Bars, Layout, Text & Ticks, Sounds
   (was Alerts), General. The spell settings panel scrolls.

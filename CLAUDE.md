@@ -57,7 +57,10 @@ for that PC (variables at the top). `.gitattributes` keeps `*.cmd` files CRLF.
 2. **No combat log.** Registering `COMBAT_LOG_EVENT_UNFILTERED` errors. Everything comes from
    `UNIT_AURA`, aura queries, channel events and spell data.
 3. **Secret values.** Combat values (aura fields, GUIDs, haste, channel info, `UnitExists`) can be
-   secret. Check `ns.Secret(v)` before comparing, branching, indexing or doing math on them. Skip
+   secret. Aura data is secret whenever *combat* restrictions are active (open world too:
+   `SecretWhenUnitAuraRestricted`), unless the spell is flagged never-secret
+   (`C_Secrets.GetSpellAuraSecrecy`). `UnitGUID` is secret for units that aren't player-controlled.
+   Event payloads can be secret too (`UNIT_AURA` is `SecretWhenAurasRestricted`). Check `ns.Secret(v)` before comparing, branching, indexing or doing math on them. Skip
    secret data; never let it error the UI (aura scans run in `pcall`).
 4. **No hand-entered timing.** Durations come from the aura; tick periods come from
    `Ticky/Data.lua`. Don't hard-code intervals and don't add "tick every N" settings: the owner
@@ -78,7 +81,7 @@ call another file's `ns` functions at runtime, not at load time, unless that fil
 | File | Owns | Exposes on `ns` |
 |---|---|---|
 | `Data.lua` | Generated spell data | `ns.Data`, `ns.DataBuild` |
-| `Core.lua` | Defaults, lists (textures, fonts, sounds, sound events), aura and channel reading, alerts (sounds, speech, messages), missing-spell placeholders, display list, tick math, events, slash commands | `DEFAULTS`, `CHAR_DEFAULTS`, `TEXTURES`, `FONTS`, `OUTLINES`, `SOUNDS`, `SOUND_EVENTS`, `CHANNELS`, `SoundChoices`, `Secret`, `Lookup`, `SpellInfo`, `AuraPeriod`, `ComputeTicks`, `BuildDisplay`, `ActiveTimers`, `RefreshDisplay`, `HasTarget`, `SpellbookSpells`, `Track`, `Untrack`, `IsTracked`, `OrderedSpells`, `MoveSpell`, `AddSpell`, `Describe`, `SoundFor`, `WarnSeconds`, `PlaySound`, `TestSound`, `RemoveCustomSound`, `ResetSettings`, `CopyDefaults`, `SpellCfg`, `DB`, `CharDB`, `InCombat`, `TB` (event frame) |
+| `Core.lua` | Defaults, lists (textures, fonts, sounds, sound events), aura and channel reading, alerts (sounds, speech, messages), missing-spell placeholders, display list, tick math, events, slash commands | `DEFAULTS`, `CHAR_DEFAULTS`, `TEXTURES`, `FONTS`, `OUTLINES`, `SOUNDS`, `SOUND_EVENTS`, `CHANNELS`, `SoundChoices`, `Secret`, `Lookup`, `SpellInfo`, `AuraPeriod`, `ComputeTicks`, `BuildDisplay`, `ActiveTimers`, `RefreshDisplay`, `HasTarget`, `SpellbookSpells`, `Track`, `Untrack`, `IsTracked`, `OrderedSpells`, `MoveSpell`, `AddSpell`, `Describe`, `SoundFor`, `WarnSeconds`, `PlaySound`, `TestSound`, `RemoveCustomSound`, `Debug` (`/ticky debug`), `ResetSettings`, `CopyDefaults`, `SpellCfg`, `DB`, `CharDB`, `InCombat`, `TB` (event frame) |
 | `Bars.lua` | Anchor and bar frames, styling, drawing, missing bars, preview, on-screen messages | `CreateBars`, `ApplyStyle`, `UpdateBars`, `SetPreview`, `preview`, `ResetPosition`, `ShowMessage` |
 | `Widgets.lua` | Option controls | `ns.W` (`Label`, `Header`, `Button`, `Check`, `Slider`, `Cycle`, `Swatch`, `EditBox`, `Setting`) |
 | `Options.lua` | Options window, Settings-panel entry, shift-click link hook | `ToggleOptions`, `RefreshOptions` |
@@ -281,3 +284,6 @@ Game data (spell tables) for Forever is on wago.tools under product `wowf`; see
 - Assuming TBC from the old WeakAura tag. Forever is vanilla content on the Mainline API.
 - Assuming wago.tools lacked Forever data. It has it (product `wowf`).
 - Designing around the combat log (measuring ticks). It isn't available on Forever.
+- Assuming secret values only show up in raids and dungeons. Aura data is secret in any combat, so
+  0.5/0.6 showed no bars for DoTs on a mob in the open world. Read `SecretPredicatesDocumentation.lua`
+  for what each `SecretWhen...` flag means before relying on an API.

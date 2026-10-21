@@ -841,6 +841,7 @@ function TB:ADDON_LOADED(name)
   self:RegisterUnitEvent("UNIT_SPELLCAST_CHANNEL_START", "player")
   self:RegisterUnitEvent("UNIT_SPELLCAST_CHANNEL_UPDATE", "player")
   self:RegisterUnitEvent("UNIT_SPELLCAST_CHANNEL_STOP", "player")
+  self:RegisterUnitEvent("UNIT_SPELLCAST_SUCCEEDED", "player")
 
   local elapsedSinceCheck = 0
   self:SetScript("OnUpdate", function(_, elapsed)
@@ -868,8 +869,32 @@ function TB:PLAYER_TARGET_CHANGED() RefreshDisplay() end
 function TB:PLAYER_REGEN_DISABLED() inCombat = true end
 function TB:PLAYER_REGEN_ENABLED() inCombat = false end
 
-function TB:UNIT_AURA(unit)
-  if unit == "target" or unit == "player" or unit:find("^nameplate%d") then Refresh(unit) end
+-- What UNIT_AURA and your casts looked like, for /ticky debug.
+local seen = { auraEvents = 0, secretUnits = 0, added = 0, addedSecret = 0, casts = {} }
+
+local function NoteAuraUpdate(info)
+  if not info or Secret(info) or not info.addedAuras or Secret(info.addedAuras) then return end
+  for _, a in ipairs(info.addedAuras) do
+    seen.added = seen.added + 1
+    if Secret(a) or Secret(a.auraInstanceID) then seen.addedSecret = seen.addedSecret + 1 end
+  end
+end
+
+function TB:UNIT_AURA(unit, info)
+  seen.auraEvents = seen.auraEvents + 1
+  pcall(NoteAuraUpdate, info)
+  if Secret(unit) then
+    -- Can't tell which unit changed: re-read the two that matter.
+    seen.secretUnits = seen.secretUnits + 1
+    RefreshDisplay()
+  elseif unit == "target" or unit == "player" or unit:find("^nameplate%d") then
+    Refresh(unit)
+  end
+end
+
+function TB:UNIT_SPELLCAST_SUCCEEDED(_, _, spellID)
+  table.insert(seen.casts, 1, { GetTime(), Secret(spellID) and "secret" or spellID })
+  seen.casts[6] = nil
 end
 
 function TB:NAME_PLATE_UNIT_ADDED(unit) Refresh(unit) end
@@ -892,6 +917,104 @@ function TB:UNIT_SPELLCAST_CHANNEL_STOP() EndChannel(GetTime()) end
 ---------------------------------------------------------------------------
 
 local function Print(msg) print("|cff99ccffTicky|r: " .. msg) end
+
+---------------------------------------------------------------------------
+-- /ticky debug: what the game lets Ticky see right now (run it in combat, with your DoTs up)
+---------------------------------------------------------------------------
+
+local function Show(v)
+  if Secret(v) then return "secret" end
+  if v == nil then return "-" end
+  if v == true then return "yes" end
+  if v == false then return "no" end
+  return tostring(v)
+end
+
+-- Call fn(...) and show its first result; "n/a" if the API is missing, "error" if it fails.
+local function Try(fn, ...)
+  if not fn then return "n/a" end
+  local ok, v = pcall(fn, ...)
+  return ok and Show(v) or "error"
+end
+
+local SECRECY = { [0] = "never", [1] = "always", [2] = "in combat/restricted" }
+
+function ns.Debug()
+  local function V(...)
+    local parts = {}
+    for i = 1, select("#", ...) do parts[i] = tostring((select(i, ...))) end
+    print("|cff99ccffTicky|r  " .. table.concat(parts, "  "))
+  end
+  Print("debug, version " .. tostring(C_AddOns.GetAddOnMetadata(ADDON, "Version")))
+  local names = {}
+  for _, key in ipairs(ns.OrderedSpells()) do names[#names + 1] = cdb.spells[key].name end
+  V("Tracked:", #names > 0 and table.concat(names, ", ") or "nothing - tick spells on the Spells tab")
+
+  local RA, R, CS = C_RestrictedActions, Enum.AddOnRestrictionType, C_Secrets
+  local active = RA and RA.IsAddOnRestrictionActive
+  V("In combat:", Show(inCombat), "restrictions: combat", Try(active, R and R.Combat),
+    "map", Try(active, R and R.Map), "encounter", Try(active, R and R.Encounter))
+  V("Auras secret right now:", Try(CS and CS.ShouldAurasBeSecret))
+  for _, key in ipairs(ns.OrderedSpells()) do
+    local cfg = cdb.spells[key]
+    if cfg.id then
+      local ok, level = pcall(CS and CS.GetSpellAuraSecrecy, cfg.id)
+      V(cfg.name .. " (" .. cfg.id .. "):", "aura secrecy", ok and (SECRECY[level] or Show(level)) or "n/a",
+        "secret now", Try(CS and CS.ShouldSpellAuraBeSecret, cfg.id))
+    end
+  end
+
+  V("Target:", Show(HasTarget()), "GUID", GuidOf("target") and "readable" or Show(UnitGUID("target")),
+    "enemy", Try(UnitCanAttack, "player", "target"))
+  local total, secretAura, secretId, secretDur, secretSrc, readable = 0, 0, 0, 0, 0, {}
+  pcall(function()
+    for _, filter in ipairs(AURA_FILTERS) do
+      for i = 1, 40 do
+        local a = C_UnitAuras.GetAuraDataByIndex("target", i, filter)
+        if a == nil then break end
+        total = total + 1
+        if Secret(a) then
+          secretAura = secretAura + 1
+        else
+          if Secret(a.spellId) then secretId = secretId + 1 end
+          if Secret(a.duration) or Secret(a.expirationTime) then secretDur = secretDur + 1 end
+          if Secret(a.isFromPlayerOrPlayerPet) then secretSrc = secretSrc + 1 end
+          if not Secret(a.spellId) then
+            local n = SpellInfo(a.spellId)
+            readable[#readable + 1] = (n or tostring(a.spellId)) .. (FromMe(a) and " (yours)" or "")
+          end
+        end
+      end
+    end
+  end)
+  V("Target auras:", total, "| whole aura secret", secretAura, "| spell secret", secretId,
+    "| time secret", secretDur, "| caster secret", secretSrc)
+  if #readable > 0 then V("Readable:", table.concat(readable, ", ")) end
+
+  local ok, ids = pcall(C_UnitAuras.GetUnitAuraInstanceIDs, "target", "HARMFUL|PLAYER")
+  if ok and type(ids) == "table" and not Secret(ids) then
+    local first = ids[1]
+    V("Your debuffs by instance ID:", #ids, "| first ID", Show(first))
+    if first and not Secret(first) then
+      V("  instance secret", Try(CS and CS.ShouldUnitAuraInstanceBeSecret, "target", first))
+      local dok, d = pcall(C_UnitAuras.GetAuraDuration, "target", first)
+      V("  duration object", dok and (d and "yes" or "no") or "error",
+        "has secret values", dok and d and Try(d.HasSecretValues, d) or "-")
+    end
+  else
+    V("Your debuffs by instance ID:", ok and Show(ids) or "error")
+  end
+  V("Ticky's bars for target:", #targetTimers, "| channel", channel and channel.name or "-")
+
+  local casts = {}
+  for _, c in ipairs(seen.casts) do
+    local n = type(c[2]) == "number" and SpellInfo(c[2]) or c[2]
+    casts[#casts + 1] = ("%s %.0fs ago"):format(tostring(n), GetTime() - c[1])
+  end
+  V("Your last casts:", #casts > 0 and table.concat(casts, ", ") or "-")
+  V("UNIT_AURA events:", seen.auraEvents, "| unit secret", seen.secretUnits, "| added", seen.added,
+    "| added with secret ID", seen.addedSecret)
+end
 
 function Ticky_OnAddonCompartmentClick() ns.ToggleOptions() end
 
@@ -919,7 +1042,9 @@ SlashCmdList.TICKY = function(msg)
   elseif cmd == "reset" then
     ns.ResetSettings()
     Print("Appearance, layout and sound settings reset. Your spells are unchanged.")
+  elseif cmd == "debug" then
+    ns.Debug()
   else
-    Print("/ticky [options | lock | unlock | add <spell> | remove <spell> | list | preview | reset]")
+    Print("/ticky [options | lock | unlock | add <spell> | remove <spell> | list | preview | reset | debug]")
   end
 end

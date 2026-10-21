@@ -63,7 +63,8 @@ by" to "Your order", and pick "Show a faded bar" (or "Keep its slot empty") for 
 Your channel then sits in its own slot instead of on top.
 
 Commands: `/ticky`, `/ticky lock | unlock`, `/ticky preview`, `/ticky add <spell>`,
-`/ticky remove <spell>`, `/ticky list`, `/ticky reset`.
+`/ticky remove <spell>`, `/ticky list`, `/ticky reset`, `/ticky debug` (prints what the game lets
+Ticky read about your target's auras and your casts right now; run it in combat).
 
 ## How tick placement is worked out
 
@@ -80,8 +81,11 @@ Commands: `/ticky`, `/ticky lock | unlock`, `/ticky preview`, `/ticky add <spell
 ## Forever limitations
 
 Forever uses the modern Mainline addon API with Midnight's combat restrictions. The combat log is
-not available to addons, and some values can be "secret". Auras or casts the game marks secret
-are skipped, so in restricted content the bars may not appear.
+not available to addons, and some values can be "secret". According to the game's API
+documentation, aura details (which spell, its timing, who cast it) become secret whenever you're
+**in combat**, not only in dungeons and raids, unless the game marks that spell as never secret.
+Ticky currently skips secret auras, so in combat its bars may not appear. `/ticky debug` shows what
+the game is hiding; a version that works with secret auras is in progress (see ROADMAP.md).
 
 ## Regenerating the spell data
 

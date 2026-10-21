@@ -1,8 +1,13 @@
 # Roadmap
 
 ## Next (priority order)
-1. Test in the Forever client: confirm interface 16001, aura and channel reads, and whether player
-   DoTs become secret anywhere (raids).
+1. Bars in combat. First in-game test (2026-10-20): SW:P and Devouring Plague on a mob in the open
+   world, no bars. The API docs say aura data is secret whenever combat restrictions are active, and
+   `UnitGUID` is secret for non-player units. Get `/ticky debug` output in combat, then rebuild
+   around what's readable: likely your own casts (`UNIT_SPELLCAST_SUCCEEDED` is readable for the
+   player), aura instance IDs (`GetUnitAuraInstanceIDs`), and `GetAuraDuration` duration objects
+   drawn with `StatusBar:SetTimerDuration`. Per-target memory and alerts can't key on mob GUIDs.
+   Then confirm interface 16001 and channel reads.
 2. Check how Forever handles refreshing a DoT (does the tick timer restart?) and adjust tick phase.
 3. Nameplate bars for DoTs on non-target enemies.
 4. Profiles (copy settings between characters).
