@@ -10,7 +10,7 @@ it); "dev" or an older commit means the game is still running an old copy.
 
 ## To test
 
-1. **The spark holds still as DoTs tick** (this push), on the unit frame and nameplates. 5cdadb4
+1. **The spark holds still as DoTs tick** (5925ad4), on the unit frame and nameplates. 5cdadb4
    didn't fix it; this one also holds the health end until the tick is counted. If it still
    flickers, send the frames around one tick (10 or so consecutive 60 fps frames, cropped to the
    bar, PNG).
