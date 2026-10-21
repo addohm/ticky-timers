@@ -250,7 +250,14 @@ local function BuildSpellDetail(p)
     local field = ev[1]
     local cyc = Keep(W.Cycle(c, ev[2], function() return ns.SoundChoices(true) end,
       function() return cfg()[field] or "DEFAULT" end,
-      function(v) cfg()[field] = v ~= "DEFAULT" and v or nil end), 4, y)
+      function(v)
+        cfg()[field] = v ~= "DEFAULT" and v or nil
+        -- A warning sound with no warning time would never play: give this spell one.
+        if field == "warnSound" and v ~= "NONE" and selected and ns.WarnSeconds(selected.key) == 0 then
+          cfg().warnSeconds = 3
+          RefreshDetail()
+        end
+      end), 4, y)
     W.Button(c, "Test", 50, function()
       if selected then ns.TestSound(selected.key, field) end
     end):SetPoint("LEFT", cyc, "RIGHT", 6, -8)
@@ -501,6 +508,17 @@ local function BuildSoundsPage()
   for _, ev in ipairs(ns.SOUND_EVENTS) do
     local field = ev[1]
     local g, s = S(field)
+    if field == "warnSound" then
+      -- A warning sound with the warning time Off would never play: switch it on.
+      local set = s
+      s = function(v)
+        set(v)
+        if v ~= "NONE" and db().warnSeconds == 0 then
+          db().warnSeconds = 3
+          p:Refresh()
+        end
+      end
+    end
     local cyc = Place(p, W.Cycle(p, ev[2], function() return ns.SoundChoices(false) end, g, s), 4, y)
     W.Button(p, "Test", 50, function() ns.PlaySound(db()[field], "Test") end):SetPoint("LEFT", cyc, "RIGHT", 6, -8)
     y = y - 44
@@ -543,15 +561,30 @@ local function BuildSoundsPage()
     if #out == 0 then out[1] = { nil, "(none yet)" } end
     return out
   end, function() return chosen end, function(v) chosen = v end), COL2 + 4, -312)
+  local status = W.Label(p, "", "GameFontHighlightSmall")
+  status:SetWidth(250)
+  local function say(ok, msg) status:SetText((ok and "|cff66ff66" or "|cffff6666") .. msg .. "|r") end
+  local function test(f)
+    if not PlaySoundFile then return say(false, "This game client can't play sound files.") end
+    if ns.PlaySound("F:" .. f) then
+      say(true, "Playing.")
+    else
+      say(false, "The game didn't play it. Check the file is there and restart the game "
+        .. "(new files only load at startup; /reload isn't enough).")
+    end
+  end
   local function add()
-    local f = strtrim(box:GetText() or "")
-    if f == "" then return end
-    for _, v in ipairs(files()) do if v == f then return end end
-    table.insert(files(), f)
-    chosen = f
+    local f, why = ns.CleanSoundPath(box:GetText())
+    if not f then return say(false, why) end
+    if why then print("|cff99ccffTicky|r: " .. why) end
     box:SetText("")
     box:ClearFocus()
+    local known = false
+    for _, v in ipairs(files()) do if v == f then known = true end end
+    if not known then table.insert(files(), f) end
+    chosen = f
     p:Refresh()
+    test(f)
   end
   W.Button(p, "Add", 60, add):SetPoint("LEFT", box, "RIGHT", 6, 0)
   box:SetScript("OnEnterPressed", add)
@@ -562,11 +595,13 @@ local function BuildSoundsPage()
       p:Refresh()
     end
   end):SetPoint("LEFT", fileCycle, "RIGHT", 6, -8)
-  W.Button(p, "Test", 50, function()
-    if chosen then ns.PlaySound("F:" .. chosen) end
-  end):SetPoint("TOPLEFT", fileCycle, "BOTTOMLEFT", 0, -2)
+  local testButton = W.Button(p, "Test", 50, function()
+    if chosen then test(chosen) end
+  end)
+  testButton:SetPoint("TOPLEFT", fileCycle, "BOTTOMLEFT", 0, -2)
+  status:SetPoint("TOPLEFT", testButton, "TOPRIGHT", 8, -2)
   Note(p, "\"Say it\" speaks with the game's text-to-speech voice. Each spell can pick its own sounds "
-    .. "and words on the Spells tab.", COL2 + 4, -386, 320)
+    .. "and words on the Spells tab.", COL2 + 4, -400, 320)
   p.OnRefresh = function() if not chosen then chosen = files()[1] end end
 end
 

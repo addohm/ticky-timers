@@ -39,6 +39,10 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
   Finds a unit frame addon's target frame or Blizzard's, or takes a frame name. Amounts
   come from the tooltip until Ticky has seen the spell's ticks land, then from the real ticks.
 ### Fixed
+- Your own sound files: a pasted full path (C:\...\Interface\...), quotes or forward slashes are
+  cleaned up, and Add/Test now say whether the game played the file and, if not, what to check.
+- The warning sound never played while the warning time was Off (the default). Picking a warning
+  sound now sets it to 3s, and existing settings with a warning sound but no time get 3s.
 - Bars now show in combat. Forever hides aura details from addons in combat, so Ticky starts each
   timer from your cast instead (on the mob you targeted when casting, so tab-dotting works). Its
   length is the one last read from that spell's aura (talents included), else the tooltip. Exact

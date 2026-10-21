@@ -53,7 +53,9 @@ then goes missing for a few seconds, so you can see how missing spells look too.
   switched away from (or see a nameplate for); combat-only alerts; on-screen text for warnings,
   endings and early removals. Sounds can be any of the built-in ones, "Say it" (the game's
   text-to-speech, e.g. "Pain ending"), or your own sound files (a path such as
-  `Interface\AddOns\MySounds\ding.ogg`, or a sound file ID; new files load when the game starts).
+  `Interface\AddOns\MySounds\ding.ogg`, or a sound file ID; a pasted full Windows path is cut
+  down to the part from `Interface\`; Add and Test say whether the game played it; new files only
+  load when the game starts). Picking a warning sound while the warning time is Off sets it to 3s.
 - **Health bar**: on your target's health bar, shade the part your DoTs (and channel) will still
   take off, ending at its current health, and the part your HoTs will still heal, starting there.
   Off by default. Each spell in its own bar color (with a line between them) or one color for damage

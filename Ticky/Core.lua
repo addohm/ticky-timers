@@ -14,7 +14,7 @@ local ADDON, ns = ...
 
 local GetTime, ipairs, pairs, wipe, tonumber, floor, abs, min = GetTime, ipairs, pairs, wipe, tonumber, math.floor, math.abs, math.min
 
-local DB_VERSION = 5
+local DB_VERSION = 6
 
 -- Account-wide look and behaviour. Spell choices are per character (TickyCharDB).
 ns.DEFAULTS = {
@@ -449,14 +449,37 @@ local function Speak(text)
   end)
 end
 
+-- A sound file as the game wants it: a file ID, or a path from the WoW folder with backslashes
+-- ("Interface\AddOns\MySounds\ding.ogg"). Pasted full paths, quotes and forward slashes are
+-- cleaned up. Returns the file and a warning, or nil and why it can't be one.
+function ns.CleanSoundPath(input)
+  local f = strtrim(input or ""):gsub('^"(.*)"$', "%1"):gsub("^'(.*)'$", "%1")
+  f = strtrim(f)
+  if f == "" then return nil, "Enter a file path or a sound file ID." end
+  if f:match("^%d+$") then return f end
+  f = f:gsub("/", "\\"):gsub("\\+", "\\")
+  local at = f:lower():find("interface\\", 1, true)
+  if not at then
+    return nil, "A path has to be inside the WoW folder and start with Interface\\ (for example "
+      .. "Interface\\AddOns\\MySounds\\ding.ogg)."
+  end
+  f = f:sub(at)
+  local ext = f:lower():match("%.(%w+)$")
+  if not ext then return nil, "Include the file's extension, for example ding.ogg." end
+  if ext ~= "ogg" and ext ~= "mp3" then return f, ".ogg and .mp3 files are the safest; other types may not play." end
+  return f
+end
+
 -- Play a sound choice: a SOUNDKIT name, "SPEAK" (says `text`), or "F:" plus a file path or file ID.
+-- For files, returns whether the game said it will play it.
 function ns.PlaySound(key, text)
   if not key or key == "NONE" or key == "DEFAULT" then return end
   if key == "SPEAK" then return Speak(text) end
   if key:sub(1, 2) == "F:" then
     local file = key:sub(3)
-    if PlaySoundFile then pcall(PlaySoundFile, tonumber(file) or file, db.soundChannel) end
-    return
+    if not PlaySoundFile then return false end
+    local ok, willPlay = pcall(PlaySoundFile, tonumber(file) or file, db.soundChannel)
+    return ok and willPlay and true or false
   end
   local e = ns.Lookup(ns.SOUNDS, key)
   local id = (SOUNDKIT and SOUNDKIT[key]) or e[3]
@@ -1172,6 +1195,12 @@ function TB:ADDON_LOADED(name)
     TickyDB.spells, TickyDB.learned, TickyDB.learnedTicks = nil, nil, nil
     -- 0.6.0 renamed the "order you added them" sort to "your order" (reorderable).
     if TickyDB.sortMode == "added" then TickyDB.sortMode = "custom" end
+    -- 0.6.0: a warning sound picked while the warning time was Off never played; give it 3s.
+    local wantsWarning = TickyDB.warnSound and TickyDB.warnSound ~= "NONE"
+    for _, cfg in pairs(TickyCharDB.spells) do
+      if cfg.warnSound and cfg.warnSound ~= "NONE" then wantsWarning = true end
+    end
+    if wantsWarning and (TickyDB.warnSeconds or 0) == 0 then TickyDB.warnSeconds = 3 end
     TickyDB.version = DB_VERSION
   end
   db = ns.CopyDefaults(ns.DEFAULTS, TickyDB)

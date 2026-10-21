@@ -161,9 +161,10 @@ OnUpdate (every frame)  -> ns.UpdatePlates(now) -> per ns.plateUnits token: Unit
 
 `TickyDB` (account-wide, defaults in `ns.DEFAULTS`, filled by `CopyDefaults` on load): look,
 layout, text, sound and general settings as flat keys, plus `point`, `version` and
-`customSounds` (list of file paths / IDs; kept by reset). Bump `DB_VERSION` (now 5) in Core.lua and
+`customSounds` (list of file paths / IDs; kept by reset). Bump `DB_VERSION` (now 6) in Core.lua and
 add a migration in `ADDON_LOADED` when changing the meaning of an existing key (5 renamed
-`sortMode` "added" to "custom").
+`sortMode` "added" to "custom"; 6 gives `warnSeconds` 3 when a warning sound is set but the time
+was 0).
 
 `TickyCharDB` (per character): `spells[lowerCaseName] = { name, id, icon, color, order, label,
 speech, missing, warnSeconds, anyCaster, isChannel, applySound, refreshSound, tickSound, warnSound,
@@ -174,7 +175,9 @@ are keyed by lower-case name so every rank matches; `id` is the rank that was ad
 lookups in the UI). `order` is the "Your order" slot (`MoveSpell` renumbers 1..n).
 
 Sound values: a `SOUNDS` key, `"NONE"`, `"SPEAK"` (text to speech), or `"F:" .. file` (custom
-file path or file ID, played with `PlaySoundFile`). Per-spell `"DEFAULT"` is stored as nil.
+file path or file ID, cleaned by `ns.CleanSoundPath`, played with the global
+`PlaySoundFile(file, channel)`, which isn't in the generated docs but current retail addons still
+call; its first return says whether it will play). Per-spell `"DEFAULT"` is stored as nil.
 
 ### How to add a setting
 
