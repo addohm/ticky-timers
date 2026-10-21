@@ -10,7 +10,7 @@ it); "dev" or an older commit means the game is still running an old copy.
 
 ## To test
 
-1. **Built-in sound files** (this push). After installing, restart the game (new files only load at
+1. **Built-in sound files** (6b7bbe5). After installing, restart the game (new files only load at
    startup). Sounds tab: set a sound to "Ticky beep" or "Ticky chime" and press Test. If you hear
    it, addon sound files work and the problem is your own file's location or path; if not, the game
    isn't playing addon sound files at all. Then for your own file: where it is on disk (full path),
