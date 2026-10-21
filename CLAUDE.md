@@ -35,6 +35,7 @@ tools/
   check_lua.py    syntax-checks Ticky/*.lua and the TOC file list
   install_beta.cmd  (Windows) git pull, then mirror Ticky/ into the beta client's AddOns folder
 README.md CHANGELOG.md ROADMAP.md SECURITY.md DEPLOY.md CLAUDE.md
+TESTING.md        running list of what to check in the client (to test / confirmed / gaps)
 ```
 
 ## Commands
@@ -316,7 +317,7 @@ Game data (spell tables) for Forever is on wago.tools under product `wowf`; see
    returning functions for unknown fields, or not firing `OnHide`).
 3. Lupa runs Lua 5.4+, which is stricter than WoW: `("%d"):format(1.5)` errors there but not in
    game. Still floor numbers before `%d`.
-4. Nothing is confirmed until tested in the Forever client; ROADMAP item 1 is that checklist.
+4. Nothing is confirmed until tested in the Forever client; TESTING.md is that checklist.
 
 ## Every change
 
@@ -324,6 +325,9 @@ Game data (spell tables) for Forever is on wago.tools under product `wowf`; see
   Changelog), ROADMAP.md (move items to Done), DEPLOY.md (install, release or saved-variable
   changes), SECURITY.md (what the addon accesses or stores), and this CLAUDE.md if layout or
   rules change.
+- Add what a change needs checked in game to TESTING.md (with the commit), and move items the owner
+  confirms to its Confirmed list.
+- After pushing, tell the owner plainly that it's pushed and the commit, so they can test it.
 - Releases: bump `## Version:` in `Ticky/Ticky.toc`, turn Unreleased into a dated version section.
 - Before committing, confirm no secret-looking file is staged (`.gitignore` covers the usual ones).
   Never print credentials from git remotes.

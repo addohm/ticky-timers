@@ -1,15 +1,7 @@
 # Roadmap
 
 ## Next (priority order)
-1. Still to test in the client (owner's checklist, 2026-10-21): recasting a running DoT (bar restarts,
-   tick marks still match the damage, see item 4); tab-dotting; talented durations learned after a
-   fight; a dying mob clears its bars silently; nameplate keys in a dungeon; a full resist drops the
-   bar; a miss cancelling the cast (fixed 2026-10-21 after the debug log showed the game labels a
-   spell's own miss Physical); Mind Flay's tick marks; "Say it" in combat; custom sound files and the warning sound after
-   the 2026-10-21 fixes.
-   Confirmed 2026-10-21: bars in combat from casts; talented SW:P learned as 24s; learned tick sizes (`/ticky debug` "(seen)");
-   HoT overlay on a friend; put on / refreshed / removed sounds each once; health bar overlay and
-   nameplate bars working. The aura instance-ID route errors in combat, so no exact-bar fallback.
+1. Work through [TESTING.md](TESTING.md), the running list of what needs checking in the client.
 2. Timers from casts live only in memory: a `/reload` mid-fight loses them (bars and nameplates)
    until you recast. Could save them on logout and restore unexpired ones (`GetTime` carries over
    a reload). Low priority: reloading in a fight is rare.

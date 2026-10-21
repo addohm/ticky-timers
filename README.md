@@ -140,5 +140,5 @@ python tools/gen_data.py <csv folder> 1.60.1.70245 Ticky/Data.lua
 Coding guidance is in [CLAUDE.md](CLAUDE.md). Check the Lua after changes with
 `python tools/check_lua.py` (needs `pip install lupa`).
 
-See [ROADMAP.md](ROADMAP.md), [CHANGELOG.md](CHANGELOG.md), [SECURITY.md](SECURITY.md),
+See [ROADMAP.md](ROADMAP.md), [TESTING.md](TESTING.md), [CHANGELOG.md](CHANGELOG.md), [SECURITY.md](SECURITY.md),
 [DEPLOY.md](DEPLOY.md) (installing, releasing, troubleshooting).
