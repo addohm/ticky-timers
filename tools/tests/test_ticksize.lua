@@ -16,7 +16,7 @@ for _, f in ipairs(M.frames) do if f.tickyOwned and f.points[1] and f.points[1][
 local seg = holder.children[2]
 check(seg.value == 6 * 27, "starts at 6 ticks x 27: " .. tostring(seg.value))
 
-local hits = { 25, 26, 25, 26 }
+local hits = { 25, 26, 25 }
 for k, hit in ipairs(hits) do
   while M.now < 1000 + 3 * k - 0.02 do M.update(0.02) end
   local before = seg.value
@@ -30,11 +30,20 @@ M.printed = {}
 SlashCmdList.TICKY("debug")
 local line
 for _, l in ipairs(M.printed) do if l:find("Last tick") then line = l end end
-check(line and line:find("26 hit, shading %-26"), "debug: hit and shrink match: " .. tostring(line))
+check(line and line:find("25 hit, shading %-25"), "debug: hit and shrink match: " .. tostring(line))
+
+-- A critical tick (DoT ticks can crit on Forever: "hit 38! SWP" in game, 2026-10-21) takes off what
+-- it really did too.
+while M.now < 1000 + 12 - 0.02 do M.update(0.02) end
+local beforeCrit = seg.value
+M.fire("UNIT_COMBAT", "target", "WOUND", "CRITICAL", 38, 32); M.fire("UNIT_HEALTH", "target"); M.frame()
+check(beforeCrit - seg.value == 38, "a 38 crit shrinks the shading by 38: " .. tostring(beforeCrit) .. " -> "
+  .. tostring(seg.value))
 
 -- A same-school hit far bigger than this spell's ticks, near a tick (a Mind Blast): not taken as the
 -- tick, so the shading doesn't shrink by it.
 while M.now < 1000 + 15 - 0.02 do M.update(0.02) end
 local before = seg.value
 M.fire("UNIT_COMBAT", "target", "WOUND", "", 400, 32); M.fire("UNIT_HEALTH", "target"); M.frame()
-check(seg.value == before, "a 400 hit isn't a 26 tick")
+check(holder:IsShown() and seg.value == before, "a 400 hit isn't a 26 tick: " .. tostring(before) .. " -> "
+  .. tostring(seg.value))

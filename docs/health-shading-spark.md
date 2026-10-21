@@ -183,8 +183,25 @@ hit far off the learned size (Mind Blast near a SW:P tick) is no longer matched 
 since it would now take its full amount off. `tools/tests/test_ticksize.lua` reproduces it (a
 25 hit shrank the shading by 32 on the old code).
 
-Left over: an unseen tick still counts as the estimate (the spark moves by the difference); the
-estimate's error over the whole DoT shows as a few health points left at the end (gone at expiry).
+**DoT ticks can crit on Forever.** The first `/ticky log` from the game (on b388b30, before the
+fix) showed `hit 38! SWP ... drew shading -26` (the `!` is a crit) and `hit 20 DP ... drew shading
+-21`. The old code took off the estimate whatever the tick did, so a crit moved the spark by 12
+health (about a pixel) on its own. With the fix a crit takes off its real amount
+(`test_ticksize.lua` covers it).
+
+Trade-off of the fix: the spark now stays where it was predicted at the start, rather than
+moving to the "true" end point after each tick. The two differ by the sum of each tick's
+deviation from the estimate (crits push one way, rounding averages out). That difference shows
+up only at the end: the DoT's shading runs out a little early (clamped at 0) or a few health
+points are left at expiry, so with two DoTs in one segment the spark can move when one of them
+ends. A smoother alternative, if that ever matters: fold each deviation in gradually between
+ticks (a slow drift over a second or two) instead of not at all.
+
+Left over: an unseen tick still counts as the estimate (the spark moves by the difference).
+
+That log also shows a clean sequence otherwise: hit, counted and health in the same frame,
+"stops waiting; drew health (changed); drew shading" in the same frame too, and one "drew health
+(1s check)" at rest.
 
 ## How to pick it up again
 
