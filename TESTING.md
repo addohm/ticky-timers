@@ -10,11 +10,10 @@ it); "dev" or an older commit means the game is still running an old copy.
 
 ## To test
 
-1. **The spark holds still as DoTs tick** (ec824ce), on the unit frame and nameplates. After a
-   tick, `/ticky debug`'s "Last tick on target" line shows how early or late it landed and when the
-   hit, the health change, the counting and the drawing happened. "health" and "counted" should now
-   be a few hundredths of a second after the hit, not +0.000. Send the line (and frames) if the
-   spark still moves.
+1. **The spark holds still as DoTs tick** (4d11641), on the unit frame and nameplates, with "Smooth
+   changes" on. `/ticky debug`'s "Last tick on target" line should show hit, health and counted
+   all +0.000 again. If the spark still moves, send that line and frames, and say which way it
+   hops (toward the health or away) and for how many frames.
 2. **One shading segment** (d5cd7ea). With two DoTs on a mob, the shading is one dark segment
    from the health edge covering both DoTs' remaining damage together. Health bar tab, "Segments"
    switches to one per spell.
