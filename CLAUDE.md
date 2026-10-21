@@ -87,12 +87,19 @@ for that PC (variables at the top). `.gitattributes` keeps `*.cmd` files CRLF.
    tick periods come
    from `Ticky/Data.lua`. Don't hard-code intervals and don't add "tick every N" settings: the owner
    wants nothing configured by hand.
-5. **Display and sound only.** Never automate combat decisions, call protected functions, or
+5. **Everything that modifies a spell counts.** Talents, gear, rank, haste, buffs: never time or
+   size anything from base values or an old reading when a live source exists. The owner asked
+   for this when spells became selectable and had to repeat it (2026-10-21, after Ticky timed a
+   talented 24s Shadow Word: Pain as 18s from a stale aura read). Live sources: the aura when
+   it's readable; the spell's tooltip, read again at each cast (`CastDuration`; on Forever it
+   includes talents and spell power); `UnitChannelInfo` for channels; haste for periods flagged
+   `h` (`AuraPeriod`); tick sizes from the ticks themselves (`UNIT_COMBAT`).
+6. **Display and sound only.** Never automate combat decisions, call protected functions, or
    modify Blizzard unit frames. The health bar overlay only anchors our own frames to the target
    frame's health bar; re-anchor only when the bar, its width or fill direction changes.
-6. **Lua 5.1, no libraries.** No `goto`, `//`, bitwise operators, `require`. No Ace/LibStub.
+7. **Lua 5.1, no libraries.** No `goto`, `//`, bitwise operators, `require`. No Ace/LibStub.
    Every file starts `local ADDON, ns = ...`; shared state goes on `ns`.
-7. **Data.lua is generated.** Change `tools/gen_data.py` and regenerate; never edit values by hand.
+8. **Data.lua is generated.** Change `tools/gen_data.py` and regenerate; never edit values by hand.
 
 ## The addon code (`Ticky/`)
 

@@ -30,3 +30,12 @@ M.update(0.15)
 t = ns.UnitTimers("target", M.now, {})[1]
 check(t and math.abs(t.expires - t.start - 18) < 0.01, "no tooltip duration: the learned 18: "
   .. tostring(t and (t.expires - t.start)))
+
+-- The tooltip is read again at each cast: a talent or gear change counts at once (here, without the
+-- game saying spells changed).
+M.spells[589].desc = "A word of darkness that causes 160 Shadow damage over 21 sec."
+M.cast(589, "S")
+M.update(0.15)
+t = ns.UnitTimers("target", M.now, {})[1]
+check(t and math.abs(t.expires - t.start - 21) < 0.01, "the cast reads the tooltip as it is now: "
+  .. tostring(t and (t.expires - t.start)))

@@ -268,14 +268,16 @@ end
 -- What a spell's tooltip says: "every N sec" ticks, whether it's timed, for how long, and how
 -- much it deals or heals over that time. Also the fallback for spells missing from Data.lua.
 local descCache = {}
-local function DescriptionInfo(id)
+-- `fresh`: read the tooltip again rather than use the one kept from before (a cast: talents, gear
+-- or rank may have changed since).
+local function DescriptionInfo(id, fresh)
   if not id then return end
   local c = descCache[id]
-  if c then return c end
+  if c and not fresh then return c end
   local d = C_Spell.GetSpellDescription(id)
   if not d or Secret(d) or d == "" then
     C_Spell.RequestLoadSpellData(id) -- SPELL_DATA_LOAD_RESULT refreshes the options list
-    return
+    return c
   end
   d = d:lower():gsub("(%d),(%d)", "%1%2")
   local every = tonumber(d:match("every ([%d%.]+) sec")) or ((d:find("every sec") or d:find("per sec")) and 1) or nil
@@ -707,12 +709,13 @@ local function MobForCast(spellID, name)
   return HasTarget() and MobKey("target") or nil
 end
 
--- How long a cast's aura will last: the tooltip's duration first (the client's current one, with
--- talents: Shadow Word: Pain read "24 sec" while the duration learned from an older aura read
--- said 18, so Ticky ended it 6s early and its last two ticks hit with no timer to match, 2026-10-21),
--- else the one learned from an aura read.
+-- How long a cast's aura will last. Everything that changes a spell counts (talents, gear, rank):
+-- the tooltip, read again at each cast, is the client's current one with all of them (Shadow
+-- Word: Pain: 18 sec base, 24 with Improved Shadow Word: Pain). A duration learned from an aura
+-- read is only for spells whose tooltip gives none: it goes stale (an 18 learned before the talent
+-- ended the DoT 6s early, its last two ticks hitting with no timer to match, 2026-10-21).
 local function CastDuration(spellID)
-  local info = DescriptionInfo(spellID)
+  local info = DescriptionInfo(spellID, true)
   return info and info.duration or learned[spellID]
 end
 
