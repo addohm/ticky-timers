@@ -11,8 +11,9 @@ it); "dev" or an older commit means the game is still running an old copy.
 ## To test
 
 1. **The spark holds still as DoTs tick** (4d11641: hops right and back, smaller and steadier
-   than before). Next: `/ticky sparktest` (ae8d7ef), out of combat. Watch the big bar for about 15
-   seconds, note which numbered test (if any) keeps its spark still, and paste the five result lines.
+   than before). Next: `/ticky sparktest` (cc0d069), out of combat. Watch the big bar for about 20
+   seconds, note which numbered test (if any) keeps its spark still, and paste the six result lines.
+   (ae8d7ef's version bounced in all five, but its reset bounced too, so that didn't tell them apart.)
 2. **One shading segment** (d5cd7ea). With two DoTs on a mob, the shading is one dark segment
    from the health edge covering both DoTs' remaining damage together. Health bar tab, "Segments"
    switches to one per spell.
