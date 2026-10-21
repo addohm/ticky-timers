@@ -66,11 +66,12 @@ for that PC (variables at the top). `.gitattributes` keeps `*.cmd` files CRLF.
    Event payloads can be secret too (`UNIT_AURA` is `SecretWhenAurasRestricted`). Check
    `ns.Secret(v)` before comparing, branching, indexing or doing math on them. Skip secret data;
    never let it error the UI (aura scans run in `pcall`).
-   Verified in the Forever 1.60.1 client by Does It Die (https://github.com/swirllyman/DoesItDie,
-   MIT): in combat, reading the target's auras errors; your own casts
-   (`UNIT_SPELLCAST_SENT/SUCCEEDED`), `C_Spell.GetSpellDescription` and `UNIT_COMBAT` amounts,
-   schools and outcomes stay readable; enemy GUIDs are readable in the open world and secret in
-   instances; the first DoT tick lands about one interval after the cast.
+   Seen in Ticky's own testing on the Forever beta (2026-10-21): in combat the target's auras
+   can't be read (bars vanished on the first aura change), while timers started from your own
+   casts (`UNIT_SPELLCAST_SENT/SUCCEEDED`) work; `/ticky debug` showed every tracked priest spell
+   as `ContextuallySecret` (`C_Secrets.GetSpellAuraSecrecy`). From the API docs, not yet seen in
+   game: `UNIT_COMBAT` payloads have no secret flags; creature GUIDs are secret wherever unit
+   identity is restricted (expected in instances), hence the nameplate-token fallback.
 4. **No hand-entered timing.** Durations come from the aura when it's readable, else the duration
    last read for that spell (`TickyCharDB.durations`), else the spell's tooltip; tick periods come
    from `Ticky/Data.lua`. Don't hard-code intervals and don't add "tick every N" settings: the owner
@@ -94,8 +95,8 @@ call another file's `ns` functions at runtime, not at load time, unless that fil
 | `Data.lua` | Generated spell data | `ns.Data`, `ns.DataBuild` |
 | `Core.lua` | Defaults, lists (textures, fonts, sounds, sound events), aura and channel reading, alerts (sounds, speech, messages), missing-spell placeholders, display list, tick math, events, slash commands | `DEFAULTS`, `CHAR_DEFAULTS`, `TEXTURES`, `FONTS`, `OUTLINES`, `SOUNDS`, `SOUND_EVENTS`, `CHANNELS`, `SoundChoices`, `Secret`, `Lookup`, `SpellInfo`, `AuraPeriod`, `ComputeTicks`, `BuildDisplay`, `ActiveTimers`, `RefreshDisplay`, `HasTarget`, `SpellbookSpells`, `Track`, `Untrack`, `IsTracked`, `OrderedSpells`, `MoveSpell`, `AddSpell`, `Describe`, `SoundFor`, `WarnSeconds`, `PlaySound`, `TestSound`, `RemoveCustomSound`, `RemainingAmount`, `TargetAmounts`, `UnitTimers`, `MobKey`, `plateUnits`, `Debug` (`/ticky debug`), `ResetSettings`, `CopyDefaults`, `SpellCfg`, `DB`, `CharDB`, `InCombat`, `TB` (event frame) |
 | `Bars.lua` | Anchor and bar frames, styling, drawing, missing bars, preview, on-screen messages. Bar functions take a style `st` (the settings, or the nameplate style) | `CreateBars`, `ApplyStyle`, `UpdateBars`, `SetPreview`, `preview`, `ResetPosition`, `ShowMessage`, `GetBar`, `UpdateBar`, `IconSpace` |
-| `Overlay.lua` | Health bar overlay: finding the target health bar (custom path, EllesmereUI, Blizzard), clipped running-total StatusBars anchored to its fill edge, scaled to secret max health | `FindHealthBar`, `UpdateOverlay`, `CreateOverlay` |
-| `Plates.lua` | Bars on nameplates: a holder per (recycled) nameplate frame, parented to it (or to EllesmereUI's pooled plate) and anchored to both edges of the plate's health bar (`PlateBar`: EllesmereUI, Blizzard's `UnitFrame.HealthBarsContainer.healthBar`, else a search for a "health" StatusBar, as in Does It Die). Its width sets the bars' size (`plateHeightPct`); Bars.lua's bars are drawn with a per-plate style proxy (`PLATE_KEYS` swap in the `plate*` text settings, `growUp` from `plateAnchor`) | `UpdatePlates`, `LayoutPlates`, `CreatePlates` |
+| `Overlay.lua` | Health bar overlay: finding the target health bar (custom path; another addon's unit button whose `unit` attribute is "target", its largest StatusBar; else Blizzard's), and a chain of StatusBars per group (damage, heal) as wide as the health bar, scaled to the secret max health, the first pinned to the fill edge and each next to the end of the previous one's fill, inside a clipping frame | `FindHealthBar`, `UpdateOverlay`, `CreateOverlay` |
+| `Plates.lua` | Bars on nameplates: a holder per (recycled) nameplate frame, parented to it and anchored to both edges of the plate's health bar (`PlateBar`: the largest visible StatusBar among the plate's child frames, which covers Blizzard's plates and addons that build on them). Its width sets the bars' size (`plateHeightPct`); Bars.lua's bars are drawn with a per-plate style proxy (`PLATE_KEYS` swap in the `plate*` text settings, `growUp` from `plateAnchor`) | `UpdatePlates`, `LayoutPlates`, `CreatePlates` |
 | `Widgets.lua` | Option controls | `ns.W` (`Label`, `Header`, `Button`, `Check`, `Slider`, `Cycle`, `Swatch`, `EditBox`, `Setting`) |
 | `Options.lua` | Options window, Settings-panel entry, shift-click link hook | `ToggleOptions`, `RefreshOptions` |
 
@@ -318,6 +319,9 @@ Game data (spell tables) for Forever is on wago.tools under product `wowf`; see
 - Assuming wago.tools lacked Forever data. It has it (product `wowf`).
 - Designing around the combat log (measuring ticks). It isn't available on Forever.
 - Assuming secret values only show up in raids and dungeons. Aura data is secret in any combat, so
-  0.5 showed no bars for DoTs on a mob in the open world; fixed by timing from casts, as Does It Die
-  does. Read `SecretPredicatesDocumentation.lua` for what each `SecretWhen...` flag means, and check
-  Does It Die's notes on what's verified in the client, before relying on an API.
+  0.5 showed no bars for DoTs on a mob in the open world; fixed by timing from casts. Read
+  `SecretPredicatesDocumentation.lua` for what each `SecretWhen...` flag means before relying on an
+  API.
+- Copying from or crediting other addons. The owner wants Ticky's code and docs to be its own: no
+  code, patterns or frame names taken from other addons, and no references to them. Work from
+  Blizzard's UI source and API docs, and from tests in the client.

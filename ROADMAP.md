@@ -8,10 +8,10 @@
    in combat, `StatusBar:SetTimerDuration` could draw exact bars even for secret auras.
 2. Test the health bar overlay in the client: on Blizzard's and EllesmereUI's target frames, both
    directions, layering above the frame, learned tick sizes (`/ticky debug` could list them).
-   Then maybe the same on nameplates and the focus frame, as Does It Die does. Also test bars on
-   nameplates: placement with Blizzard's and EllesmereUI's plates, layering, plates after /reload.
+   Then maybe the same on nameplates and the focus frame. Also test bars on nameplates: placement
+   with Blizzard's and EllesmereUI's plates, layering, plates after /reload.
 3. Detect DoTs dispelled in combat: their ticks stop. `UNIT_COMBAT` shows tick amounts and schools;
-   match them to DoTs as Does It Die does, and drop a DoT after missed ticks.
+   Ticky already matches them to timers for tick sizes; drop a DoT after missed ticks.
 4. Check how Forever handles refreshing a DoT (does the tick timer restart?) and adjust tick phase.
 5. Profiles (copy settings between characters).
 6. Regenerate Data.lua when Forever's launch build lands (Nov 4, 2026).

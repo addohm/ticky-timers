@@ -1,11 +1,10 @@
 -- Ticky nameplates: the same timer bars, smaller, on each mob's nameplate, for the tracked buffs
 -- and debuffs Ticky knows are on that mob (from your casts, or read from its auras).
 --
--- The bars always span the nameplate's health bar: a holder frame is anchored to both of its
--- edges, and each plate's bars are laid out to the holder's width, with the height a set share
--- of it. The holder is parented to the plate (or to EllesmereUI's own plate frame), so the bars
--- move, scale, fade and hide with it. Finding the health bar follows Does It Die (MIT): EllesmereUI's
--- plate, then Blizzard's bar, then a search of other nameplate addons' frames for a "health" bar.
+-- The bars always span the nameplate's health bar: a holder frame is parented to the plate and
+-- anchored to both edges of that bar, and each plate's bars are laid out to the holder's width,
+-- with the height a set share of it. The health bar is the largest visible status bar inside the
+-- plate, which covers Blizzard's plates and nameplate addons that build theirs on top of them.
 local ADDON, ns = ...
 
 local ipairs, pairs, pcall, type, floor, max = ipairs, pairs, pcall, type, math.floor, math.max
@@ -36,89 +35,49 @@ function ns.LayoutPlates() layoutVersion = layoutVersion + 1 end
 -- Finding the nameplate's health bar
 ---------------------------------------------------------------------------
 
-local function Get(t, k)
-  local ok, v = pcall(function() return t[k] end)
-  if ok and type(v) == "table" and not Secret(v) then return v end
-end
-
 local function IsBar(f) return type(f) == "table" and type(f.GetStatusBarTexture) == "function" end
 
-local function Shown(f)
-  local ok, v = pcall(f.IsShown, f)
+local function Visible(f)
+  local ok, v = pcall(f.IsVisible, f)
   return ok and not Secret(v) and v == true
 end
 
-local function IsUnder(frame, plate)
-  local current = frame
-  for _ = 1, 12 do
-    local ok, parent = pcall(current.GetParent, current)
-    if not ok or parent == nil then return false end
-    if parent == plate then return true end
-    current = parent
-  end
-  return false
-end
+local ours = {} -- our own holder frames, left out of the search
 
--- Other nameplate addons (Plater, KUI, ...) hang their frames on the plate and keep the bar under a
--- key like "health". Breadth-first, a few levels deep, Blizzard's own UnitFrame skipped.
-local function SearchBar(plate)
-  local queue, seen, head = { plate }, { [plate] = true }, 1
-  local depth = { [plate] = 0 }
-  local unitFrame = Get(plate, "UnitFrame")
-  while queue[head] do
-    local frame = queue[head]
-    head = head + 1
-    local ok, fields = pcall(function()
-      local out = {}
-      for k, v in pairs(frame) do
-        if type(k) == "string" and type(v) == "table" then out[#out + 1] = { k, v } end
+-- The largest visible status bar inside the plate (a health bar is at least as wide as a cast or
+-- power bar and usually taller), a few levels of child frames deep.
+local function LargestBar(plate)
+  local best, bestArea
+  local function visit(f, d)
+    if ours[f] then return end
+    if IsBar(f) and Visible(f) then
+      local ok, w, h = pcall(function() return f:GetWidth(), f:GetHeight() end)
+      if ok and not Secret(w) and not Secret(h) and w and h and w * h > (bestArea or 0) then
+        best, bestArea = f, w * h
       end
-      return out
-    end)
-    if ok then
-      table.sort(fields, function(a, b) return a[1] < b[1] end)
-      for _, f in ipairs(fields) do
-        if f[1]:lower():find("health", 1, true) and IsBar(f[2]) and IsUnder(f[2], plate) and Shown(f[2]) then
-          return f[2]
-        end
-      end
-      if depth[frame] < 3 then
-        for _, f in ipairs(fields) do
-          local v = f[2]
-          if not seen[v] and v ~= unitFrame and type(v.GetObjectType) == "function" and not IsBar(v)
-            and IsUnder(v, plate) then
-            seen[v] = true
-            depth[v] = depth[frame] + 1
-            queue[#queue + 1] = v
-          end
-        end
+    end
+    if d < 5 then
+      local ok, kids = pcall(function() return { f:GetChildren() } end)
+      if ok then
+        for _, k in ipairs(kids) do visit(k, d + 1) end
       end
     end
   end
+  visit(plate, 0)
+  return best
 end
 
-local searched = {} -- [plate] = { bar, at }: the search is slow, so its answer is kept a while
+local searched = {} -- [plate] = { bar, at }: kept while the bar stays visible, else retried each second
 
--- The health bar the plate shows and the frame our bars should hang from.
-local function PlateBar(plate, unit)
-  local eui = type(EllesmereNameplates_NS) == "table" and Get(EllesmereNameplates_NS, "plates")
-  local euiPlate = eui and Get(eui, unit)
-  if euiPlate and Get(euiPlate, "nameplate") == plate and IsBar(Get(euiPlate, "health")) then
-    return euiPlate.health, euiPlate
-  end
-  local uf = Get(plate, "UnitFrame")
-  local blizzard = uf and ((Get(uf, "HealthBarsContainer") and Get(uf.HealthBarsContainer, "healthBar"))
-    or Get(uf, "healthBar") or Get(uf, "HealthBar"))
-  if IsBar(blizzard) and Shown(blizzard) then return blizzard, plate end
+-- The health bar the plate shows (nil: use the whole plate).
+local function PlateBar(plate)
   local s = searched[plate]
   local now = GetTime()
-  if not (s and (s.bar and Shown(s.bar) or now - s.at < 1)) then
-    local ok, found = pcall(SearchBar, plate)
-    s = { bar = ok and found or nil, at = now }
-    searched[plate] = s
-  end
-  if s.bar then return s.bar, plate end
-  return nil, plate
+  if s and ((s.bar and Visible(s.bar)) or (not s.bar and now - s.at < 1)) then return s.bar end
+  local ok, bar = pcall(LargestBar, plate)
+  s = { bar = ok and bar or nil, at = now }
+  searched[plate] = s
+  return s.bar
 end
 
 ---------------------------------------------------------------------------
@@ -138,11 +97,11 @@ local function NewHolder()
   return h
 end
 
--- Hang the holder on the plate (or EllesmereUI's plate) across the health bar's full width.
-local function Anchor(h, host, bar, plate)
-  if h.host ~= host then
-    h.host = host
-    if not h.frame then h.frame = CreateFrame("Frame", nil, host) else h.frame:SetParent(host) end
+-- Hang the holder on the plate across the health bar's full width.
+local function Anchor(h, plate, bar)
+  if not h.frame then
+    h.frame = CreateFrame("Frame", nil, plate)
+    ours[h.frame] = true
   end
   local f, to = h.frame, bar or plate
   f:ClearAllPoints()
@@ -153,7 +112,7 @@ local function Anchor(h, host, bar, plate)
     f:SetPoint("TOPLEFT", to, "BOTTOMLEFT", 0, -db.plateOffsetY)
     f:SetPoint("TOPRIGHT", to, "BOTTOMRIGHT", 0, -db.plateOffsetY)
   end
-  -- Above the plate's art; a plate addon's bar may sit in a strata of its own.
+  -- Above the bar's art; a nameplate addon's bar may sit in a strata of its own.
   local ok, strata, level = pcall(function() return to:GetFrameStrata(), to:GetFrameLevel() end)
   if ok and not Secret(strata) and not Secret(level) and level then
     f:SetFrameStrata(strata)
@@ -207,8 +166,8 @@ function ns.UpdatePlates(now)
           h = NewHolder()
           holders[plate] = h
         end
-        local bar, host = PlateBar(plate, unit)
-        if h.host ~= host or h.bar ~= bar or h.version ~= layoutVersion then Anchor(h, host, bar, plate) end
+        local bar = PlateBar(plate)
+        if not h.frame or h.bar ~= bar or h.version ~= layoutVersion then Anchor(h, plate, bar) end
         if Size(h) then
           h.used = true
           for i, e in ipairs(list) do ns.UpdateBar(ns.GetBar(h.bars, i, h.style, h.frame), e, now, h.style) end

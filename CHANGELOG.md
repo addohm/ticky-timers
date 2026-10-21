@@ -26,8 +26,8 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
   second, text shadow. Tick height.
 - "Hide bars when you have no target".
 - Bars on nameplates (new Nameplates tab, off by default): your tracked buffs and debuffs on each mob,
-  as small bars above or below its nameplate, always as wide as the plate's health bar (Blizzard's,
-  EllesmereUI's, or found on another nameplate addon), with the height a share of that width. All
+  as small bars above or below its nameplate, always as wide as the plate's health bar (the largest
+  status bar on the plate, so nameplate addons work too), with the height a share of that width. All
   plates but your target's, all, or only your target's; distance, spacing, font size,
   icon/name/time/ticks; per-spell opt-out.
   The options window is wider for the eighth tab.
@@ -36,7 +36,7 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
 - Health bar overlay (new Health bar tab, off by default): on your target's health bar, the part your
   DoTs and channel will still take off, ending at its current health, and the part your HoTs will
   still heal. Per-spell colors or one color each, opacity, texture, dividers; per-spell opt-out.
-  Works on EllesmereUI's or Blizzard's target frame, or another addon's by frame name. Amounts
+  Finds a unit frame addon's target frame or Blizzard's, or takes a frame name. Amounts
   come from the tooltip until Ticky has seen the spell's ticks land, then from the real ticks.
 ### Fixed
 - Bars now show in combat. Forever hides aura details from addons in combat, so Ticky starts each
@@ -44,7 +44,6 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
   length is the one last read from that spell's aura (talents included), else the tooltip. Exact
   times and stacks replace the estimate whenever auras are readable, a resist or immunity right
   after the cast drops it, and mobs are tracked by nameplate in dungeons where their IDs are hidden.
-  Approach from Does It Die.
 - `UNIT_AURA` with a secret unit token no longer risks an error; Ticky re-reads target and self.
 ### Changed
 - The options window is larger and has six tabs: Spells, Bars, Layout, Text & Ticks, Sounds

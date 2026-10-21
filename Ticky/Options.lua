@@ -618,7 +618,7 @@ local function BuildHealthPage()
   W.Button(p, "Use", 60, use):SetPoint("LEFT", box, "RIGHT", 6, 0)
   box:SetScript("OnEnterPressed", use)
   Note(p, "For example MyUnitFrames_Target.Health. Leave empty to find it automatically "
-    .. "(EllesmereUI's target frame, else Blizzard's). Use /fstack to find a frame's name.",
+    .. "(a unit frame addon's target frame, else Blizzard's). Use /fstack to find a frame's name.",
     COL2 + 4, -94, 320)
   Note(p, "How much is left comes from each spell's tooltip at first, which leaves out spell power. "
     .. "Once Ticky has seen the spell's ticks land on your target, it uses what they actually did.\n\n"

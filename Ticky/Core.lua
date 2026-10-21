@@ -202,25 +202,49 @@ end
 -- School masks by the word a tooltip uses ("30 Shadow damage over 18 sec").
 local SCHOOLS = { physical = 1, holy = 2, fire = 4, nature = 8, frost = 16, shadow = 32, arcane = 64 }
 
--- The periodic amount in a tooltip: total and school (nil school: a heal or unnamed). Takes the
--- last "N <school> damage over" clause, so Holy Fire's direct part is skipped; then heals
--- ("heals the target for 32 over 12 sec"); then "N damage every X sec ... lasts Y sec".
--- Pattern idea from Does It Die's parseDot (MIT).
+-- The amount and school in the clause that ends at `stop` (an index into `d`): the last number
+-- before it, and the school word between that number and the end. School is nil when the clause
+-- doesn't say "damage" (a heal).
+local function ClauseAmount(d, stop)
+  local lead = d:sub(1, stop - 1)
+  local numAt, numEnd, n
+  local i = 1
+  while true do
+    local s, e, found = lead:find("(%d+)", i)
+    if not s then break end
+    numAt, numEnd, n, i = s, e, found, e + 1
+  end
+  if not n then return end
+  local words = lead:sub(numEnd + 1)
+  local school
+  if words:find("damage") then
+    school = 1
+    for w in words:gmatch("%a+") do
+      if SCHOOLS[w] then school = SCHOOLS[w] end
+    end
+  end
+  return tonumber(n), school
+end
+
+-- What a tooltip says the periodic part deals or heals in total, and its school. The periodic part
+-- is the clause ending "over <time>" (the last one, after any direct part such as Holy Fire's);
+-- failing that, "<amount> every <period>" times the number of periods in its duration.
 local function DescriptionAmount(d)
   local total, school
-  for n, words in d:gmatch("(%d+)%s*([%a ]-)%s*damage over [%d%.]+ %a+") do
-    total, school = tonumber(n), 1
-    for w in words:gmatch("%a+") do school = SCHOOLS[w] or school end
+  local from = 1
+  while true do
+    local s, e = d:find(" over [%d%.]+ %a+", from)
+    if not s then break end
+    local n, sc = ClauseAmount(d, s)
+    if n then total, school = n, sc end
+    from = e + 1
   end
   if total then return total, school end
-  for n in d:gmatch("(%d+)[%a ]-over [%d%.]+ %a+") do total = tonumber(n) end
-  if total then return total end
-  local n, words, every = d:match("(%d+)%s*([%a ]-)%s*damage every ([%d%.]+) sec")
+  local s, _, every = d:find(" every ([%d%.]+) sec")
   local lasts = DescriptionDuration(d)
-  if n and tonumber(every) and lasts then
-    school = 1
-    for w in words:gmatch("%a+") do school = SCHOOLS[w] or school end
-    return tonumber(n) * floor(lasts / tonumber(every) + 0.5), school
+  if s and tonumber(every) and lasts then
+    local n, sc = ClauseAmount(d, s)
+    if n then return n * floor(lasts / tonumber(every) + 0.5), sc end
   end
 end
 
@@ -250,6 +274,7 @@ local function DescriptionInfo(id)
   descCache[id] = c
   return c
 end
+ns.TooltipInfo = DescriptionInfo
 
 -- Seconds between ticks for an aura, or nil if it doesn't tick (or we don't know).
 local function AuraPeriod(id)
@@ -359,10 +384,10 @@ local function PlateToken(unit)
   if unit:match("^nameplate%d+$") then return unit end
   if not (C_NamePlate and C_NamePlate.GetNamePlateForUnit) then return end
   local ok, plate = pcall(C_NamePlate.GetNamePlateForUnit, unit)
-  if not ok or not plate or Secret(plate) or type(plate) ~= "table" then return end
-  local uf = rawget(plate, "UnitFrame")
-  local token = rawget(plate, "namePlateUnitToken") or (type(uf) == "table" and rawget(uf, "unit"))
-  if type(token) == "string" and not Secret(token) and token:match("^nameplate%d+$") then return token end
+  if not ok or type(plate) ~= "table" or Secret(plate) or type(plate.GetUnit) ~= "function" then return end
+  local token -- Blizzard's nameplate frames answer GetUnit() with their token
+  ok, token = pcall(plate.GetUnit, plate)
+  if ok and type(token) == "string" and not Secret(token) and token:match("^nameplate%d+$") then return token end
 end
 
 -- A stable key for the unit's mob: its GUID when readable (open world, players), else
