@@ -834,15 +834,28 @@ local function ExpectedTick(spellID)
 end
 
 -- How much the timer will still deal or heal, or nil if unknown.
--- A tick counts as done the moment it's seen landing (UNIT_COMBAT, see OnTickAmount), so the
--- shading shrinks together with the health bar; one never seen counts once its time is this far
--- past (the mob may be out of sight).
+-- When does a tick count as done for the shading? Together with the health change it causes, so
+-- the shading shrinks in the same moment the health drops and its far end holds still. The game
+-- reports the hit (UNIT_COMBAT) and the health change (UNIT_HEALTH) separately, in either order:
+-- a seen tick waits for the health change (up to PENDING_MAX), or counts at once if the health
+-- changed just before. A tick never seen counts once its time is UNSEEN_TICK_GRACE past.
 local UNSEEN_TICK_GRACE = 0.4
+local HEALTH_PAIR = 0.1  -- a health change this recent belongs with the tick being seen now
+local PENDING_MAX = 0.25
+local healthAt = {}      -- [mob] = when its health last changed
+
+local function Commit(t)
+  if t.pendingTick then
+    t.lastTick = math.max(t.lastTick or 0, t.pendingTick)
+    t.pendingTick = nil
+  end
+end
 
 function ns.RemainingAmount(t, now)
   if not t.spellID or not t.interval or t.interval < 0.1 or t.expires <= now then return end
   local size = ExpectedTick(t.spellID)
   if not size then return end
+  if t.pendingTick and now - t.pendingAt > PENDING_MAX then Commit(t) end
   local done = math.max(t.lastTick or 0, TicksPassed(t, now - UNSEEN_TICK_GRACE))
   return math.max(0, TicksPassed(t, t.expires) - done) * size
 end
@@ -866,7 +879,7 @@ local function OnTickAmount(mob, isHeal, amount, school, crit)
     local dist = abs(now - (t.start + k * t.interval))
     local last = TicksPassed(t, t.expires)
     if abs(now - t.expires) < dist then k, dist = last, abs(now - t.expires) end
-    if k >= 1 and k <= last and dist <= TICK_WINDOW and k > (t.lastTick or 0)
+    if k >= 1 and k <= last and dist <= TICK_WINDOW and k > (t.matchedTick or 0)
       and (not bestDist or dist < bestDist) then
       best, bestK, bestDist = t, k, dist
     end
@@ -874,8 +887,12 @@ local function OnTickAmount(mob, isHeal, amount, school, crit)
   for _, t in pairs(timers[mob] or {}) do consider(t) end
   if channel and not isHeal and mob == MobKey("target") then consider(channel) end
   if not best then return end
-  best.lastTick = bestK
-  if ns.UpdateOverlay then ns.UpdateOverlay(now) end -- shrink the shading as the health drops
+  best.matchedTick = bestK
+  best.pendingTick, best.pendingAt = bestK, now
+  if now - (healthAt[mob] or -1) <= HEALTH_PAIR then
+    Commit(best) -- the health already dropped: shrink the shading now
+    if ns.UpdateOverlay then ns.UpdateOverlay(now) end
+  end
   if crit then return end
   local id, old = best.spellID, tickSizes[best.spellID]
   -- Something else's hit that happened to line up: far off what this spell has been doing.
@@ -1459,10 +1476,25 @@ ns.plateUnits = {} -- nameplate unit tokens that are up, for Plates.lua
 -- The health shading's mirror bar follows health as it changes (at most once a frame).
 local healthDrawnAt
 function TB:UNIT_HEALTH(unit)
-  if not (db.overlayDamage or db.overlayHeal) then return end
   if not Secret(unit) and unit ~= "target" and not unit:find("^nameplate%d") then return end
   local now = GetTime()
-  if now == healthDrawnAt then return end
+  -- Ticks seen landing on this mob count now, together with the health drop.
+  local mob = not Secret(unit) and MobKey(unit)
+  local committed = false
+  for m, list in pairs(timers) do
+    if not mob or m == mob then
+      for _, t in pairs(list) do
+        if t.pendingTick then Commit(t); committed = true end
+      end
+    end
+  end
+  if channel and channel.pendingTick and (not mob or mob == MobKey("target")) then
+    Commit(channel)
+    committed = true
+  end
+  if mob then healthAt[mob] = now end
+  if not (db.overlayDamage or db.overlayHeal) then return end
+  if now == healthDrawnAt and not committed then return end
   healthDrawnAt = now
   ns.UpdateOverlay(now)
 end

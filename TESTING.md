@@ -10,9 +10,9 @@ it); "dev" or an older commit means the game is still running an old copy.
 
 ## To test
 
-1. **Shading holds still on the target frame** (17c02eb). On EllesmereUI's target frame the spark
-   end should now hold still as ticks land, like on nameplates. `/ticky debug`'s "Health bar
-   shading on" line ends with the scale it matched (not 1 if EllesmereUI scales its frame).
+1. **The spark holds still as DoTs tick** (this push), on the unit frame and nameplates. If it still
+   jumps, say which way (toward the health first, or away from it first) and whether "Smooth
+   changes" on/off makes a difference.
 2. **One shading segment** (d5cd7ea). With two DoTs on a mob, the shading is one dark segment
    from the health edge covering both DoTs' remaining damage together. Health bar tab, "Segments"
    switches to one per spell.

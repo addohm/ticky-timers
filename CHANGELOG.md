@@ -62,7 +62,9 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
 - Health bar shading: its far end no longer jumps on each tick. The shading now hangs off an
   invisible health bar of Ticky's own, fed the unit's health, instead of the unit frame's bar, so
   the health end and the shading change together and ease the same way whatever the unit frame
-  does. A tick counts as done the moment Ticky sees it land. The frame name on the Health bar tab can now be
+  does. A tick counts together with the health change it causes: the game reports the hit and
+  the health change separately, so a seen tick waits for the health change (up to a quarter
+  second) and both are applied, and eased, in the same moment. The frame name on the Health bar tab can now be
   any frame (the area to shade), not only a status bar, and `/ticky debug` shows how often the
   target shading had to re-anchor. The real cause on unit frames: the shading lived at the main UI's
   scale but was sized in the unit frame's units, so on a frame drawn bigger or smaller (as

@@ -135,8 +135,10 @@ UNIT_COMBAT WOUND/HEAL            -> OnTickAmount: match to a timer on that mob 
                                      school and tick time (+-0.35s, each tick once); non-crits
                                      teach tickSizes[spellID] (60/40 running average)
 every 0.1s (and on each seen tick) -> ns.UpdateOverlay: UnitAmounts per unit (ticks left x
-                                     ExpectedTick: learned, else tooltip total / tick count; a tick
-                                     is done when seen (t.lastTick) or 0.4s after its time) ->
+                                     ExpectedTick: learned, else tooltip total / tick count; a seen
+                                     tick (t.matchedTick) is held as t.pendingTick until the mob's
+                                     UNIT_HEALTH (or 0.25s), or counts at once if the health changed
+                                     <=0.1s before, then t.lastTick; unseen: 0.4s after its time) ->
                                      segment values, eased (ExponentialEaseOut) while the mob stays
                                      the same; spark and outline (Trim) anchored to our own bars
 
