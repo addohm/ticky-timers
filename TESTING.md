@@ -10,8 +10,8 @@ it); "dev" or an older commit means the game is still running an old copy.
 
 ## To test
 
-1. **A miss cancels the cast** (90b6bc6). A missed first cast leaves no bar; a missed recast leaves
-   the old bar running. `/ticky debug` should show the miss as "cancelled …".
+1. **A missed recast** (90b6bc6) leaves the old bar running, and **with several mobs** a miss on one
+   doesn't touch the DoTs on the others. `/ticky debug` should show it as "cancelled …".
 2. **A miss by someone else doesn't** (90b6bc6). In a group with melee, your DoT bars shouldn't
    vanish when a party member's swing misses as you cast.
 3. **Nameplate bars stay on their own mob** (f0bf01b). Two or three mobs with plate bars on "All",
@@ -40,6 +40,8 @@ it); "dev" or an older commit means the game is still running an old copy.
 
 ## Confirmed
 
+- 2026-10-21: a missed first cast leaves no bar (two SW:P misses on one mob, both caught just after
+  the cast was reported, within the same tenth of a second).
 - 2026-10-21: build stamp: `/ticky debug` shows the installed commit (0fc179a).
 - 2026-10-21: bars in combat, timed from your casts.
 - 2026-10-21: tick sizes learned from real ticks (`/ticky debug` "(seen)").
