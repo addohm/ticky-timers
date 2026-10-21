@@ -10,22 +10,25 @@ it); "dev" or an older commit means the game is still running an old copy.
 
 ## To test
 
-1. **Health shading on nameplates** (8164a0c). Health bar tab: damage (and healing) on, "Also on
+1. **Built-in sound files** (this push). After installing, restart the game (new files only load at
+   startup). Sounds tab: set a sound to "Ticky beep" or "Ticky chime" and press Test. If you hear
+   it, addon sound files work and the problem is your own file's location or path; if not, the game
+   isn't playing addon sound files at all. Then for your own file: where it is on disk (full path),
+   what the "Added files" list shows, and the message next to Test.
+2. **Health shading on nameplates** (8164a0c). Health bar tab: damage (and healing) on, "Also on
    nameplates" on. Each mob's nameplate health bar shows its own DoTs' remaining damage from the
    health edge; the timer bars still sit on the plate's health bar, not on the shading.
-2. **Nameplate bars' own look** (8164a0c). Nameplates tab, "Their own look": texture, border,
+3. **Nameplate bars' own look** (8164a0c). Nameplates tab, "Their own look": texture, border,
    background, font etc. change only the nameplate bars, not the main bars; off again, they match
    the main bars.
-3. **A missed recast** (90b6bc6) leaves the old bar running, and **with several mobs** a miss on one
+4. **A missed recast** (90b6bc6) leaves the old bar running, and **with several mobs** a miss on one
    doesn't touch the DoTs on the others. `/ticky debug` should show it as "cancelled …".
-4. **A miss by someone else doesn't** (90b6bc6). In a group with melee, your DoT bars shouldn't
+5. **A miss by someone else doesn't** (90b6bc6). In a group with melee, your DoT bars shouldn't
    vanish when a party member's swing misses as you cast.
-5. **Nameplate bars stay on their own mob** (f0bf01b). Two or three mobs with plate bars on "All",
+6. **Nameplate bars stay on their own mob** (f0bf01b). Two or three mobs with plate bars on "All",
    including as mobs die and new ones come into view.
-6. **No "ended" sounds after a fight** for mobs that died (dd71ea1). Buffs and HoTs (Renew,
+7. **No "ended" sounds after a fight** for mobs that died (dd71ea1). Buffs and HoTs (Renew,
    Fortitude) should still count down and alert after combat.
-7. **Your own sound file** (ff9d0b1). Add it on the Sounds tab, restart the game, press Test: you
-   should hear it and see "Playing."
 8. **Warning sound** (ff9d0b1). About 3s before a DoT ends on a living mob you hear it and the bar
    flashes.
 9. **Health bar overlay after the rewrite** (f6f6aa4). On your EllesmereUI target frame: starts at

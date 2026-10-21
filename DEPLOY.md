@@ -67,8 +67,10 @@ No environment variables or secrets. Settings live in the game's saved variables
 
 ## Troubleshooting
 
-- **A sound file you added doesn't play**: press Test on the Sounds tab; it says whether the game
-  played it. The path is relative to the WoW folder (e.g. `Interface\AddOns\MySounds\ding.ogg`;
+- **A sound file you added doesn't play**: first pick "Ticky beep" (a file that comes with Ticky)
+  and press Test. If that's silent too, the game isn't playing addon sound files at all. If it
+  plays, the problem is your file: press Test next to it; it says whether the game played it.
+  It must not be inside `Interface\AddOns\Ticky`, which an update replaces. The path is relative to the WoW folder (e.g. `Interface\AddOns\MySounds\ding.ogg`;
   a pasted full path is trimmed to that), and the file must exist when the game starts: restart
   the game after adding it, `/reload` isn't enough. .ogg and .mp3 are safest. Keep your files outside `Interface\AddOns\Ticky`, which an update replaces.
 - **No health bar shading**: turn it on in the Health bar tab, and check its "Drawing on" line. If it

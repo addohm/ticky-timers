@@ -120,6 +120,9 @@ ns.SOUNDS = {
   { "IG_PLAYER_INVITE", "Invite", 880 },
   { "UI_BNET_TOAST", "Toast", 18019 },
   { "PVP_THROUGH_QUEUE", "Queue Pop", 8459 },
+  -- Sound files that come with Ticky (tools/make_sounds.py).
+  { "F:Interface\\AddOns\\Ticky\\Sounds\\beep.ogg", "Ticky beep" },
+  { "F:Interface\\AddOns\\Ticky\\Sounds\\chime.ogg", "Ticky chime" },
 }
 
 ns.CHANNELS = { { "Master", "Master" }, { "SFX", "Effects" }, { "Dialog", "Dialog" }, { "Ambience", "Ambience" } }

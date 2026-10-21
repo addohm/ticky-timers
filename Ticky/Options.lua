@@ -550,9 +550,10 @@ local function BuildSoundsPage()
 
   W.Header(p, "Your own sound files"):SetPoint("TOPLEFT", COL2, -232)
   Note(p, "A path inside the WoW folder, like Interface\\AddOns\\MySounds\\ding.ogg, or a sound file ID. "
-    .. "New files only load when the game starts.", COL2 + 4, -252, 320)
+    .. "Not inside Ticky's own folder: updates replace it. New files only load when the game starts.",
+    COL2 + 4, -252, 320)
   local box = W.EditBox(p, 220)
-  box:SetPoint("TOPLEFT", COL2 + 10, -284)
+  box:SetPoint("TOPLEFT", COL2 + 10, -296)
   local chosen
   local function files() return db().customSounds end
   local fileCycle = Place(p, W.Cycle(p, "Added files", function()
@@ -560,7 +561,7 @@ local function BuildSoundsPage()
     for _, f in ipairs(files()) do out[#out + 1] = { f, f:match("([^\\/]+)$") or f } end
     if #out == 0 then out[1] = { nil, "(none yet)" } end
     return out
-  end, function() return chosen end, function(v) chosen = v end), COL2 + 4, -312)
+  end, function() return chosen end, function(v) chosen = v end), COL2 + 4, -324)
   local status = W.Label(p, "", "GameFontHighlightSmall")
   status:SetWidth(250)
   local function say(ok, msg) status:SetText((ok and "|cff66ff66" or "|cffff6666") .. msg .. "|r") end
@@ -569,8 +570,8 @@ local function BuildSoundsPage()
     if ns.PlaySound("F:" .. f) then
       say(true, "Playing.")
     else
-      say(false, "The game didn't play it. Check the file is there and restart the game "
-        .. "(new files only load at startup; /reload isn't enough).")
+      say(false, "The game didn't play " .. f .. ". Check the file is there, outside Ticky's folder, "
+        .. "and restart the game (new files only load at startup; /reload isn't enough).")
     end
   end
   local function add()
@@ -601,7 +602,8 @@ local function BuildSoundsPage()
   testButton:SetPoint("TOPLEFT", fileCycle, "BOTTOMLEFT", 0, -2)
   status:SetPoint("TOPLEFT", testButton, "TOPRIGHT", 8, -2)
   Note(p, "\"Say it\" speaks with the game's text-to-speech voice. Each spell can pick its own sounds "
-    .. "and words on the Spells tab.", COL2 + 4, -400, 320)
+    .. "and words on the Spells tab. \"Ticky beep\" and \"Ticky chime\" are sound files that come with "
+    .. "Ticky.", COL2 + 4, -412, 320)
   p.OnRefresh = function() if not chosen then chosen = files()[1] end end
 end
 
