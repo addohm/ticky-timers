@@ -114,9 +114,12 @@ UNIT_SPELLCAST_SENT (player)      -> sentTo[castGUID] = MobForCast(spell, target
 UNIT_SPELLCAST_SUCCEEDED (player) -> OnCast: tracked, not a channel -> Store(mob, timer)
                                      start = now, length = CastDuration (learned, else tooltip);
                                      apply / refresh sound; recentCast[mob] for resists
-UNIT_COMBAT MISS/DODGE/PARRY/RESIST/IMMUNE/EVADE/REFLECT/DEFLECT within 0.6s of a cast
-                                  -> OnAvoided: drop that cast (or restore the one it refreshed);
-                                     ignored if the event's school differs from the spell's
+UNIT_COMBAT MISS/DODGE/PARRY/RESIST/IMMUNE/EVADE/REFLECT/DEFLECT
+                                  -> OnAvoided: within 0.6s after a done cast on that mob, drop
+                                     it (or restore the one it refreshed); otherwise mark casts at
+                                     that mob still under way (sentTo), and OnCast drops one whose
+                                     mark is under 0.4s old. Ignored if the event's school differs
+                                     from the spell's. avoidLog feeds /ticky debug
 UNIT_COMBAT WOUND/HEAL            -> OnTickAmount: match to a timer on that mob (or the channel) by
                                      school and tick time (+-0.35s, each tick once); non-crits
                                      teach tickSizes[spellID] (60/40 running average)

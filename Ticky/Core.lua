@@ -693,6 +693,26 @@ local function CastDuration(spellID)
   return info and info.duration
 end
 
+-- Misses, dodges, parries, resists, immunities, evades, reflects and deflects: a tracked cast
+-- with one of these on its mob right around it never landed. The game can report the result a
+-- moment before it reports the cast as done, so a result that comes in while a cast at that mob
+-- is under way (sent, not yet done) is kept on that cast, and counts if the cast is done right
+-- after. A result shortly after a done cast cancels it.
+local AVOIDED = {
+  RESIST = true, IMMUNE = true, EVADE = true, MISS = true, DODGE = true, PARRY = true,
+  REFLECT = true, DEFLECT = true,
+}
+local AVOID_AFTER = 0.6  -- seconds after a cast is done that its result may still arrive
+local AVOID_BEFORE = 0.4 -- ...and before
+local avoidLog = {}      -- the last few, for /ticky debug
+
+-- Could an avoid in `school` be this spell's? Not when the game names a different school (your
+-- pet's melee being dodged as you cast a Shadow DoT).
+local function SchoolFits(school, spellID)
+  local info = DescriptionInfo(spellID)
+  return not (school and school > 0 and info and info.school and info.school ~= school)
+end
+
 -- One of your tracked spells landed: start (or restart) its timer on the mob it was aimed at.
 local function OnCast(castGUID, spellID)
   local sent = castGUID and not Secret(castGUID) and sentTo[castGUID]
@@ -710,9 +730,17 @@ local function OnCast(castGUID, spellID)
   local now = GetTime()
   local t = {
     key = key, name = name, icon = icon or cfg.icon, spellID = spellID, castAt = now,
-    start = now, expires = now + duration, interval = AuraPeriod(spellID),
+    start = now, expires = now + duration, interval = AuraPeriod(spellID), mob = mob,
   }
-  local prev = Store(mob, t)
+  local list = timers[mob]
+  local prev = list and list[key]
+  if sent and sent.avoidedAt and now - sent.avoidedAt <= AVOID_BEFORE and SpellKind(spellID) ~= "help"
+    and SchoolFits(sent.avoidSchool, spellID) then
+    -- Its miss (or resist, ...) already came in: the old timer, if any, carries on.
+    if not (prev and prev.expires > now) then Removed(t) end
+    return
+  end
+  prev = Store(mob, t)
   if prev and prev.expires > now then
     t.stacks = prev.stacks
     Alert(t, "refreshSound")
@@ -722,25 +750,25 @@ local function OnCast(castGUID, spellID)
   recentCast[mob] = { t = t, prev = prev, at = now }
 end
 
--- A miss, dodge, parry, resist, immunity, evade, reflect or deflect right after a tracked cast
--- means it never landed.
-local AVOIDED = {
-  RESIST = true, IMMUNE = true, EVADE = true, MISS = true, DODGE = true, PARRY = true,
-  REFLECT = true, DEFLECT = true,
-}
-local AVOID_WINDOW = 0.6
-
--- `school`: the avoided attack's school, if the game said. One that doesn't match the spell's
--- (your pet's melee being dodged as you cast a Shadow DoT) wasn't the spell.
-local function OnAvoided(mob, school)
+-- An avoid on a mob: cancel the tracked cast just before it, or remember it for the cast that's
+-- about to be reported. `school`: the avoided attack's school, if the game said.
+local function OnAvoided(mob, action, school)
+  local now = GetTime()
+  table.insert(avoidLog, 1, { at = now, action = action, school = school, mob = mob })
+  avoidLog[6] = nil
   local c = recentCast[mob]
-  if not c or GetTime() - c.at > AVOID_WINDOW or SpellKind(c.t.spellID) == "help" then return end
-  local info = DescriptionInfo(c.t.spellID)
-  if school and school > 0 and info and info.school and info.school ~= school then return end
+  if not c or now - c.at > AVOID_AFTER or SpellKind(c.t.spellID) == "help" then
+    -- Maybe the result of a cast at this mob that's under way: keep it on that cast.
+    for _, sent in pairs(sentTo) do
+      if sent.mob == mob and now - sent.at < 10 then sent.avoidedAt, sent.avoidSchool = now, school end
+    end
+    return
+  end
+  if not SchoolFits(school, c.t.spellID) then return end
   recentCast[mob] = nil
   local list = timers[mob]
   if not list or list[c.t.key] ~= c.t then return end
-  if c.prev and c.prev.expires > GetTime() then
+  if c.prev and c.prev.expires > now then
     list[c.t.key] = c.prev -- a refresh that missed leaves the old one running
   else
     list[c.t.key] = nil
@@ -1357,7 +1385,7 @@ function TB:UNIT_COMBAT(unit, action, flag, amount, school)
   if AVOIDED[action] then
     local mob = MobKey(unit)
     local sc = not Secret(school) and type(school) == "number" and school or nil
-    if mob then OnAvoided(mob, sc) end
+    if mob then OnAvoided(mob, action, sc) end
   elseif action == "WOUND" or action == "HEAL" then
     if Secret(amount) or Secret(school) or Secret(flag) or type(amount) ~= "number" then return end
     local mob = MobKey(unit)
@@ -1500,9 +1528,14 @@ function ns.Debug()
   local casts = {}
   for _, c in ipairs(seen.casts) do
     local n = type(c[2]) == "number" and SpellInfo(c[2]) or c[2]
-    casts[#casts + 1] = ("%s %.0fs ago"):format(tostring(n), GetTime() - c[1])
+    casts[#casts + 1] = ("%s %.1fs ago"):format(tostring(n), GetTime() - c[1])
   end
   V("Your last casts:", #casts > 0 and table.concat(casts, ", ") or "-")
+  local avoids = {}
+  for _, a in ipairs(avoidLog) do
+    avoids[#avoids + 1] = ("%s (school %s) %.1fs ago"):format(a.action, tostring(a.school), GetTime() - a.at)
+  end
+  V("Misses, resists, dodges on mobs:", #avoids > 0 and table.concat(avoids, ", ") or "-")
   V("UNIT_AURA events:", seen.auraEvents, "| unit secret", seen.secretUnits, "| added", seen.added,
     "| added with secret ID", seen.addedSecret)
 end
