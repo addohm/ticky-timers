@@ -10,10 +10,11 @@ it); "dev" or an older commit means the game is still running an old copy.
 
 ## To test
 
-1. **Other damage moves the spark** (c236b0a). With your DoTs on a mob, hit it with something else
-   (wand, Mind Blast): the spark moves left by that hit, with the health bar; your DoT ticks
-   still don't move it (crits by their extra), including the last tick of each DoT. `/ticky log`
-   shows "hit N (not a tick: ...)", then "other damage: spark -N".
+1. **Every health change moves the spark** (93034cb). On a mob someone else is fighting, with your DoTs
+   on it: the spark moves with the health bar for their damage too, so the health doesn't run
+   past it. Your own ticks don't move it (crits by their extra), your wand and Mind Blast do.
+   When a DoT goes on, the spark moves left by its total. If the health still overruns it:
+   `/ticky log` right after.
 2. **Other players' spells aren't yours** (f5653c6). With another priest nearby casting the same spells
    (their Shadow Word: Pain on your target, their Fortitude or Renew on you): no bar and no sound
    from theirs, out of combat or in. Yours still show and sound as before. With "Track it from
