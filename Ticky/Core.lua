@@ -706,14 +706,16 @@ local AVOID_AFTER = 0.6  -- seconds after a cast is done that its result may sti
 local AVOID_BEFORE = 0.4 -- ...and before
 local avoidLog = {}      -- the last few, for /ticky debug
 
--- Could an avoid in `school` be this spell's? With a pet out, not when the game names a different
--- school: that's the pet's melee being dodged as you cast a Shadow DoT. Without a pet, any avoid
--- on the mob counts (how the game labels a spell's own miss is unconfirmed).
-local function SchoolFits(school, spellID)
-  local pet = UnitExists("pet")
-  if Secret(pet) or not pet then return true end
+-- Could this avoid be the spell's own? UNIT_COMBAT reports every attack on the mob, yours or
+-- anyone's, so: spells can't be dodged, parried or blocked, so those only count for physical
+-- spells; and an avoid the game puts in a different school than the spell's (a party member's
+-- melee missing as you cast a Shadow DoT) isn't the spell's.
+local MELEE_ONLY = { DODGE = true, PARRY = true, BLOCK = true }
+local function SchoolFits(school, spellID, action)
   local info = DescriptionInfo(spellID)
-  return not (school and school > 0 and info and info.school and info.school ~= school)
+  local spellSchool = info and info.school
+  if MELEE_ONLY[action] and spellSchool and spellSchool ~= 1 then return false end
+  return not (school and school > 0 and spellSchool and spellSchool ~= school)
 end
 
 -- One of your tracked spells landed: start (or restart) its timer on the mob it was aimed at.
@@ -738,11 +740,14 @@ local function OnCast(castGUID, spellID)
   local list = timers[mob]
   local prev = list and list[key]
   if sent and sent.avoidedAt and now - sent.avoidedAt <= AVOID_BEFORE and SpellKind(spellID) ~= "help"
-    and SchoolFits(sent.avoidSchool, spellID) then
+    and SchoolFits(sent.avoidSchool, spellID, sent.avoidAction) then
     -- Its miss (or resist, ...) already came in: the old timer, if any, carries on.
     if sent.avoidEntry then sent.avoidEntry.result = "cancelled " .. name .. " (came first)" end
     if not (prev and prev.expires > now) then Removed(t) end
     return
+  end
+  if sent and sent.avoidedAt and sent.avoidEntry and sent.avoidEntry.result == "kept for the cast under way" then
+    sent.avoidEntry.result = "ignored for " .. name .. ": not the spell's (school or melee-only)"
   end
   prev = Store(mob, t)
   if prev and prev.expires > now then
@@ -767,15 +772,15 @@ local function OnAvoided(mob, action, school, unit)
     local pending = 0
     for _, sent in pairs(sentTo) do
       if sent.mob == mob and now - sent.at < 10 then
-        sent.avoidedAt, sent.avoidSchool, sent.avoidEntry = now, school, entry
+        sent.avoidedAt, sent.avoidSchool, sent.avoidAction, sent.avoidEntry = now, school, action, entry
         pending = pending + 1
       end
     end
     entry.result = pending > 0 and "kept for the cast under way" or "no tracked cast on that mob"
     return
   end
-  if not SchoolFits(school, c.t.spellID) then
-    entry.result = "ignored: other school (pet?)"
+  if not SchoolFits(school, c.t.spellID, action) then
+    entry.result = "ignored: not the spell's (school or melee-only)"
     return
   end
   recentCast[mob] = nil
