@@ -69,7 +69,10 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
   it says so, so from just before a tick is due until it's counted, the shading keeps the health
   it last drew. Both are then set in the same moment, and the bars' range (0 to max health) is no
   longer set again on every redraw, which had cut the smooth easing short and let the two ends
-  drift apart for a few frames on every tick (measured in 60 fps captures). The frame name on the Health bar tab can now be
+  drift apart for a few frames on every tick (measured in 60 fps captures). The hold now starts
+  half a second before a tick is due (ticks that landed a little early slipped through), Ticky
+  learns where each DoT's ticks really land (so tick marks line up better too), and `/ticky debug`
+  shows the last tick's hit, health change, counting and drawing times. The frame name on the Health bar tab can now be
   any frame (the area to shade), not only a status bar, and `/ticky debug` shows how often the
   target shading had to re-anchor. The real cause on unit frames: the shading lived at the main UI's
   scale but was sized in the unit frame's units, so on a frame drawn bigger or smaller (as

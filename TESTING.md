@@ -10,10 +10,9 @@ it); "dev" or an older commit means the game is still running an old copy.
 
 ## To test
 
-1. **The spark holds still as DoTs tick** (e50ddf3), on the unit frame and nameplates. On 150577c it
-   moved with the health first and the shading caught up after (the one-frame delay, now removed).
-   Try "Smooth changes" on and off. If it still moves, send ~10 frames around one tick and say which
-   way it goes first.
+1. **The spark holds still as DoTs tick** (this push), on the unit frame and nameplates. After a
+   tick, `/ticky debug`'s "Last tick on target" line shows how early or late it landed and when the
+   hit, the health change, the counting and the drawing happened; send it if the spark still moves.
 2. **One shading segment** (d5cd7ea). With two DoTs on a mob, the shading is one dark segment
    from the health edge covering both DoTs' remaining damage together. Health bar tab, "Segments"
    switches to one per spell.

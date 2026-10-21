@@ -40,11 +40,27 @@ check(hp() ~= hB and seg.value == sB - 5, "hit arrives: both ends move in the sa
 -- A tick never seen: both release together when its grace runs out.
 while M.now < 1000 + 8.98 do M.update(0.02) end
 local hC, sC = hp(), seg.value
-M.update(0.1)
+M.update(0.3)
 check(hp() == hC and seg.value == sC, "unseen tick: still holding just after it was due")
-for _ = 1, 12 do M.update(0.02) end
-M.frame()
+for _ = 1, 20 do M.update(0.02) end
 check(hp() ~= hC and seg.value == sC - 5, "unseen tick: both ends release together")
+
+-- A tick landing 0.3s early, health message first: still held, then both move together, and the
+-- next tick is expected where this one really landed.
+while M.now < 1000 + 11.68 do M.update(0.02) end
+local hE, sE = hp(), seg.value
+M.fire("UNIT_HEALTH", "target")
+M.update(0.02); M.update(0.02)
+check(hp() == hE and seg.value == sE, "early tick, health first: held")
+M.fire("UNIT_COMBAT", "target", "WOUND", "", 5, 32)
+check(hp() ~= hE and seg.value == sE - 5, "early tick: both ends move together")
+local tr = ns.TickTrace()
+check(tr and tr.off < -0.2 and tr.counted and tr.drawn, "trace: early hit, counted and drawn")
+M.printed = {}
+SlashCmdList.TICKY("debug")
+local line
+for _, l in ipairs(M.printed) do if l:find("Last tick") then line = l end end
+check(line and line:find("earlier"), "debug shows the last tick's timing: " .. tostring(line))
 
 -- The range (0 to max health) isn't set again on ordinary redraws, only for a new mob or a change.
 local setCount = 0

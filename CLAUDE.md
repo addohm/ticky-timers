@@ -140,7 +140,11 @@ every 0.1s (and on each seen tick) -> ns.UpdateOverlay: UnitAmounts per unit (ti
                                      ExpectedTick: learned, else tooltip total / tick count; a seen
                                      tick (t.matchedTick) is held as t.pendingTick until the mob's
                                      UNIT_HEALTH (or 0.25s), or counts at once if the health changed
-                                     <=0.1s before, then t.lastTick; unseen: 0.4s after its time) ->
+                                     <=0.1s before, then t.lastTick; unseen: 0.5s after its time).
+                                     ns.HoldHealth keeps the mirror's health from 0.5s before a tick
+                                     is due until it's counted; each matched tick moves the timer's
+                                     start/expiry half way to where it really landed. The last
+                                     target tick's hit/health/counted/drawn times feed /ticky debug ->
                                      segment values, eased (ExponentialEaseOut) while the mob stays
                                      the same; spark and outline (Trim) anchored to our own bars
 

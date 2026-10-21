@@ -839,26 +839,35 @@ end
 -- reports the hit (UNIT_COMBAT) and the health change (UNIT_HEALTH) separately, in either order:
 -- a seen tick waits for the health change (up to PENDING_MAX), or counts at once if the health
 -- changed just before. A tick never seen counts once its time is UNSEEN_TICK_GRACE past.
-local UNSEEN_TICK_GRACE = 0.3
+local UNSEEN_TICK_GRACE = 0.5
 local HEALTH_PAIR = 0.1  -- a health change this recent belongs with the tick being seen now
 local PENDING_MAX = 0.25
 -- The health end is held too: the game can update a unit's health a few frames before it sends
 -- UNIT_HEALTH, so a routine redraw could move it ahead of the shading. From just before a tick is
 -- due until it's counted (or the grace runs out), the overlay keeps the health it last drew.
-local HOLD_BEFORE = 0.05
+local HOLD_BEFORE = 0.5  -- wide: ticks can land a little before or after when they're expected
 local healthAt = {}      -- [mob] = when its health last changed
+
+-- The last tick on your target, step by step, for /ticky debug: when its hit came (and how far off
+-- the expected time), when the health message came, when it was counted, when the shading moved.
+local trace
+function ns.TickTrace() return trace end
+local function TraceFor(mob) return trace and trace.mob == mob and trace end
 
 local function Commit(t)
   if t.pendingTick then
     t.lastTick = math.max(t.lastTick or 0, t.pendingTick)
     t.pendingTick = nil
+    local tr = TraceFor(t.mob or (t.channel and MobKey("target")))
+    if tr and tr.timer == t and not tr.counted then tr.counted = GetTime() end
   end
 end
 
 -- The next tick of a timer that hasn't been counted yet, and when it's due (nil if none left).
-local function NextTick(t)
+local function NextTick(t, now)
   if not t.interval or t.interval < 0.1 then return end
-  local n = math.max(t.matchedTick or 0, t.lastTick or 0) + 1
+  -- Past the ticks seen, counted, or gone by unseen.
+  local n = math.max(t.matchedTick or 0, t.lastTick or 0, TicksPassed(t, now - UNSEEN_TICK_GRACE)) + 1
   local total = TicksPassed(t, t.expires)
   if n > total then return end
   return n, n == total and t.expires or t.start + n * t.interval
@@ -870,7 +879,7 @@ function ns.HoldHealth(unit, now)
   local mob = MobKey(unit)
   local function holds(t)
     if t.pendingTick then return true end
-    local n, due = NextTick(t)
+    local n, due = NextTick(t, now)
     return n and now >= due - HOLD_BEFORE and now <= due + UNSEEN_TICK_GRACE
   end
   for _, t in pairs(mob and timers[mob] or {}) do
@@ -918,6 +927,16 @@ local function OnTickAmount(mob, isHeal, amount, school, crit)
   if not best then return end
   best.matchedTick = bestK
   best.pendingTick, best.pendingAt = bestK, now
+  -- Learn where this DoT's ticks really land, so the next ones are expected (and drawn) there.
+  local expected = bestK == TicksPassed(best, best.expires) and best.expires or best.start + bestK * best.interval
+  local off = now - expected
+  if not best.channel then
+    best.start, best.expires = best.start + off * 0.5, best.expires + off * 0.5
+  end
+  if mob == (HasTarget() and MobKey("target")) then
+    trace = { mob = mob, timer = best, name = best.name, hit = now, off = off,
+      health = (now - (healthAt[mob] or -1) <= HEALTH_PAIR) and healthAt[mob] or nil }
+  end
   if now - (healthAt[mob] or -1) <= HEALTH_PAIR then
     Commit(best) -- the health already dropped: shrink the shading now
     if ns.UpdateOverlay then ns.UpdateOverlay(now) end
@@ -1522,6 +1541,8 @@ function TB:UNIT_HEALTH(unit)
     committed = true
   end
   if mob then healthAt[mob] = now end
+  local tr = mob and TraceFor(mob)
+  if tr and not tr.health and now >= tr.hit then tr.health = now end
   if not (db.overlayDamage or db.overlayHeal) then return end
   if now == healthDrawnAt and not committed then return end
   healthDrawnAt = now
@@ -1646,6 +1667,11 @@ local function ShortDebug()
     casts[#casts + 1] = (type(c[2]) == "number" and SpellInfo(c[2]) or tostring(c[2])) .. " " .. ago(c[1])
   end
   L("Casts: " .. (#casts > 0 and table.concat(casts, ", ") or "-"))
+  local tr = ns.TickTrace()
+  local function at(v) return v and ("%+.3f"):format(v - tr.hit) or "never" end
+  L(tr and ("Last tick on target (%s, %.2fs %s than expected): hit 0, health %s, counted %s, drawn %s, %s ago")
+    :format(tr.name, math.abs(tr.off), tr.off < 0 and "earlier" or "later", at(tr.health), at(tr.counted), at(tr.drawn),
+      ago(tr.hit)) or "Last tick on target: none seen yet")
 
   local avoids = {}
   for _, a in ipairs(avoidLog) do

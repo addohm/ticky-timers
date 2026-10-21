@@ -378,6 +378,8 @@ local function Draw(o, bar, unit, now)
     if newMob or not ns.HoldHealth(unit, now) then
       o.mirror:SetValue(UnitHealth(unit), smooth)
       o.heldMob = mob
+      local tr = unit == "target" and ns.TickTrace()
+      if tr and tr.counted and not tr.drawn then tr.drawn = now end
     end
     drawn = Fill(o.damage, damage, db.overlayDamage, single, single and db.overlayDamageColor, maxHealth, smooth,
       height, setMax)

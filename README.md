@@ -91,8 +91,8 @@ Your channel then sits in its own slot instead of on top.
 Commands: `/ticky`, `/ticky lock | unlock`, `/ticky preview`, `/ticky add <spell>`,
 `/ticky remove <spell>`, `/ticky list`, `/ticky reset`, `/ticky debug` (a short report, small
 enough to paste into a chat message: build, combat state, each spell's learned length and tick,
-the timers on your target, your last casts, and the last misses/resists and what Ticky did with
-them), `/ticky debug all` (the long version, with what the game is hiding) and `/ticky report`
+the timers on your target, your last casts, the timing of the last tick on your target, and the
+last misses/resists and what Ticky did with them), `/ticky debug all` (the long version, with what the game is hiding) and `/ticky report`
 (the link for reporting a problem, ready to copy).
 
 ## Reporting problems
