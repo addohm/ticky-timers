@@ -462,14 +462,17 @@ end
 -- in the middle of the screen, built like the real shading but with plain values, so the spark's
 -- position can be measured every frame. The health drops by 100 of 1000 and the shading shrinks by
 -- 100, so the spark should hold still; the variants differ in easing and in how many frames after
--- the health the shading is set. Each runs twice; the results are printed in screen pixels.
+-- the health the shading is set. Each runs twice; the results are printed in screen pixels. The
+-- shading is hidden while it's put back to the start, so only the tick itself is seen moving.
 local TEST_VARIANTS = {
   { "smooth, same frame", true, 0 },
   { "smooth, shading 1 frame later", true, 1 },
   { "smooth, shading 2 frames later", true, 2 },
   { "instant, same frame", false, 0 },
   { "instant, shading 1 frame later", false, 1 },
+  { "instant, shading 2 frames later", false, 2 },
 }
+local TEST_SHOW = 12 -- the frame the shading shows again after going back to the start
 local TEST_SETTLE, TEST_WATCH, TEST_REST, TEST_REPS = 30, 40, 20, 2
 local test
 
@@ -525,9 +528,12 @@ local function TestStep()
   local interp = Enum.StatusBarInterpolation
   local how = v[2] and interp.ExponentialEaseOut or interp.Immediate
   local f = s.f
-  if f == 1 then -- back to the start at once
+  if f == 1 then -- back to the start at once, out of sight
+    s.o.holder:Hide()
     TestSet(600, 300, interp.Immediate, true)
     s.label:SetText(("Ticky spark test %d of %d: %s"):format(s.variant, #TEST_VARIANTS, v[1]))
+  elseif f == TEST_SHOW then
+    s.o.holder:Show()
   elseif f == TEST_SETTLE then -- the tick: health first
     s.x0 = TestSparkX()
     TestSet(500, nil, how)
@@ -586,8 +592,8 @@ function ns.SparkTest()
   for i in ipairs(TEST_VARIANTS) do test.results[i] = { frames = {} } end
   test.sparkWas, db.overlaySpark = db.overlaySpark, true
   test.driver:SetScript("OnUpdate", TestStep)
-  TestPrint("spark test: watch the bar in the middle of the screen (about 15 seconds). Note which "
-    .. "numbered test, if any, keeps its spark still.")
+  TestPrint("spark test: watch the bar in the middle of the screen (about 20 seconds). Note which "
+    .. "numbered test, if any, keeps its spark still, then paste the lines it prints.")
 end
 
 function ns.CreateOverlay()

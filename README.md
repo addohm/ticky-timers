@@ -93,7 +93,7 @@ Commands: `/ticky`, `/ticky lock | unlock`, `/ticky preview`, `/ticky add <spell
 enough to paste into a chat message: build, combat state, each spell's learned length and tick,
 the timers on your target, your last casts, the timing of the last tick on your target, and the
 last misses/resists and what Ticky did with them), `/ticky debug all` (the long version, with what the game is hiding), `/ticky report`
-(the link for reporting a problem, ready to copy) and `/ticky sparktest` (a 15-second test of the
+(the link for reporting a problem, ready to copy) and `/ticky sparktest` (a 20-second test of the
 health bar shading's spark on a big test bar; it prints how far the spark strayed in each variant).
 
 ## Reporting problems
