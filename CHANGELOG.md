@@ -8,6 +8,7 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
 - `tools/check_lua.py`: syntax-checks the addon's Lua and the TOC file list.
 - DEPLOY.md: installing, releasing, rolling back, saved variables and troubleshooting.
 - TESTING.md: the running list of what needs checking in the game client.
+- `tools/tests/`: behaviour tests against a stand-in Forever client (`python tools/tests/run.py`).
 - "Ticky beep" and "Ticky chime": two sound files that come with Ticky (`Ticky/Sounds`, made by
   `tools/make_sounds.py`). They also show whether the game plays addon sound files at all. The Sounds
   tab's Test message now names the exact path it tried, and the in-game note says to keep your files
@@ -64,7 +65,9 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
   the health end and the shading change together and ease the same way whatever the unit frame
   does. A tick counts together with the health change it causes: the game reports the hit and
   the health change separately, so a seen tick waits for the health change (up to a quarter
-  second) and both are applied, and eased, in the same moment. The frame name on the Health bar tab can now be
+  second). The health end is held too: the game can update a unit's health a few frames before
+  it says so, so from just before a tick is due until it's counted, the shading keeps the health
+  it last drew, then both move in the same redraw. The frame name on the Health bar tab can now be
   any frame (the area to shade), not only a status bar, and `/ticky debug` shows how often the
   target shading had to re-anchor. The real cause on unit frames: the shading lived at the main UI's
   scale but was sized in the unit frame's units, so on a frame drawn bigger or smaller (as

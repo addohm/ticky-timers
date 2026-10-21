@@ -779,7 +779,7 @@ local function OnAvoided(mob, action, school, unit)
   local now = GetTime()
   -- The same result arrives for each unit token showing the mob (target, softenemy, nameplateN).
   local last = avoidLog[1]
-  if last and last.mob == mob and last.action == action and now - last.at < 0.05 then return end
+  if last and last.mob == mob and last.action == action and now == last.at then return end
   local entry = { at = now, action = action, school = school, unit = unit, mob = mob }
   table.insert(avoidLog, 1, entry)
   avoidLog[6] = nil
@@ -839,9 +839,13 @@ end
 -- reports the hit (UNIT_COMBAT) and the health change (UNIT_HEALTH) separately, in either order:
 -- a seen tick waits for the health change (up to PENDING_MAX), or counts at once if the health
 -- changed just before. A tick never seen counts once its time is UNSEEN_TICK_GRACE past.
-local UNSEEN_TICK_GRACE = 0.4
+local UNSEEN_TICK_GRACE = 0.3
 local HEALTH_PAIR = 0.1  -- a health change this recent belongs with the tick being seen now
 local PENDING_MAX = 0.25
+-- The health end is held too: the game can update a unit's health a few frames before it sends
+-- UNIT_HEALTH, so a routine redraw could move it ahead of the shading. From just before a tick is
+-- due until it's counted (or the grace runs out), the overlay keeps the health it last drew.
+local HOLD_BEFORE = 0.05
 local healthAt = {}      -- [mob] = when its health last changed
 
 local function Commit(t)
@@ -849,6 +853,31 @@ local function Commit(t)
     t.lastTick = math.max(t.lastTick or 0, t.pendingTick)
     t.pendingTick = nil
   end
+end
+
+-- The next tick of a timer that hasn't been counted yet, and when it's due (nil if none left).
+local function NextTick(t)
+  if not t.interval or t.interval < 0.1 then return end
+  local n = math.max(t.matchedTick or 0, t.lastTick or 0) + 1
+  local total = TicksPassed(t, t.expires)
+  if n > total then return end
+  return n, n == total and t.expires or t.start + n * t.interval
+end
+
+-- Should the overlay keep the health it last drew for this unit? While one of its ticks is seen but
+-- not yet counted, or due and not yet seen.
+function ns.HoldHealth(unit, now)
+  local mob = MobKey(unit)
+  local function holds(t)
+    if t.pendingTick then return true end
+    local n, due = NextTick(t)
+    return n and now >= due - HOLD_BEFORE and now <= due + UNSEEN_TICK_GRACE
+  end
+  for _, t in pairs(mob and timers[mob] or {}) do
+    if holds(t) then return true end
+  end
+  if channel and mob and mob == (HasTarget() and MobKey("target")) and holds(channel) then return true end
+  return false
 end
 
 function ns.RemainingAmount(t, now)

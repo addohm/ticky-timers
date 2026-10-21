@@ -146,6 +146,7 @@ end
 
 local function OpenColorPicker(color, onChange)
   if not ColorPickerFrame and C_AddOns and C_AddOns.LoadAddOn then C_AddOns.LoadAddOn("Blizzard_ColorPickerFrame") end
+  color = color or { 1, 1, 1 }
   local r, g, b = color[1], color[2], color[3]
   ColorPickerFrame:SetupColorPickerAndShow({
     r = r, g = g, b = b, hasOpacity = false,

@@ -10,9 +10,10 @@ it); "dev" or an older commit means the game is still running an old copy.
 
 ## To test
 
-1. **The spark holds still as DoTs tick** (bc26e28), on the unit frame and nameplates. If it still
-   jumps, say which way (toward the health first, or away from it first) and whether "Smooth
-   changes" on/off makes a difference.
+1. **The spark holds still as DoTs tick** (this push), on the unit frame and nameplates. 5cdadb4
+   didn't fix it; this one also holds the health end until the tick is counted. If it still
+   flickers, send the frames around one tick (10 or so consecutive 60 fps frames, cropped to the
+   bar, PNG).
 2. **One shading segment** (d5cd7ea). With two DoTs on a mob, the shading is one dark segment
    from the health edge covering both DoTs' remaining damage together. Health bar tab, "Segments"
    switches to one per spell.

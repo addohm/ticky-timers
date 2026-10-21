@@ -362,7 +362,11 @@ local function Draw(o, bar, unit, now)
   local ok = pcall(function()
     local maxHealth = UnitHealthMax(unit)
     o.mirror:SetMinMaxValues(0, maxHealth)
-    o.mirror:SetValue(UnitHealth(unit), smooth)
+    -- Around a DoT/HoT tick the health end waits for the tick to be counted, so both move as one.
+    if mob ~= o.heldMob or not ns.HoldHealth(unit, now) then
+      o.mirror:SetValue(UnitHealth(unit), smooth)
+      o.heldMob = mob
+    end
     drawn = Fill(o.damage, damage, db.overlayDamage, single, single and db.overlayDamageColor, maxHealth, smooth, height)
     drawn = Fill(o.heal, heal, db.overlayHeal, single, single and db.overlayHealColor, maxHealth, smooth, height)
       or drawn

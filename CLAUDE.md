@@ -36,6 +36,7 @@ tools/
   gen_data.py     builds Ticky/Data.lua from wago.tools CSV exports
   check_lua.py    syntax-checks Ticky/*.lua and the TOC file list
   make_sounds.py  regenerates Ticky/Sounds/*.ogg (numpy, soundfile)
+  tests/          behaviour tests: mock.lua (a stand-in Forever client), run.py, test_*.lua
   install_beta.cmd  (Windows) git pull, mirror Ticky/ into the beta client's AddOns folder, stamp
                     the installed Build.lua with the commit
 README.md CHANGELOG.md ROADMAP.md SECURITY.md DEPLOY.md CLAUDE.md
@@ -48,6 +49,7 @@ TESTING.md        running list of what to check in the client (to test / confirm
 ```bash
 pip install lupa                      # once; embedded Lua for the checker
 python tools/check_lua.py             # syntax + TOC check; run after every Lua change
+python tools/tests/run.py [name]      # behaviour tests in a mocked client (all, or test_<name>.lua)
 python tools/gen_data.py <csv dir> <build> Ticky/Data.lua   # regenerate spell data
 ```
 
@@ -321,11 +323,14 @@ Game data (spell tables) for Forever is on wago.tools under product `wowf`; see
 ## Testing
 
 1. `python tools/check_lua.py` after every change.
-2. Behaviour is checked with a mocked WoW API run through lupa (stub `CreateFrame`,
-   `C_UnitAuras`, `C_Spell`, `UnitChannelInfo`, etc., then drive events and `OnUpdate` and
-   inspect bar text and tick positions). The harness isn't in the repo yet; keep mocks faithful to
-   the forever-branch API docs, and remember a failure can be a mock artifact (e.g. mocks
-   returning functions for unknown fields, or not firing `OnHide`).
+2. `python tools/tests/run.py` runs the behaviour tests: each `tools/tests/test_*.lua` in a fresh
+   Lua 5.1 state with `mock.lua` (a stand-in Forever client: frames, units, auras, spells, sounds,
+   target frame, nameplates) and the addon's files in .toc order. Tests drive events with
+   `MOCK.fire`, time with `MOCK.update(dt)` (Ticky's 0.1s work runs once more than 0.1s has
+   passed), casts with `MOCK.cast(id, name)`, and record `MOCK.check(cond, msg)`. Add a test with
+   every fix, and check it fails on the old code. Keep the mock faithful to the forever-branch API
+   docs; unknown widget methods are listed as "unmodelled" after each test, and a failure can be a
+   mock artifact. The harness lived in /tmp until 2026-10-21 and was lost once: keep it here.
 3. Lupa runs Lua 5.4+, which is stricter than WoW: `("%d"):format(1.5)` errors there but not in
    game. Still floor numbers before `%d`.
 4. Nothing is confirmed until tested in the Forever client; TESTING.md is that checklist.
