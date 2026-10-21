@@ -10,11 +10,11 @@ it); "dev" or an older commit means the game is still running an old copy.
 
 ## To test
 
-1. **The spark holds still as DoTs tick**, on the unit frame and nameplates. b14b1f1 on a mob: the
-   shading shrinks by the right amount (20 hit, shading -21), the spark still hops about a pixel.
-   Next (8411c65): with a target, `/ticky sparktest` (now the size of the target's bar): which of the
-   six keep the spark still, and the printed lines. And on a mob: Health bar tab, untick "Smooth
-   changes": does the spark hold still then?
+1. **The spark holds still as DoTs tick**, on the unit frame and nameplates. f43c9c9 on a mob: the
+   shading shrinks by the right amount (26 hit, shading -25), the spark still hops; the sparktest
+   at the target bar's size holds still in all six. Next (d6a2af6): `/ticky sparktest copy`, then DoT
+   a mob: does the copy's spark (middle of the screen) hop like the one on the unit frame? Does the
+   nameplate's? And with "Smooth changes" off (Health bar tab)?
 2. **One shading segment** (d5cd7ea). With two DoTs on a mob, the shading is one dark segment
    from the health edge covering both DoTs' remaining damage together. Health bar tab, "Segments"
    switches to one per spell.
@@ -68,6 +68,8 @@ it); "dev" or an older commit means the game is still running an old copy.
   still too, and looks very smooth.
 - 2026-10-21: `/ticky sparktest` (b14b1f1, 600-wide bar): all six (plain, hidden health and max,
   everything hidden; smooth and instant) look acceptable.
+- 2026-10-21: `/ticky sparktest` (f43c9c9, at the target bar's size, 123 wide): the spark holds
+  still in all six.
 - 2026-10-21: `/ticky report` box and link (7d78904).
 - 2026-10-21: a missed first cast leaves no bar (two SW:P misses on one mob, both caught just after
   the cast was reported, within the same tenth of a second).
