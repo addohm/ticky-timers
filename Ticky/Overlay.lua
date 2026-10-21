@@ -1,21 +1,19 @@
 -- Ticky health bar overlay: on your target's health bar (and, if chosen, every nameplate's), the
--- part your DoTs will still take off and the part your HoTs will still heal, with a spark where
--- the health should end up.
+-- part your DoTs will still take off, ending at the current health, and the part your HoTs will
+-- still heal, starting there, with a spark at the far end: where the health should end up.
 --
--- The owner's model (2026-10-21): when a DoT goes on, the spark goes at the mob's health at that
--- moment minus what the DoT will do in total (its tooltip's amount, read at the cast); each further
--- DoT moves it by its own total. Ticks don't move it; the shading is the part between the current
--- health and the spark. (Core.lua keeps that plan per mob: ns.UnitAmounts.)
+-- It hangs from the health end, so anything that moves the health (other players' damage,
+-- healing on the mob) moves the spark with it, and is as long as what your spells still have to
+-- do (Core.lua: ns.UnitAmounts), which shrinks by one tick as each tick takes the health down by
+-- about that much, so the spark stays put through your ticks (a crit moves it by its extra).
 --
 -- Target health is secret on Forever, so Lua can't work out where on the bar that is, but a
--- StatusBar can: Blizzard's API accepts secret values. Over the unit frame's health bar sit two
--- invisible StatusBars of our own: the "mirror", fed the unit's (secret) health as it changes, and
--- the "frozen" one, holding the health when the plan was made. Each spell gets a StatusBar as wide
--- as the health bar, scaled to the unit's max health and filled to its (plain) total; the first is
--- pinned to the end of the frozen bar's fill, each next one to the far end of the previous one's,
--- so the far end (the spark) sits at frozen health - totals and only moves when the plan changes.
--- The bars hang in a clipping frame that ends at the mirror's fill end, so only the part between
--- the current health and the spark shows.
+-- StatusBar can: Blizzard's API accepts secret values. Over the unit frame's health bar sits an
+-- invisible "mirror" StatusBar of our own, fed the unit's (secret) health as it changes. Each
+-- spell gets a StatusBar as wide as the health bar, scaled to the unit's max health and filled to
+-- its (plain) amount; the first is pinned to the end of the mirror's fill, each next one to the
+-- far end of the previous one's. Mirror and segments change in the same draw, eased the same way,
+-- and a clipping frame cuts off what runs past the bar.
 local ADDON, ns = ...
 
 local ipairs, pairs, pcall, type, floor = ipairs, pairs, pcall, type, math.floor
@@ -181,9 +179,8 @@ local function NewTrim(top)
   return t
 end
 
--- An overlay: a clipping holder (child of `parent`) with the mirror and frozen health bars, a
--- damage and a heal chain each in its own clipping frame, and a layer above for sparks and
--- outlines.
+-- An overlay: a clipping holder (child of `parent`) with the mirror health bar, a damage and a
+-- heal chain, and a layer above for sparks and outlines.
 local function NewOverlay(parent)
   local o = { layerAt = 0 }
   o.holder = CreateFrame("Frame", nil, parent)
@@ -199,13 +196,8 @@ local function NewOverlay(parent)
     return b
   end
   o.mirror = Invisible() -- the health now
-  o.frozen = Invisible() -- the health when the plan was made
-  o.dclip = CreateFrame("Frame", nil, o.holder) -- damage shows only up to the health now
-  o.dclip:SetClipsChildren(true)
-  o.hclip = CreateFrame("Frame", nil, o.holder) -- healing only beyond it
-  o.hclip:SetClipsChildren(true)
-  o.damage = NewChain(o.dclip)
-  o.heal = NewChain(o.hclip)
+  o.damage = NewChain(o.holder)
+  o.heal = NewChain(o.holder)
   o.top = CreateFrame("Frame", nil, o.holder)
   o.top:SetAllPoints(o.holder)
   o.damage.trim = NewTrim(o.top)
@@ -262,21 +254,12 @@ local function Attach(o, bar)
   o.holder:ClearAllPoints()
   o.holder:SetAllPoints(bar)
   o.mirror:SetReverseFill(reverse)
-  o.frozen:SetReverseFill(reverse)
-  -- Health ends at a fill's right end (left end on a bar that fills from the right). Damage shows
-  -- from there back into the health, healing into the missing part.
+  -- Health ends at the mirror's fill's right end (left end on a bar that fills from the right).
+  -- Damage grows from there into the health, healing into the missing part.
   local live, edge = o.mirror:GetStatusBarTexture(), reverse and "LEFT" or "RIGHT"
-  local other = reverse and "RIGHT" or "LEFT"
   o.edge = edge
-  o.dclip:ClearAllPoints()
-  o.dclip:SetPoint("TOP" .. other, o.holder, "TOP" .. other)
-  o.dclip:SetPoint("BOTTOM" .. edge, live, "BOTTOM" .. edge)
-  o.hclip:ClearAllPoints()
-  o.hclip:SetPoint("TOP" .. other, live, "TOP" .. edge)
-  o.hclip:SetPoint("BOTTOM" .. edge, o.holder, "BOTTOM" .. edge)
-  local frozen = o.frozen:GetStatusBarTexture()
-  LayChain(o.damage, frozen, edge, not reverse, width)
-  LayChain(o.heal, frozen, edge, reverse, width)
+  LayChain(o.damage, live, edge, not reverse, width)
+  LayChain(o.heal, live, edge, reverse, width)
   o.damage.trimmed, o.heal.trimmed = nil, nil
   o.layerAt = 0
   return true
@@ -386,10 +369,10 @@ local function Fill(o, c, entries, enabled, single, color, maxHealth, smooth, he
   return count > 0
 end
 
--- Draw your DoTs' and HoTs' plan for `unit` (see the top of this file) onto `bar`, its health bar.
+-- Draw what your DoTs and HoTs on `unit` will still do onto `bar`, its health bar.
 local function Draw(o, bar, unit, now)
-  local plan, damage, heal = ns.UnitAmounts(unit)
-  if not plan or (#damage == 0 and #heal == 0) or not Visible(bar) or not Attach(o, bar) then
+  local damage, heal = ns.UnitAmounts(unit, now)
+  if not damage or (#damage == 0 and #heal == 0) or not Visible(bar) or not Attach(o, bar) then
     return HideOverlay(o)
   end
   Layer(o, now)
@@ -410,27 +393,22 @@ local function Draw(o, bar, unit, now)
     local maxHealth = setMax and UnitHealthMax(unit)
     if setMax then
       o.mirror:SetMinMaxValues(0, maxHealth)
-      o.frozen:SetMinMaxValues(0, maxHealth)
       o.maxDirty = false
     end
-    local log -- for /ticky log (your target's shading only)
-    -- The health now: set when it changed, or once a second in case a change went unreported.
+    -- The health now: set when it changed (in the same draw as a tick's shrink: both come in one
+    -- frame), or once a second in case a change went unreported.
     local changed = ns.HealthAt(mob)
     if newMob or setMax or changed ~= o.healthAt or now - (o.mirrorAt or 0) > 1 then
       o.mirror:SetValue(UnitHealth(unit), smooth)
       o.healthAt, o.mirrorAt = changed, now
     end
-    -- The health when the plan was made (taken now if it couldn't be read at the cast).
-    if plan.health == nil then
-      plan.health = UnitHealth(unit)
-      plan.version = plan.version + 1
+    local total = 0
+    for _, e in ipairs(damage) do total = total + e.amount end
+    for _, e in ipairs(heal) do total = total + e.amount end
+    if o.traced and o.total and math.abs(total - o.total) >= 0.5 then -- for /ticky log
+      ns.ShadeLog(("drew shading %+d"):format(floor(total - o.total + 0.5)))
     end
-    if newMob or setMax or o.planVersion ~= plan.version then
-      o.frozen:SetValue(plan.health, smooth)
-      o.planVersion = plan.version
-      if o.traced then log = "drew spark" end
-    end
-    if log then ns.ShadeLog(log) end
+    o.total = total
     drawn = Fill(o, o.damage, damage, db.overlayDamage, single, single and db.overlayDamageColor, maxHealth,
       smooth, height, setMax)
     drawn = Fill(o, o.heal, heal, db.overlayHeal, single, single and db.overlayHealColor, maxHealth, smooth,

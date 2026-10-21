@@ -595,7 +595,6 @@ end
 --     and they correct or remove cast timers.
 
 local timers = {}
-local plan = {} -- the health bar shading's plan per mob (see "Health bar shading" below)
 local learned -- cdb.durations: [spellID] = seconds, from aura reads (talents and ranks included)
 local tickSizes -- cdb.tickSizes: [spellID] = damage or healing per tick, seen on UNIT_COMBAT
 
@@ -617,18 +616,11 @@ end
 
 -- Drop a mob's timers without alerts (it died, its plate went to another mob, ...).
 local function ForgetMob(mob)
-  if mob then timers[mob], gone[mob], plan[mob] = nil, nil, nil end
+  if mob then timers[mob], gone[mob] = nil, nil end
 end
 
 -- Drop a mob's debuffs (yours on an enemy) without alerts; buffs and HoTs stay.
 local function ForgetDebuffs(mob)
-  local p = plan[mob]
-  if p then
-    for key, part in pairs(p.parts) do
-      if not part.heal then p.parts[key] = nil end
-    end
-    if next(p.parts) then p.version = p.version + 1 else plan[mob] = nil end
-  end
   local list = timers[mob]
   if not list then return end
   for key, t in pairs(list) do
@@ -677,7 +669,7 @@ local function ReadUnit(unit)
     if prev and abs(prev.expires - t.expires) < 0.1 then
       t.warned, t.expired, t.tickN = prev.warned, prev.expired, prev.tickN
       -- The same aura: keep which ticks were seen, and its part in the health bar shading.
-      t.matchedTick, t.planMob, t.planTotal, t.planDelta = prev.matchedTick, prev.planMob, prev.planTotal, prev.planDelta
+      t.matchedTick, t.planTotal, t.perTick = prev.matchedTick, prev.planTotal, prev.perTick
     elseif not (prev and prev.castAt and now - prev.castAt < CAST_SETTLE + 0.5) and now - t.start < 1 then
       -- Applied just now and not by a cast we saw (out of combat someone else's, for example).
       Alert(t, (prev or lost) and "refreshSound" or "applySound")
@@ -696,7 +688,6 @@ local function ReadUnit(unit)
         else
           gone[mob] = gone[mob] or {}
           gone[mob][key] = { t = prev, at = now }
-          if prev.planTotal then PlanTake(prev, "removed early", prev.planTotal * LeftShare(prev, now), now) end
         end
       end
     end
@@ -707,23 +698,25 @@ end
 
 -- Health bar shading (drawn by Overlay.lua) --------------------------------------
 --
--- The owner's model (2026-10-21): when one of your DoTs (or HoTs) goes on a mob, the spark goes at
--- the mob's health at that moment minus what the spell will do in total: its tooltip's amount,
--- read at the cast, so talents, gear and spell power count. Each further one moves it by its own
--- total. Ticks don't move it; the shading is just the part between the current health and the
--- spark. (Before, the remaining damage was re-worked out from the ticks as they landed, and every
--- mismatch moved the spark: hours of hops. docs/health-shading-spark.md.)
+-- The shading hangs from the target's health end and is as long as what your DoTs (or HoTs)
+-- still have to do; its far end, the spark, is where the health should end up. So anything that
+-- moves the health moves the spark with it (your wand, Mind Blast, other players, healing on the
+-- mob: the owner, 2026-10-21), while each of your ticks shrinks the shading by one tick of the
+-- spell as the health drops by that tick, and the spark stays put. What a DoT still has to do is
+-- its total (its tooltip's amount, read at the cast: talents, gear, spell power) over its ticks,
+-- times the ticks not yet done: seen land (UNIT_COMBAT, matched by OnTickAmount), else gone by
+-- half a second past their time. A tick that crits takes the health down by more than a tick, so
+-- the spark moves by the extra; one that does less, the other way. A refresh's total replaces
+-- what the old one still had to do; a miss or resist drops the timer and its part.
 --
--- plan[mob] = { health = <the health when the first one went on: secret, only a StatusBar can
--- show it>, parts = { [key] = { amount, heal, expires } }, expires, version }. A refresh moves the
--- spark by its total less what the one it replaced still had to do (by the clock); a miss or
--- resist takes its amount back, a DoT removed early what it still had to do. The plan ends half
--- a second after the last of its spells ends, or with the mob.
-local PLAN_LINGER = 0.5
+-- (Before: the remaining damage re-worked out from learned tick sizes, then a spark fixed at the
+-- health when the first DoT went on, moved by other damage only as far as UNIT_COMBAT reported it,
+-- which missed other players' damage. docs/health-shading-spark.md.)
+local UNSEEN_TICK_GRACE = 0.5
 local healthAt = {}      -- [mob] = when its health last changed
 local healthAtAny = 0    -- the last health message for a unit Ticky couldn't tell apart
 -- The shading is drawn from the frame update, not inside the events: after a health message or a
--- plan change it's due, and the next frame draws it.
+-- tick it's due, and the next frame draws it, so a tick and its health change are drawn together.
 local drawDue = false
 
 -- /ticky log: what happened around your target's shading in the last few seconds (hits, health
@@ -769,89 +762,18 @@ local function SpellTotal(spellID, duration, interval)
   if size and duration and interval and interval >= 0.1 then return size * floor(duration / interval + 0.5) end
 end
 
--- The share of a timer's ticks still to come, by the clock.
-local function LeftShare(t, now)
-  if not t.interval or t.interval < 0.1 then return 0 end
+-- What a timer will still deal or heal (nil: unknown, or none left).
+function ns.RemainingAmount(t, now)
+  if not t.interval or t.interval < 0.1 or not t.spellID then return end
   local total = TicksPassed(t, t.expires)
-  if total <= 0 then return 0 end
-  return math.max(0, total - TicksPassed(t, now)) / total
-end
-
-local function PlanChanged(p)
-  p.expires = 0
-  for _, part in pairs(p.parts) do p.expires = math.max(p.expires, part.expires) end
-  p.version = p.version + 1
-  drawDue = true
-end
-
--- Your spell `t` went on `mob` (`prev`: the timer it replaced, if still running).
-local function PlanAdd(mob, t, prev, now)
-  local cfg = cdb.spells[t.key]
-  if not mob or not t.interval or t.interval < 0.1 or (cfg and cfg.noOverlay) then return end
-  local total = SpellTotal(t.spellID, t.expires - t.start, t.interval)
-  if not total then return end
-  local p = plan[mob]
-  if not p then
-    local unit = UnitForMob(mob)
-    -- Its health now; if no unit shows the mob, the overlay takes it when it first draws.
-    p = { parts = {}, version = 0, health = unit and UnitHealth(unit) or nil }
-    plan[mob] = p
+  if not t.perTick then -- fixed for the timer (a channel cut short has fewer ticks, not bigger ones)
+    t.planTotal = t.planTotal or SpellTotal(t.spellID, t.expires - t.start, t.interval)
+    if not t.planTotal or total <= 0 then return end
+    t.perTick = t.planTotal / total
   end
-  local part = p.parts[t.key]
-  if not part then
-    part = { amount = 0, heal = SpellKind(t.spellID) == "help" }
-    p.parts[t.key] = part
-  end
-  local delta = total
-  if prev and prev.expires > now and prev.planTotal then
-    delta = total - prev.planTotal * LeftShare(prev, now) -- a refresh replaces what was still to come
-  end
-  part.amount = part.amount + delta
-  part.expires = math.max(part.expires or 0, t.expires)
-  t.planMob, t.planTotal, t.planDelta = mob, total, delta
-  PlanChanged(p)
-  ns.ShadeLog(("%s on: spark %s%d"):format(Initials(t.name), part.heal and "+" or "-", floor(delta + 0.5)), mob)
-end
-
--- A tick that crit did more than the plan counted on (its total over its ticks): the spark moves
--- by the extra (the owner: the only thing besides a spell going on that should move it).
-local function PlanCrit(t, amount)
-  local p = t.planMob and plan[t.planMob]
-  local part = p and p.parts[t.key]
-  local ticks = part and t.planTotal and t.interval and t.interval >= 0.1 and TicksPassed(t, t.expires)
-  if not ticks or ticks <= 0 then return end
-  local extra = amount - t.planTotal / ticks
-  if extra < 0.5 then return end
-  part.amount = part.amount + extra
-  PlanChanged(p)
-  ns.ShadeLog(("%s crit: spark %s%d"):format(Initials(t.name), part.heal and "+" or "-", floor(extra + 0.5)),
-    t.planMob)
-end
-
--- Damage (or healing) on the mob that isn't one of your ticks: your wand, Mind Blast, a party
--- member, an enemy healer. The health moves by it, so the spark does too (the owner: "the whole
--- health bar would shift that much"). Kept as the plan's offset, added after its spells.
-local function PlanOther(mob, isHeal, amount)
-  local p = plan[mob]
-  if not p then return end
-  p.offset = (p.offset or 0) + (isHeal and -amount or amount)
-  drawDue = true
-  ns.ShadeLog(("other %s: spark %s%d"):format(isHeal and "healing" or "damage", isHeal and "+" or "-",
-    floor(amount + 0.5)), mob)
-end
-
--- Take `amount` of what `t` added back off (its cast missed; it was removed or stopped early).
--- `expires`: when the spell now ends (the timer a missed refresh leaves running).
-local function PlanTake(t, why, amount, expires)
-  local mob = t.planMob
-  local p = mob and plan[mob]
-  local part = p and p.parts[t.key]
-  if not part or not amount or amount <= 0 then return end
-  part.amount = part.amount - amount
-  if expires then part.expires = expires end
-  if part.amount <= 0.5 then p.parts[t.key] = nil end
-  if next(p.parts) then PlanChanged(p) else plan[mob], drawDue = nil, true end
-  ns.ShadeLog(("%s %s: spark back %d"):format(Initials(t.name), why, floor(amount + 0.5)), mob)
+  local done = math.max(t.matchedTick or 0, TicksPassed(t, now - UNSEEN_TICK_GRACE))
+  if done >= total then return end
+  return (total - done) * t.perTick
 end
 
 -- Casts ----------------------------------------------------------------------
@@ -950,7 +872,8 @@ local function OnCast(castGUID, spellID)
   else
     Alert(t, "applySound")
   end
-  PlanAdd(mob, t, prev, now)
+  t.planTotal = SpellTotal(spellID, duration, t.interval) -- read now: talents, gear, spell power
+  drawDue = true
   recentCast[mob] = { t = t, prev = prev, at = now }
 end
 
@@ -988,9 +911,8 @@ local function OnAvoided(mob, action, school, unit)
     return
   end
   entry.result = "cancelled " .. c.t.name
-  local kept = c.prev and c.prev.expires > now and c.prev
-  PlanTake(c.t, "missed", c.t.planDelta, kept and kept.expires or nil)
-  if kept then
+  drawDue = true
+  if c.prev and c.prev.expires > now then
     list[c.t.key] = c.prev -- a refresh that missed leaves the old one running
   else
     list[c.t.key] = nil
@@ -1059,14 +981,15 @@ local function OnTickAmount(mob, isHeal, amount, school, crit)
   for _, t in pairs(ended[mob] or {}) do
     if now <= t.expires + ENDED_KEEP then consider(t) end
   end
-  if channel and not isHeal and mob == MobKey("target") then consider(channel) end
-  if endedChannel and not isHeal and mob == endedChannel.planMob and now <= endedChannel.endedAt + ENDED_KEEP then
+  if channel and not isHeal and mob == channel.targetMob then consider(channel) end
+  if endedChannel and not isHeal and mob == endedChannel.targetMob and now <= endedChannel.endedAt + ENDED_KEEP then
     consider(endedChannel)
   end
   ns.ShadeLog(("hit %d%s %s"):format(amount, crit and "!" or "", best and Initials(best.name)
     or "(not a tick: " .. SchoolName(school) .. ")"), mob)
-  if not best then return PlanOther(mob, isHeal, amount) end
+  if not best then return end
   best.matchedTick = bestK
+  drawDue = true -- drawn with its health change, which comes in the same frame
   -- Learn where this DoT's ticks really land, so the next ones are expected (and drawn) there.
   local expected = bestK == TicksPassed(best, best.expires) and best.expires or best.start + bestK * best.interval
   local off = now - expected
@@ -1076,7 +999,7 @@ local function OnTickAmount(mob, isHeal, amount, school, crit)
   if mob == (HasTarget() and MobKey("target")) then
     trace = { name = best.name, hit = now, off = off, amount = amount, crit = crit }
   end
-  if crit then return PlanCrit(best, amount) end
+  if crit then return end
   local id, old = best.spellID, tickSizes[best.spellID]
   -- Kept unrounded: rounded, ticks of 26 never moved an average of 25 (25.9 rounds down).
   tickSizes[id] = old and (old * 0.6 + amount * 0.4) or amount
@@ -1116,13 +1039,6 @@ local function CheckAlerts(now)
     end
     if not next(list) then ended[mob] = nil end
   end
-  -- A plan ends a moment after its last spell (its last tick can land a little late).
-  for mob, p in pairs(plan) do
-    if now > p.expires + PLAN_LINGER then
-      plan[mob], drawDue = nil, true
-      ns.ShadeLog("all ended: no spark", mob)
-    end
-  end
   for mob, lost in pairs(gone) do
     for key, g in pairs(lost) do
       if now - g.at > REMOVE_GRACE then
@@ -1140,10 +1056,9 @@ end
 local function EndChannel(now)
   if not channel then return end
   CheckTick(channel, channel.expires - now < 0.15 and channel.expires or now)
-  if channel.planTotal and channel.expires - now >= 0.15 then -- stopped early
-    PlanTake(channel, "stopped", channel.planTotal * LeftShare(channel, now), now)
-  end
+  if channel.expires - now >= 0.15 then channel.expires = now end -- stopped early: nothing more to come
   channel.endedAt = now
+  drawDue = true
   endedChannel = channel
   channel = nil
 end
@@ -1306,40 +1221,35 @@ function ns.UnitTimers(unit, now, out)
 end
 ns.MobKey = MobKey
 
--- The health bar shading's plan for a unit (the target, a nameplate): the plan (its `health`, the
--- secret health the spark is measured from, and `version`, which changes with it), and its
--- damage and heal parts, { key, amount, color, expires } in bar order. Nil when there's no plan,
--- or the unit isn't there or is dead.
-function ns.UnitAmounts(unit)
+-- What your DoTs and HoTs on a unit (the target, a nameplate) will still deal and heal, for the
+-- health bar shading: two lists of { key, amount, color, expires } in bar order, or nil when the
+-- unit isn't there or is dead. Timers that just ended count until their last tick is in.
+function ns.UnitAmounts(unit, now)
   local exists = UnitExists(unit)
   if (not Secret(exists) and not exists) or IsDead(unit) then return end
-  local p = plan[MobKey(unit)]
-  if not p then return end
+  local mob = MobKey(unit)
   local damage, heal = {}, {}
-  for key, part in pairs(p.parts) do
-    local cfg = cdb.spells[key]
-    if cfg and not cfg.noOverlay and part.amount > 0 then
-      local out = part.heal and heal or damage
-      out[#out + 1] = { key = key, amount = part.amount, color = cfg.color, expires = part.expires }
+  local function add(t)
+    local cfg = cdb.spells[t.key]
+    local amount = cfg and not cfg.noOverlay and ns.RemainingAmount(t, now)
+    if amount and amount > 0 then
+      local out = SpellKind(t.spellID) == "help" and heal or damage
+      out[#out + 1] = { key = t.key, amount = amount, color = cfg.color, expires = t.expires }
+    end
+  end
+  for _, t in pairs(mob and timers[mob] or {}) do add(t) end
+  for _, t in pairs(mob and ended[mob] or {}) do
+    if now <= t.expires + ENDED_KEEP then add(t) end
+  end
+  -- Your channel is on the mob you channeled at.
+  for _, c in ipairs({ channel, endedChannel }) do
+    if c and mob and c.targetMob == mob and now <= c.expires + ENDED_KEEP and SpellKind(c.spellID or 0) ~= "help" then
+      add(c)
     end
   end
   table.sort(damage, byMode)
   table.sort(heal, byMode)
-  -- Other damage and healing on it since (see PlanOther), at the far end: more of it moves the
-  -- spark further; the other way, it takes off the far end's spells first.
-  local offset = p.offset or 0
-  local list, color = damage, db.overlayDamageColor
-  if #damage == 0 then list, color, offset = heal, db.overlayHealColor, -offset end
-  if offset > 0 then
-    list[#list + 1] = { key = "other", amount = offset, color = color, expires = 0 }
-  else
-    for i = #list, 1, -1 do
-      if offset >= 0 then break end
-      local take = math.min(list[i].amount, -offset)
-      list[i].amount, offset = list[i].amount - take, offset + take
-    end
-  end
-  return p, damage, heal
+  return damage, heal
 end
 
 ---------------------------------------------------------------------------
@@ -1733,21 +1643,20 @@ end
 
 function TB:UNIT_SPELLCAST_CHANNEL_START()
   channel = ReadChannel()
-  local mob = channel and SpellKind(channel.spellID or 0) ~= "help" and HasTarget() and MobKey("target")
-  if mob then PlanAdd(mob, channel, nil, GetTime()) end
+  if channel then
+    channel.targetMob = HasTarget() and MobKey("target")
+    channel.planTotal = SpellTotal(channel.spellID, channel.expires - channel.start, channel.interval)
+    drawDue = true
+  end
 end
 function TB:UNIT_SPELLCAST_CHANNEL_UPDATE()
   if not channel then return end
   local old = channel
   channel = ReadChannel()
   if channel then
-    channel.planMob, channel.planTotal, channel.planDelta = old.planMob, old.planTotal, old.planDelta
-    local p = old.planMob and plan[old.planMob]
-    local part = p and p.parts[channel.key]
-    if part then -- pushed back or cut short: it ends at its new time
-      part.expires = channel.expires
-      PlanChanged(p)
-    end
+    channel.targetMob, channel.planTotal, channel.perTick = old.targetMob, old.planTotal, old.perTick
+    channel.matchedTick = old.matchedTick
+    drawDue = true
   end
 end
 function TB:UNIT_SPELLCAST_CHANNEL_STOP() EndChannel(GetTime()) end

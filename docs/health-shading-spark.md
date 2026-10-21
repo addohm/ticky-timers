@@ -3,7 +3,20 @@
 Notes from the 2026-10-21 investigation, for picking it up again. Written for whoever comes back to
 this (owner or coding assistant).
 
-## Resolution (read this first)
+## Where it ended (read this first)
+
+The shading hangs from the health end (the mirror) and is as long as what your DoTs still have
+to do: each DoT's tooltip total (read at the cast) over its ticks, times the ticks not yet done
+(seen land, or half a second past their time; timers that just ended stay for a late last tick).
+Every health change moves the spark with the health bar, reported or not; each of your ticks
+shrinks the shading by one tick in the same draw as its health change, so the spark holds; a crit
+drops the health by more than a tick, so it moves by the extra. (c236b0a-era model below, a spark
+fixed at the health when the first DoT went on and moved by other damage only as UNIT_COMBAT
+reported it, missed other players' damage on a mob being fought by someone else: "quickly
+overrun". Same visible rules, sturdier footing.) The earlier tick-tracking build hopped because
+of bad estimates, since fixed: rounding, crits, the stale 18s, late last ticks.
+
+## Resolution (the fixed-spark model, superseded)
 
 The owner, 2026-10-21, after about twenty builds: "Why do the dot ticks matter? The spark should
 simply be placed at, in this example 203 damage minus the current health, right? And when

@@ -1,24 +1,26 @@
--- Health bar shading, the owner's model: when a DoT goes on, the spark goes at the mob's health at
--- that moment minus the DoT's total (its tooltip's amount); each further DoT moves it by its own
--- total; your ticks don't move it, other damage on the mob does (by its amount: the health bar
--- moves by it); the shading is the part between the health now and the spark. Also: misses, refreshes, the end, per-spell segments, HoTs, unit frame addons'
--- bars, nameplates.
+-- Health bar shading: it hangs from the health end and is as long as what your DoTs still have to
+-- do (each one's tooltip total over its ticks, times the ticks not yet done). So anything that
+-- moves the health moves the spark (other players' damage, healing on the mob), and each of your
+-- ticks shrinks it by one tick, in the same draw as its health change, so the spark stays put.
+-- Also: misses, refreshes, late last ticks, the end, per-spell segments, HoTs, unit frame
+-- addons' bars, nameplates.
 local M, ns, check = MOCK, NS, MOCK.check
 M.start()
-local db, cdb = ns.DB(), ns.CharDB()
-ns.Track(589, "Shadow Word: Pain", 136207) -- tooltip: 30 over 18 sec, 6 ticks
-ns.Track(2944, "Devouring Plague", 252997) -- tooltip: 152 over 24 sec
-ns.Track(139, "Renew", 135953)             -- tooltip: heals 45 over 15 sec
+local db = ns.DB()
+ns.Track(589, "Shadow Word: Pain", 136207) -- tooltip: 30 over 18 sec: 6 ticks of 5
+ns.Track(2944, "Devouring Plague", 252997) -- tooltip: 152 over 24 sec: 8 ticks of 19
+ns.Track(139, "Renew", 135953)             -- tooltip: heals 45 over 15 sec: 5 ticks of 9
 db.overlayDamage, db.overlayHeal, db.locked = true, true, true
 local function holderOn(bar)
   for _, f in ipairs(M.frames) do
     if f.tickyOwned and f.points[1] and f.points[1][2] == bar and f.points[2] then return f end
   end
 end
-local function shown(parent)
+local function shown(h, from, to)
   local out = {}
-  for _, c in ipairs(parent.children) do
-    if c.kind == "StatusBar" and c.shown then out[#out + 1] = c end
+  for i = from, to do
+    local c = h.children[i]
+    if c and c.kind == "StatusBar" and c.shown then out[#out + 1] = c end
   end
   return out
 end
@@ -28,16 +30,12 @@ M.fire("PLAYER_TARGET_CHANGED"); M.fire("PLAYER_REGEN_DISABLED"); M.auraLock = t
 local start = M.now
 M.cast(589, "S"); M.update(0.15); M.frame()
 local h = holderOn(M.healthBar)
-local mirror, frozen, dclip, hclip = h.children[1], h.children[2], h.children[3], h.children[4]
-local seg = shown(dclip)[1]
+local mirror = h.children[1]
+local seg = shown(h, 2, 9)[1]
 check(seg and seg.value == 30, "SW:P on: the shading is its total, 30: " .. tostring(seg and seg.value))
-check(seg.points[1][2] == frozen._fill and seg.points[1][3] == "TOPRIGHT", "pinned to the health when it went on")
+check(seg.points[1][2] == mirror._fill and seg.points[1][3] == "TOPRIGHT", "pinned to the health end")
 check(seg.reverse == true and seg.w == 126, "grows left from there, as wide as the bar")
 check(type(seg.max) == "table", "scaled to the (secret) max health")
-check(dclip.points[2][2] == mirror._fill and dclip.points[2][3] == "BOTTOMRIGHT",
-  "shown only up to the health now")
-local frozenAt = frozen.value
-check(type(frozenAt) == "table" and frozenAt.__secret, "the health at the cast (secret)")
 local top = h.children[#h.children]
 local spark
 for _, t in ipairs(top.children) do if t.texture and t.texture:find("Spark") and t.shown then spark = t end end
@@ -45,81 +43,81 @@ check(spark and spark.points[1][2] == seg._fill and spark.points[1][3] == "LEFT"
 
 M.update(1.35)
 M.cast(2944, "S"); M.update(0.15); M.frame()
-check(seg.value == 30 + 152 and frozen.value == frozenAt, "DP on: the spark moves another 152, from the same health")
+check(seg.value == 30 + 152, "DP on: another 152")
 
--- Your ticks move only the health end; someone else's hit (61, Physical) moves the spark too.
-local sets = 0
-for _, f in ipairs({ seg, frozen }) do
-  local real = f.SetValue
-  f.SetValue = function(...) sets = sets + 1; return real(...) end
-end
-local h0 = mirror.value
-for k = 1, 2 do
-  while M.now < start + 3 * k do M.update(0.05) end
-  M.fire("UNIT_COMBAT", "target", "WOUND", "", 25, 32); M.fire("UNIT_HEALTH", "target"); M.frame()
-  M.update(0.4)
-  M.fire("UNIT_COMBAT", "target", "WOUND", "", 61, 1); M.fire("UNIT_HEALTH", "target"); M.frame() -- someone else
-end
-check(sets == 2 and seg.value == 182 + 122 and frozen.value == frozenAt,
-  "ticks don't move the spark, the two other hits move it 61 each: " .. sets .. " sets, " .. tostring(seg.value))
-check(mirror.value ~= h0, "the health end follows the health")
-seg.SetValue, frozen.SetValue = nil, nil
-check(cdb.tickSizes[589] == 25, "tick sizes are still learned (for /ticky debug): " .. tostring(cdb.tickSizes[589]))
+-- Your tick: the shading shrinks by one tick in the same draw as the health end moves.
+while M.now < start + 3 do M.update(0.05) end
+local h0, s0 = mirror.value, seg.value
+M.fire("UNIT_COMBAT", "target", "WOUND", "", 5, 32); M.fire("UNIT_HEALTH", "target")
+check(mirror.value == h0 and seg.value == s0, "nothing moves inside the events")
+M.frame()
+check(mirror.value ~= h0 and seg.value == s0 - 5, "next frame: health end and shading together")
+-- Someone else's hit: only the health end moves (so the spark moves with it).
+M.update(0.4)
+h0, s0 = mirror.value, seg.value
+M.fire("UNIT_COMBAT", "target", "WOUND", "", 61, 1); M.fire("UNIT_HEALTH", "target"); M.frame()
+check(mirror.value ~= h0 and seg.value == s0, "other damage: the health end moves, the shading doesn't")
+-- Damage the game doesn't report at all, too.
+h0 = mirror.value
+M.fire("UNIT_HEALTH", "target"); M.frame()
+check(mirror.value ~= h0 and seg.value == s0, "an unreported health change moves it as well")
+-- An unseen tick (DP's at 4.5) counts half a second after its time.
+while M.now < start + 4.9 do M.update(0.05) end
+check(seg.value == s0, "DP's tick not seen yet: still there")
+M.update(0.2)
+check(seg.value == s0 - 19, "half a second after its time: counted: " .. tostring(seg.value))
 
 -- Per-spell segments, in bar order.
 db.overlayColors = "each"; M.update(0.15); M.frame()
-local dmg = shown(dclip)
-check(#dmg == 3 and dmg[1].value == 152 and dmg[2].value == 30 and dmg[3].value == 122,
-  "per-spell segments (DP, SW:P, then the other damage)")
+local dmg = shown(h, 2, 9)
+check(#dmg == 2 and dmg[1].value == 133 and dmg[2].value == 25, "per-spell segments (DP 133, SW:P 25): "
+  .. tostring(dmg[1] and dmg[1].value) .. ", " .. tostring(dmg[2] and dmg[2].value))
 check(dmg[2].points[1][2] == dmg[1]._fill and dmg[2].points[1][3] == "TOPLEFT", "second chained to the first's end")
 db.overlayColors = "single"; M.update(0.15); M.frame()
 
--- A refresh that misses takes its amount back; one that lands adds its total less what the old
--- one still had to do (SW:P recast at 9s of 18: half its ticks to come, 15 of 30).
+-- A refresh that misses changes nothing; one that lands puts SW:P back at its full 30 (it had 3
+-- of 6 ticks, 15, still to come at 9s).
 while M.now < start + 9.05 do M.update(0.05) end
+local before = seg.value
 M.cast(589, "S"); M.update(0.1); M.fire("UNIT_COMBAT", "target", "MISS", "", 0, 1); M.update(0.1); M.frame()
-check(seg.value == 304, "a missed refresh: no change: " .. tostring(seg.value))
+check(seg.value == before, "a missed refresh: no change")
 M.update(0.5)
+local beforeRefresh = seg.value
 M.cast(589, "S"); M.update(0.15); M.frame()
-check(math.abs(seg.value - (304 + 15)) < 0.01, "a refresh halfway: +15: " .. tostring(seg.value))
-M.printed = {}
-SlashCmdList.TICKY("log")
-check((M.printed[1] or ""):find("SWP missed: spark back 15") and (M.printed[1] or ""):find("SWP on: spark %-15"),
-  "/ticky log shows it: " .. tostring(M.printed[1]))
+check(seg.value - beforeRefresh == 30 - 15, "a refresh halfway: SW:P's 15 still to come become 30: "
+  .. tostring(beforeRefresh) .. " -> " .. tostring(seg.value))
 
--- Another mob has its own plan; back on the first, its spark is where it was.
+-- Another mob has its own; back on the first, the same.
+local first = seg.value
 M.units.target = { guid = "Creature-2", name = "T", exists = true, canAttack = true, auras = {} }
 M.fire("PLAYER_TARGET_CHANGED"); M.cast(2944, "T"); M.update(0.15); M.frame()
-check(seg.value == 152 and frozen.value ~= frozenAt, "another mob: its own spark")
+check(seg.value == 152, "another mob: its own")
 M.units.target = { guid = "Creature-1", name = "S", exists = true, canAttack = true, auras = {} }
-M.fire("PLAYER_TARGET_CHANGED"); M.update(0.15); M.frame()
-check(math.abs(seg.value - 319) < 0.01 and frozen.value == frozenAt, "back on the first: the same spark")
+M.fire("PLAYER_TARGET_CHANGED"); M.update(0.1); M.frame()
+check(seg.value <= first and seg.value >= first - 19, "back on the first: the same (less any tick since)")
 
--- An enemy healer heals it 20: the spark moves back 20.
-M.fire("UNIT_COMBAT", "target", "HEAL", "", 20, 2); M.update(0.05); M.frame()
-check(math.abs(seg.value - 299) < 0.01, "healing on it moves the spark back: " .. tostring(seg.value))
-
--- Devouring Plague's last tick, due at its expiry, lands 0.2s late (after Ticky ended it): still its tick, not other damage.
+-- Devouring Plague's last tick, due at its expiry, lands 0.2s late (after Ticky ended it): still
+-- its tick, taken off with its health change, not before.
 while M.now < start + 1.5 + 24 + 0.2 do M.update(0.02) end
 local beforeLast = seg.value
-M.fire("UNIT_COMBAT", "target", "WOUND", "", 19, 32); M.fire("UNIT_HEALTH", "target"); M.frame()
-check(math.abs(seg.value - beforeLast) < 0.01, "a late last tick doesn't move the spark: " .. tostring(seg.value))
+M.fire("UNIT_COMBAT", "target", "WOUND", "", 19, 32); M.fire("UNIT_HEALTH", "target")
+check(seg.value == beforeLast, "the last tick's part is still there when it lands late")
+M.frame()
+check(seg.value == beforeLast - 19, "and goes with its health change: " .. tostring(seg.value))
 
--- It ends a moment after the last spell does.
-while M.now < start + 1.5 + 24 + 0.3 do M.update(0.1) end -- DP ended at 25.5; SW:P (recast) ends at 27.7
-check(h.shown, "still up while one is left")
+-- It ends when the last spell does.
 while M.now < start + 9.75 + 18 + 0.7 do M.update(0.1) end
 check(not h.shown, "gone after the last one ends")
 
--- HoT on a friend: from the health when it went on, growing right, shown beyond the health now.
+-- HoT on a friend: from the health end, growing right; damage on them moves only the health end.
 M.units.target = { guid = "Player-2", name = "Friend", exists = true, canAssist = true, auras = {} }
 M.fire("PLAYER_TARGET_CHANGED"); M.cast(139, "Friend"); M.update(0.15); M.frame()
-local heal = shown(hclip)
+local heal = shown(h, 10, 17)
 check(#heal == 1 and heal[1].value == 45 and heal[1].reverse == false, "Renew 45, growing right")
-check(hclip.points[1][2] == mirror._fill and hclip.points[1][3] == "TOPRIGHT", "shown from the health now on")
-check(#shown(dclip) == 0, "no damage shading on a friend")
-M.fire("UNIT_COMBAT", "target", "WOUND", "", 10, 1); M.update(0.05); M.frame()
-check(heal[1].value == 35, "a hit on your friend takes 10 off where Renew will bring them: " .. tostring(heal[1].value))
+check(#shown(h, 2, 9) == 0, "no damage shading on a friend")
+local hh = mirror.value
+M.fire("UNIT_COMBAT", "target", "WOUND", "", 10, 1); M.fire("UNIT_HEALTH", "target"); M.frame()
+check(heal[1].value == 45 and mirror.value ~= hh, "a hit on your friend moves the health end, not Renew's part")
 
 -- A unit frame addon's target frame: its health bar, not a reversed missing-health bar.
 local uf = CreateFrame("Button", "OtherUF_Target", UIParent)

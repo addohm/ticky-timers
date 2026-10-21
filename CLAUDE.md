@@ -112,9 +112,9 @@ call another file's `ns` functions at runtime, not at load time, unless that fil
 | File | Owns | Exposes on `ns` |
 |---|---|---|
 | `Data.lua` | Generated spell data | `ns.Data`, `ns.DataBuild` |
-| `Core.lua` | Defaults, lists (textures, fonts, sounds, sound events), aura and channel reading, alerts (sounds, speech, messages), missing-spell placeholders, display list, tick math, events, slash commands | `DEFAULTS`, `CHAR_DEFAULTS`, `TEXTURES`, `FONTS`, `OUTLINES`, `SOUNDS`, `SOUND_EVENTS`, `CHANNELS`, `SoundChoices`, `Secret`, `Lookup`, `SpellInfo`, `AuraPeriod`, `ComputeTicks`, `BuildDisplay`, `ActiveTimers`, `RefreshDisplay`, `HasTarget`, `SpellbookSpells`, `Track`, `Untrack`, `IsTracked`, `OrderedSpells`, `MoveSpell`, `AddSpell`, `Describe`, `SoundFor`, `WarnSeconds`, `PlaySound`, `TestSound`, `RemoveCustomSound`, `UnitAmounts`, `UnitTimers`, `MobKey`, `plateUnits`, `Debug` (`/ticky debug`), `ShadeLog`/`PrintShadeLog` (`/ticky log`), `HealthAt`, `ResetSettings`, `CopyDefaults`, `SpellCfg`, `DB`, `CharDB`, `InCombat`, `TB` (event frame) |
+| `Core.lua` | Defaults, lists (textures, fonts, sounds, sound events), aura and channel reading, alerts (sounds, speech, messages), missing-spell placeholders, display list, tick math, events, slash commands | `DEFAULTS`, `CHAR_DEFAULTS`, `TEXTURES`, `FONTS`, `OUTLINES`, `SOUNDS`, `SOUND_EVENTS`, `CHANNELS`, `SoundChoices`, `Secret`, `Lookup`, `SpellInfo`, `AuraPeriod`, `ComputeTicks`, `BuildDisplay`, `ActiveTimers`, `RefreshDisplay`, `HasTarget`, `SpellbookSpells`, `Track`, `Untrack`, `IsTracked`, `OrderedSpells`, `MoveSpell`, `AddSpell`, `Describe`, `SoundFor`, `WarnSeconds`, `PlaySound`, `TestSound`, `RemoveCustomSound`, `RemainingAmount`, `UnitAmounts`, `UnitTimers`, `MobKey`, `plateUnits`, `Debug` (`/ticky debug`), `ShadeLog`/`PrintShadeLog` (`/ticky log`), `HealthAt`, `ResetSettings`, `CopyDefaults`, `SpellCfg`, `DB`, `CharDB`, `InCombat`, `TB` (event frame) |
 | `Bars.lua` | Anchor and bar frames, styling, drawing, missing bars, preview, on-screen messages. Bar functions take a style `st` (the settings, or the nameplate style) | `CreateBars`, `ApplyStyle`, `UpdateBars`, `SetPreview`, `preview`, `ResetPosition`, `ShowMessage`, `GetBar`, `UpdateBar`, `IconSpace` |
-| `Overlay.lua` | Health bar overlay: finding the target health bar (custom path, any frame; another addon's unit button whose `unit` attribute is "target"; else Blizzard's). `ns.HealthBarIn(frame, depth)` picks a unit frame's or nameplate's health bar: visible StatusBars scored by their `GetDebugName(true)` key (health-like names first, absorb/loss/predict/power/... skipped), then by area. An overlay object (`NewOverlay`) is a clipping holder over the health bar (only its rect, fill direction and effective scale (`ScaleOf`) are used) holding two invisible StatusBars, `mirror` (`UnitHealth(unit)`, set when the mob's health changed: `ns.HealthAt`) and `frozen` (the plan's `health`, the secret health when its first DoT went on, set when `plan.version` changes), and a chain of StatusBars per group (damage, heal), each as wide as the health bar and scaled to the unit's secret max health, filled to the plan's plain totals, the first pinned to the frozen fill's end and each next to the end of the previous one's. The chains sit in clipping frames that end (`dclip`) or start (`hclip`) at the mirror's fill end, so only the part between the health now and the spark shows. Spark and outline (`Trim`) on a top layer. Values, textures, colors, ranges and layers are set only when they change (re-setting them seemed to end the easing). One overlay for the target (parented to UIParent; `traced` for `/ticky log`), one per nameplate (parented to the plate, on `ns.PlateHealthBar(plate)`, when `overlayPlates`); the plan from `ns.UnitAmounts(unit)` | `FindHealthBar`, `UpdateOverlay`, `CreateOverlay`, `MaxHealthChanged`, `OverlayInfo`, `HealthBarIn`, `FramePath` |
+| `Overlay.lua` | Health bar overlay: finding the target health bar (custom path, any frame; another addon's unit button whose `unit` attribute is "target"; else Blizzard's). `ns.HealthBarIn(frame, depth)` picks a unit frame's or nameplate's health bar: visible StatusBars scored by their `GetDebugName(true)` key (health-like names first, absorb/loss/predict/power/... skipped), then by area. An overlay object (`NewOverlay`) is a clipping holder over the health bar (only its rect, fill direction and effective scale (`ScaleOf`) are used) holding an invisible `mirror` StatusBar (`UnitHealth(unit)`, secret, set when the mob's health changed: `ns.HealthAt`) and a chain of StatusBars per group (damage, heal), each as wide as the health bar and scaled to the unit's secret max health, filled to what each spell still has to do (`ns.UnitAmounts`), the first pinned to the mirror's fill end and each next to the end of the previous one's. Spark and outline (`Trim`) on a top layer. Values, textures, colors, ranges and layers are set only when they change (re-setting them seemed to end the easing). One overlay for the target (parented to UIParent; `traced` for `/ticky log`), one per nameplate (parented to the plate, on `ns.PlateHealthBar(plate)`, when `overlayPlates`) | `FindHealthBar`, `UpdateOverlay`, `CreateOverlay`, `MaxHealthChanged`, `OverlayInfo`, `HealthBarIn`, `FramePath` |
 | `Plates.lua` | Bars on nameplates: a holder per (recycled) nameplate frame, parented to it and anchored to both edges of the plate's health bar (`PlateBar`: `ns.HealthBarIn(plate, 5)`, which covers Blizzard's plates and addons that build on them; re-checked every frame with `IsUnder`, because Blizzard pools the plates' UnitFrames, health bar included, and moves them between plates). Its width sets the bars' size (`plateHeightPct`); Bars.lua's bars are drawn with a per-plate style proxy (`PLATE_KEYS` swap in the `plate*` text settings, `PLATE_LOOK` the `plate*` look settings when `plateOwnLook`, `growUp` from `plateAnchor`). Our own frames are marked `tickyOwned` so the health bar search skips them | `UpdatePlates`, `LayoutPlates`, `CreatePlates`, `PlateHealthBar` |
 | `Widgets.lua` | Option controls | `ns.W` (`Label`, `Header`, `Button`, `Check`, `Slider`, `Cycle`, `Swatch`, `EditBox`, `Setting`) |
 | `Options.lua` | Options window, Settings-panel entry, shift-click link hook, the report dialog (issues link to copy) | `ToggleOptions`, `RefreshOptions`, `ShowReport` |
@@ -150,30 +150,24 @@ UNIT_COMBAT WOUND/HEAL            -> OnTickAmount: match to a timer on that mob 
                                      the timer's start/expiry half way to where it landed (tick
                                      marks); non-crits teach tickSizes[spellID] (60/40 running
                                      average, unrounded; /ticky debug, totals without a tooltip);
-                                     a crit -> PlanCrit: the spark moves by amount - planTotal /
-                                     ticks; a hit that's no tick of yours -> PlanOther: plan.offset
-                                     += amount (heal: -=), the spark moves with the health bar.
-                                     Window: min(0.5s, interval / 4); timers that just ended stay
+                                     window: min(0.5s, interval / 4); timers that just ended stay
                                      matchable for 0.5s (`ended`, `endedChannel`: late last ticks)
 
-Health bar shading (the owner's model): plan[mob] = { health, parts[key] = { amount, heal,
-expires }, expires, version }
-  OnCast / channel start          -> PlanAdd: first part: health = UnitHealth(UnitForMob(mob))
-                                     (secret; else taken at the first draw); amount += the
-                                     spell's total (SpellTotal: tooltip amount read now, else
-                                     tickSizes x ticks); a refresh adds total - old total x
-                                     LeftShare (its ticks still to come, by the clock)
-  miss/resist after a cast, aura gone early, channel stopped early -> PlanTake (that much back)
-  CheckAlerts                     -> a plan ends PLAN_LINGER (0.5s) after its last part's expiry
+Health bar shading: hangs from the health end (the mirror), as long as what your spells still
+have to do, so every health change moves the spark and your ticks don't:
+  OnCast / channel start          -> t.planTotal = SpellTotal (tooltip amount read now, else
+                                     tickSizes x ticks); t.perTick = planTotal / its ticks (fixed)
+  OnTickAmount match              -> t.matchedTick; drawDue (its UNIT_HEALTH comes the same frame)
   UNIT_HEALTH                     -> healthAt[mob]; drawDue (drawn in the next OnUpdate)
-  every 0.1s, or when drawDue     -> ns.UpdateOverlay: UnitAmounts(unit) = plan + parts ->
-                                     mirror = UnitHealth when HealthAt changed (or 1s); frozen =
-                                     plan.health when plan.version changed; segments = parts'
-                                     amounts (set only on change), chained from the frozen fill
-                                     end, clipped at the mirror's fill end; spark and outline
-                                     (Trim). Your ticks never move the spark, except a crit's
-                                     extra; plan.offset goes at the far end ("other" entry, or
-                                     taken off the far end's spells when negative).
+  every 0.1s, or when drawDue     -> ns.UpdateOverlay: UnitAmounts(unit, now): per timer on the
+                                     mob (and ended ones for 0.5s, and your channel on its
+                                     mob) RemainingAmount = (ticks - max(matchedTick, ticks
+                                     0.5s past their time)) x perTick -> mirror = UnitHealth
+                                     when HealthAt changed (or 1s); segments = amounts (set only
+                                     on change), chained from the mirror's fill end; spark and
+                                     outline (Trim). A crit drops the health by more than a
+                                     tick: the spark moves by the extra; other damage, reported
+                                     or not, moves the health end and the spark with it.
 
 UNIT_AURA (target/player/nameplateN), PLAYER_TARGET_CHANGED, NAME_PLATE_UNIT_ADDED,
 PLAYER_REGEN_ENABLED, and each cast timer once it's 1.1s old
@@ -390,13 +384,14 @@ Game data (spell tables) for Forever is on wago.tools under product `wowf`; see
   0.5 showed no bars for DoTs on a mob in the open world; fixed by timing from casts. Read
   `SecretPredicatesDocumentation.lua` for what each `SecretWhen...` flag means before relying on an
   API.
-- The health shading's spark (2026-10-21): about twenty builds chasing hops, because the shading
-  re-worked out "damage still to come" from ticks as they landed (tick matching, holds, rounding,
-  crits, late last ticks: every mismatch moved the spark). The owner's model needed none of it:
-  the spark is the health when the DoT went on minus its total, and only moves when a DoT is
-  added, refreshed or taken back. Ask what the owner wants something to mean before engineering
-  around it, and prefer the simplest model that does it. docs/health-shading-spark.md has the
-  history.
+- The health shading's spark (2026-10-21): about twenty builds chasing hops. The causes were bad
+  estimates of what the DoTs still had to do (a learned tick size re-read and rounded on every
+  hit, crits taken as normal ticks, a stale 18s duration, last ticks landing after the timer was
+  dropped), patched with holds and pending counts instead of fixed. A spark fixed at the health
+  when the first DoT went on then missed other players' damage (UNIT_COMBAT doesn't report it
+  all). What works: hang the shading from the health end, as long as each DoT's tooltip total over
+  its ticks times the ticks not yet done. Ask what the owner wants something to mean before
+  engineering around it. docs/health-shading-spark.md has the history.
 - Taking `isFromPlayerOrPlayerPet` for "cast by me". It means cast by a player, any player:
   another priest's Shadow Word: Pain or Fortitude counted as the owner's, with sounds, and taught
   Ticky its (untalented) length. Whose an aura is comes from `sourceUnit` (`UnitIsUnit("player",
