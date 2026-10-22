@@ -131,7 +131,10 @@ timers[mob][spellKey]   mob = MobKey(unit): GUID if readable, else "plate:namepl
 
 UNIT_SPELLCAST_SENT (player)      -> sentTo[castGUID] = { MobForCast(spell, target name), name }:
                                      target/focus/mouseover by name, and for helpful spells
-                                     party1-4/raid1-40 too, else "name:<name>"; t.unitName = name
+                                     party1-4/raid1-40 too, else "name:<name>"; t.unitName = name.
+                                     The name may carry a realm ("Bob-Realm"): NamesUnit / BareName
+                                     compare with or without it (missing it doubled HoT bars). An
+                                     aura read of a unit takes over its "name:" timers
 UNIT_SPELLCAST_SUCCEEDED (player) -> OnCast: tracked, not a channel -> Store(mob, timer)
                                      start = now, length = CastDuration (tooltip, else learned);
                                      apply / refresh sound; recentCast[mob] for resists

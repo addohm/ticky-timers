@@ -84,6 +84,11 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
 - Preview bars use all your tracked spells (up to 8), including your channel, and show missing
   spells between runs.
 ### Fixed
+- With "Your spells on other units" on, each HoT could show twice, with two timings: when the game
+  gave the cast's target with a realm ("Name-Realm"), Ticky didn't recognise you (or a group
+  member) and kept the HoT under that name, and reading your buffs added a second one. Names now
+  match with or without a realm, and reading someone's buffs takes over a HoT kept under their
+  name. `/ticky debug` lists your spells on others and how each one's unit was found.
 - A heal or buff cast on a party or raid member who wasn't your target, focus or mouseover (for
   example clicked on their party frame) was put on you ("Renew (you)"). Ticky now finds them in
   your group by name; someone it can't see at all keeps the spell under their name.

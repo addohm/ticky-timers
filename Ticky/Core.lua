@@ -425,6 +425,17 @@ local function NameOf(unit)
   if n and not Secret(n) then return n end
 end
 
+-- A name as UNIT_SPELLCAST_SENT gives it may carry a realm ("Bob-Realm"); UnitName gives the
+-- name and realm apart. These compare them either way.
+local function BareName(name) return name:match("^([^%-]+)") or name end
+local function NamesUnit(name, unit)
+  local ok, n, realm = pcall(UnitName, unit)
+  if not ok or not n or Secret(n) then return false end
+  if name == n then return true end
+  if realm and not Secret(realm) and realm ~= "" and name == n .. "-" .. realm then return true end
+  return BareName(name) == n
+end
+
 -- The nameplate token ("nameplate3") showing the mob behind `unit`, or nil.
 local function PlateToken(unit)
   if unit:match("^nameplate%d+$") then return unit end
@@ -677,9 +688,13 @@ local function ReadUnit(unit)
   local now = GetTime()
   local mine = MobTimers(mob)
   local seen = {}
-  local who = unit ~= "player" and NameOf(unit) or nil
+  local name = NameOf(unit)
+  local who = unit ~= "player" and name or nil
+  -- Timers a cast kept under this unit's name (it couldn't be seen then): this read takes over.
+  local byName = name and timers["name:" .. name]
   for _, t in ipairs(list) do
     seen[t.key] = true
+    if byName then byName[t.key] = nil end
     t.mob, t.unitName = mob, who
     if t.mine and t.spellID then learned[t.spellID] = floor((t.expires - t.start) * 10 + 0.5) / 10 end
     local prev = mine[t.key]
@@ -712,6 +727,7 @@ local function ReadUnit(unit)
     end
   end
   if gone[mob] and not next(gone[mob]) then gone[mob] = nil end
+  if byName and not next(byName) then timers["name:" .. name] = nil end
   if not next(mine) then timers[mob] = nil end
 end
 
@@ -806,17 +822,16 @@ for i = 1, 40 do GROUP_UNITS[#GROUP_UNITS + 1] = "raid" .. i end
 
 local function MobForCast(spellID, name)
   local helpful = SpellKind(spellID) == "help"
-  local me = NameOf("player")
-  if helpful and (not name or name == "" or name == me) then return playerGUID end
+  if helpful and (not name or name == "" or NamesUnit(name, "player")) then return playerGUID end
   if name and name ~= "" then
     -- Your target, focus or mouseover, or (a heal clicked on a party or raid frame) a group member.
     for i, unit in ipairs(GROUP_UNITS) do
       if i > 3 and not helpful then break end
-      if NameOf(unit) == name then return MobKey(unit) end
+      if NamesUnit(name, unit) then return MobKey(unit) end
     end
     -- A friend Ticky can't see by any unit: kept under their name (it can't be read later, but
-    -- its bar runs, and it isn't taken for one on you).
-    if helpful then return "name:" .. name end
+    -- its bar runs, and it isn't taken for one on you). Reading their auras later takes it over.
+    if helpful then return "name:" .. BareName(name) end
   end
   if helpful and not (HasTarget() and UnitCanAssist("player", "target") == true) then return playerGUID end
   return HasTarget() and MobKey("target") or nil
@@ -878,7 +893,7 @@ local function OnCast(castGUID, spellID)
   local t = {
     key = key, name = name, icon = icon or cfg.icon, spellID = spellID, castAt = now,
     start = now, expires = now + duration, interval = AuraPeriod(spellID), mob = mob,
-    unitName = mob ~= playerGUID and sent and sent.name or nil, -- who it's on, for the bar text
+    unitName = mob ~= playerGUID and sent and sent.name and BareName(sent.name) or nil, -- for the bar text
   }
   local list = timers[mob]
   local prev = list and list[key]
@@ -1772,6 +1787,19 @@ local function ShortDebug()
   hostile = not Secret(hostile) and hostile == true
   L(("Target: %s, key %s | timers: %s%s"):format(tm and (hostile and "enemy" or "friend") or "none", tm and (tm:sub(1, 6) == "plate:" and tm or tm == "target" and "target" or "GUID") or "-",
     #parts > 0 and table.concat(parts, ", ") or "none", channel and (" | channel " .. channel.name) or ""))
+  -- Your spells on anyone else, and how each one's unit was found (a doubled bar shows here).
+  local elsewhere = {}
+  for mob, list in pairs(timers) do
+    if mob ~= tm then
+      local how = mob == playerGUID and "you" or mob:sub(1, 5) == "name:" and "by name"
+        or mob:sub(1, 6) == "plate:" and "plate" or "GUID"
+      for _, t in pairs(list) do
+        elsewhere[#elsewhere + 1] = ("%s (%s, %s) %.0fs"):format(t.name, t.unitName or "?", how,
+          math.max(0, t.expires - GetTime()))
+      end
+    end
+  end
+  L("Elsewhere: " .. (#elsewhere > 0 and table.concat(elsewhere, ", ") or "-"))
   local hb = ns.FindHealthBar and ns.FindHealthBar()
   local attaches, width, scale
   if ns.OverlayInfo then attaches, width, scale = ns.OverlayInfo() end

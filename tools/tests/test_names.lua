@@ -65,3 +65,38 @@ for _, f in ipairs(M.frames) do
   end
 end
 check(plateText and not plateText:find("%("), "nameplate bars: no names: " .. tostring(plateText))
+
+-- The game can give a cast's target name with a realm ("Whoat-Beta"). A HoT on yourself is still
+-- yours, and reading your buffs doesn't add a second bar for it (it did: two bars per HoT, two
+-- timings, 2026-10-22). Same for a party member from another realm.
+db.plateEnabled, db.unitNameMode = false, "others"
+M.units.target = nil; M.fire("PLAYER_TARGET_CHANGED"); M.update(0.15)
+local function count(text, word)
+  local n = 0
+  for _ in text:gmatch(word) do n = n + 1 end
+  return n
+end
+M.cast(139, "Whoat-Beta"); M.update(0.15)
+M.units.player.auras = { M.aura(139, 15, { harmful = false }) }
+M.auraLock = false; M.fire("UNIT_AURA", "player"); M.update(0.15)
+check(count(names(), "Renew") == 2 and not names():find("Whoat"),
+  "your Renew once (the other is Bob's): " .. names())
+M.units.party2 = { guid = "Player-4", name = "Carl", exists = true, canAssist = true, auras = {} }
+M.cast(139, "Carl-Otherrealm"); M.update(0.15)
+check(#ns.UnitTimers("party2", M.now, {}) == 1, "Carl from another realm: found in your group")
+
+-- A friend Ticky couldn't see at the cast (kept under their name), read later as your target:
+-- one bar, not two.
+M.cast(139, "Dana"); M.update(0.15)
+check(count(names(), "%(Dana%)") == 1, "Dana's Renew, by name: " .. names())
+M.units.target = { guid = "Player-5", name = "Dana", exists = true, canAssist = true,
+  auras = { M.aura(139, 15, { harmful = false }) } }
+M.fire("PLAYER_TARGET_CHANGED"); M.update(0.15)
+check(count(names(), "Renew") == 4 and names():find("^Renew |") and not names():find("%(Dana%)"),
+  "targeted and read: her Renew once, as your target's: " .. names())
+M.printed = {}
+SlashCmdList.TICKY("debug")
+local line
+for _, l in ipairs(M.printed) do if l:find("Elsewhere") then line = l end end
+check(line and line:find("Renew %(Bob, GUID%)") and line:find("Renew %(%?, you%)"),
+  "/ticky debug lists your spells on others and how they were found: " .. tostring(line))
