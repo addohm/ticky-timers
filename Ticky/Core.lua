@@ -61,7 +61,8 @@ ns.DEFAULTS = {
   plateBorderSize = 1, plateBorderColor = { 0, 0, 0 }, plateFillMode = "drain", plateSpark = false,
   plateTickColor = { 1, 1, 1 }, plateFont = "Friz Quadrata", plateOutline = "OUTLINE",
   -- General
-  hideMain = false, showChannel = true, showSelf = true, hideOutOfCombat = false, hideNoTarget = false,
+  hideMain = false, showChannel = true, showSelf = true, showOthers = false, unitNameMode = "others",
+  hideOutOfCombat = false, hideNoTarget = false,
   alpha = 1, oocAlpha = 1, showAll = false, previewInOptions = true,
 }
 
@@ -676,9 +677,10 @@ local function ReadUnit(unit)
   local now = GetTime()
   local mine = MobTimers(mob)
   local seen = {}
+  local who = unit ~= "player" and NameOf(unit) or nil
   for _, t in ipairs(list) do
     seen[t.key] = true
-    t.mob = mob
+    t.mob, t.unitName = mob, who
     if t.mine and t.spellID then learned[t.spellID] = floor((t.expires - t.start) * 10 + 0.5) / 10 end
     local prev = mine[t.key]
     local lost = gone[mob] and gone[mob][t.key]
@@ -798,14 +800,23 @@ local recentCast = {} -- [mob] = { t, prev, at }: the last tracked cast on each 
 
 -- The mob a spell cast at `name` goes to. UNIT_SPELLCAST_SENT only gives a name, and you may
 -- have tabbed away by the time the cast lands, so this is worked out when it's sent.
+local GROUP_UNITS = { "target", "focus", "mouseover" }
+for i = 1, 4 do GROUP_UNITS[#GROUP_UNITS + 1] = "party" .. i end
+for i = 1, 40 do GROUP_UNITS[#GROUP_UNITS + 1] = "raid" .. i end
+
 local function MobForCast(spellID, name)
   local helpful = SpellKind(spellID) == "help"
   local me = NameOf("player")
   if helpful and (not name or name == "" or name == me) then return playerGUID end
   if name and name ~= "" then
-    for _, unit in ipairs({ "target", "focus", "mouseover" }) do
+    -- Your target, focus or mouseover, or (a heal clicked on a party or raid frame) a group member.
+    for i, unit in ipairs(GROUP_UNITS) do
+      if i > 3 and not helpful then break end
       if NameOf(unit) == name then return MobKey(unit) end
     end
+    -- A friend Ticky can't see by any unit: kept under their name (it can't be read later, but
+    -- its bar runs, and it isn't taken for one on you).
+    if helpful then return "name:" .. name end
   end
   if helpful and not (HasTarget() and UnitCanAssist("player", "target") == true) then return playerGUID end
   return HasTarget() and MobKey("target") or nil
@@ -867,6 +878,7 @@ local function OnCast(castGUID, spellID)
   local t = {
     key = key, name = name, icon = icon or cfg.icon, spellID = spellID, castAt = now,
     start = now, expires = now + duration, interval = AuraPeriod(spellID), mob = mob,
+    unitName = mob ~= playerGUID and sent and sent.name or nil, -- who it's on, for the bar text
   }
   local list = timers[mob]
   local prev = list and list[key]
@@ -1160,12 +1172,12 @@ end
 local active, group, present = {}, {}, {}
 -- `extra` is the channel timer: added to this group in your own order, otherwise shown on
 -- top and only marked present here so it doesn't also get a missing bar.
-local function AddGroup(list, now, youTag, extra, addExtra, missingTest)
+local function AddGroup(list, now, youTag, extra, addExtra, missingTest, other)
   wipe(group)
   wipe(present)
   for _, e in ipairs(list) do
     if e.expires > now then
-      e.youTag = youTag
+      e.youTag, e.other = youTag, other
       group[#group + 1] = e
       present[e.key] = true
     end
@@ -1190,21 +1202,23 @@ local function AddGroup(list, now, youTag, extra, addExtra, missingTest)
 end
 
 -- The bars to show, top to bottom: your channel (or, in your own order, in its slot),
--- your target's auras with any missing spells, then your own auras.
+-- your target's auras with any missing spells, your spells on other units (`othersList`, with
+-- "Your spells on other units"), then your own auras.
 -- `targetList`/`selfList` are timers, `chan` the channel timer, `missingTest(cfg)` says
 -- whether a missing spell gets a placeholder (nil: none).
-function ns.BuildDisplay(now, targetList, selfList, chan, missingTest, youTag)
+function ns.BuildDisplay(now, targetList, selfList, chan, missingTest, youTag, othersList)
   wipe(active)
   local custom = db.sortMode == "custom"
   if chan and (chan.expires <= now or not db.showChannel) then chan = nil end
   if chan and not custom then active[1] = chan end
   AddGroup(targetList, now, false, chan, custom, missingTest)
+  if othersList then AddGroup(othersList, now, false, nil, nil, nil, true) end
   if selfList then AddGroup(selfList, now, youTag) end
   return active
 end
 
 -- A mob's timers as a list (reused tables; the display reads them right away).
-local targetList, selfList = {}, {}
+local targetList, selfList, othersList = {}, {}, {}
 local function ListOf(mob, out)
   wipe(out)
   local list = mob and timers[mob]
@@ -1224,7 +1238,17 @@ function ns.ActiveTimers(now)
     missingTest = FitsTarget
   end
   local mine = (db.showSelf and targetMob ~= playerGUID) and ListOf(playerGUID, selfList) or nil
-  return ns.BuildDisplay(now, ListOf(targetMob, targetList), mine, channel, missingTest, hasTarget)
+  local others
+  if db.showOthers then -- everything of yours on anyone but your target and you
+    others = othersList
+    wipe(others)
+    for mob, list in pairs(timers) do
+      if mob ~= targetMob and mob ~= playerGUID then
+        for _, t in pairs(list) do others[#others + 1] = t end
+      end
+    end
+  end
+  return ns.BuildDisplay(now, ListOf(targetMob, targetList), mine, channel, missingTest, hasTarget, others)
 end
 
 -- A unit's timers for its nameplate, in bar order (into `out`), and its mob key.
@@ -1593,7 +1617,8 @@ function TB:UNIT_SPELLCAST_SENT(_, name, castGUID, spellID)
   for g, s in pairs(sentTo) do
     if now - s.at > 10 then sentTo[g] = nil end
   end
-  sentTo[castGUID] = { mob = MobForCast(spellID, not Secret(name) and name or nil), at = now }
+  local target = not Secret(name) and name or nil
+  sentTo[castGUID] = { mob = MobForCast(spellID, target), name = target, at = now }
 end
 
 function TB:UNIT_SPELLCAST_SUCCEEDED(_, castGUID, spellID)

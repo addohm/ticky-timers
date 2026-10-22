@@ -48,7 +48,8 @@ then goes missing for a few seconds, so you can see how missing spells look too.
 - **Text & Ticks**: spell name, time left, ticks left and stacks on/off; font, size, outline,
   shadow; name and time colors; time on the left or right; tenths of a second under 10s, under 3s,
   or never; tick color, width and height; past ticks dimmed, hidden or shown; highlight the next
-  tick in its own color.
+  tick in its own color. "Who it's on": the name of who a spell is on after its own, "Renew
+  (Bob)", on other units' bars (the default), on every bar, or never; main bars only.
 - **Sounds**: a default sound for each event (put on, refreshed, every tick, warning, ended,
   removed early); warning time and bar flash; sound channel; alerts for DoTs on enemies you've
   switched away from (or see a nameplate for); combat-only alerts; on-screen text for warnings,
@@ -86,7 +87,9 @@ then goes missing for a few seconds, so you can see how missing spells look too.
   nameplate bars. "Hide on nameplates in raids" (on by default) keeps nameplates clear inside a
   raid: no bars and no shading there; your main bars and your target's shading still work.
 - **General**: lock/unlock (drag the blue handle), channel bar, tracked auras on yourself,
-  hide out of combat, hide with no target, hide the main bars altogether (sounds, nameplate bars
+  "Your spells on other units" (off by default: your HoTs and DoTs on anyone but your target get
+  bars too, after your target's, with who they're on; for keeping a HoT on someone or DoTs on
+  several mobs), hide out of combat, hide with no target, hide the main bars altogether (sounds, nameplate bars
   and the health bar overlay keep working), in/out of combat opacity, reset position, reset all
   settings.
 

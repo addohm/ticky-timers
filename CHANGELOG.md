@@ -55,6 +55,10 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
   icon/name/time/ticks; per-spell opt-out. "Hide on nameplates in raids" (on by default): inside
   a raid instance, nothing on nameplates (bars or health shading).
   The options window is wider for the eighth tab.
+- "Your spells on other units" (General tab, off by default): your HoTs and DoTs on anyone but
+  your target get bars too, after your target's, each with who it's on. "Who it's on" (Text &
+  Ticks tab): the unit's name after the spell's, "Renew (Bob)", on other units' bars, every bar,
+  or never; main bars only.
 - "Hide the main bars" (General and Nameplates tabs), e.g. to use only nameplate bars. Sounds,
   nameplate bars and the health bar overlay keep working; the options preview still shows them.
 - Health bar overlay (new Health bar tab, off by default; "Also on nameplates" for each mob's
@@ -80,6 +84,9 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
 - Preview bars use all your tracked spells (up to 8), including your channel, and show missing
   spells between runs.
 ### Fixed
+- A heal or buff cast on a party or raid member who wasn't your target, focus or mouseover (for
+  example clicked on their party frame) was put on you ("Renew (you)"). Ticky now finds them in
+  your group by name; someone it can't see at all keeps the spell under their name.
 - Another player's spells counted as yours when Ticky could read auras (usually out of combat):
   another priest's Shadow Word: Pain on your target or Fortitude on you made a bar and played your
   sounds, and its length was learned as yours. Ticky took the game's "cast by a player" for "cast

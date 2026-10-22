@@ -185,7 +185,11 @@ local function Label(e, cfg, st)
   if e.stacks and e.stacks > 1 and st.showStacks and not st.showIcon then
     label = ("%s (%d)"):format(label, e.stacks)
   end
-  if e.youTag then label = label .. " |cff999999(you)|r" end
+  if e.youTag then
+    label = label .. " |cff999999(you)|r"
+  elseif e.unitName and (st.unitNameMode == "all" or (st.unitNameMode == "others" and e.other)) then
+    label = label .. " |cff999999(" .. e.unitName .. ")|r" -- who it's on
+  end
   return label
 end
 

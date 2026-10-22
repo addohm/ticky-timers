@@ -30,6 +30,7 @@ local PLATE_LOOK = {
 }
 local function PlateValue(k)
   if k == "growUp" then return db.plateAnchor == "TOP" end -- stack away from the plate
+  if k == "unitNameMode" then return "none" end -- a nameplate says whose it is
   local pk = PLATE_KEYS[k] or (db.plateOwnLook and PLATE_LOOK[k])
   if pk then return db[pk] end
   return db[k]

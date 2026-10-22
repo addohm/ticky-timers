@@ -464,6 +464,10 @@ local function BuildTextPage()
   Place(p, W.Cycle(p, "Outline", ns.OUTLINES, g, s), 4, -212)
   g, s = S("shadow")
   Place(p, W.Check(p, "Text shadow", g, s), 0, -258)
+  g, s = S("unitNameMode")
+  Place(p, W.Cycle(p, "Who it's on", { { "others", "On other units' bars" }, { "all", "On every bar" },
+    { "none", "Never" } }, g, s, "The name of who a buff, debuff, DoT or HoT is on, after the spell's: "
+    .. "\"Renew (Bob)\". Main bars only."), 4, -288)
 
   W.Header(p, "Colors and format"):SetPoint("TOPLEFT", COL2, 0)
   g, s = S("nameColor")
@@ -796,16 +800,21 @@ local function BuildGeneralPage()
   g, s = S("showSelf")
   Place(p, W.Check(p, "Also show tracked auras on yourself", g, s,
     "Your own buffs and HoTs (and debuffs on you) get bars too, below your target's."), 0, -72)
+  g, s = S("showOthers")
+  Place(p, W.Check(p, "Your spells on other units", g, s,
+    "Your DoTs and HoTs on anyone but your target get bars too, after your target's, each with who "
+    .. "it's on (Text & Ticks tab: \"Who it's on\"). For keeping a HoT on someone, or DoTs on several mobs."),
+    0, -98)
   g, s = S("hideOutOfCombat")
-  Place(p, W.Check(p, "Hide bars out of combat", g, s), 0, -98)
+  Place(p, W.Check(p, "Hide bars out of combat", g, s), 0, -124)
   g, s = S("hideNoTarget")
-  Place(p, W.Check(p, "Hide bars when you have no target", g, s), 0, -124)
+  Place(p, W.Check(p, "Hide bars when you have no target", g, s), 0, -150)
   g, s = S("hideMain")
-  Place(p, W.Check(p, "Hide the main bars", g, s, "Your channel bar too. Sounds, nameplate bars and the health bar overlay keep working. The preview still shows them while this window is open."), 0, -150)
+  Place(p, W.Check(p, "Hide the main bars", g, s, "Your channel bar too. Sounds, nameplate bars and the health bar overlay keep working. The preview still shows them while this window is open."), 0, -176)
   g, s = S("alpha")
-  Place(p, W.Slider(p, "Opacity in combat", 0.1, 1, 0.05, g, s, pct), 4, -184)
+  Place(p, W.Slider(p, "Opacity in combat", 0.1, 1, 0.05, g, s, pct), 4, -210)
   g, s = S("oocAlpha")
-  Place(p, W.Slider(p, "Opacity out of combat", 0.1, 1, 0.05, g, s, pct), 4, -224)
+  Place(p, W.Slider(p, "Opacity out of combat", 0.1, 1, 0.05, g, s, pct), 4, -250)
 
   W.Header(p, "Reset"):SetPoint("TOPLEFT", COL2, 0)
   W.Button(p, "Reset bar position", 160, ns.ResetPosition):SetPoint("TOPLEFT", COL2 + 4, -22)

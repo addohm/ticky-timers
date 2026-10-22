@@ -129,7 +129,9 @@ Globals (keep this list short): `TickyDB`, `TickyCharDB`, `SLASH_TICKY1`, `Slash
 timers[mob][spellKey]   mob = MobKey(unit): GUID if readable, else "plate:nameplateN",
                         else "target" (forgotten on target change)
 
-UNIT_SPELLCAST_SENT (player)      -> sentTo[castGUID] = MobForCast(spell, target name)
+UNIT_SPELLCAST_SENT (player)      -> sentTo[castGUID] = { MobForCast(spell, target name), name }:
+                                     target/focus/mouseover by name, and for helpful spells
+                                     party1-4/raid1-40 too, else "name:<name>"; t.unitName = name
 UNIT_SPELLCAST_SUCCEEDED (player) -> OnCast: tracked, not a channel -> Store(mob, timer)
                                      start = now, length = CastDuration (tooltip, else learned);
                                      apply / refresh sound; recentCast[mob] for resists
@@ -189,7 +191,9 @@ UNIT_SPELLCAST_CHANNEL_* (player) -> ReadChannel() -> channel timer (interval = 
 
 OnUpdate (every frame)  -> ns.UpdatePlates(now) -> per ns.plateUnits token: UnitTimers -> bars
                         -> ns.UpdateBars(now) -> ActiveTimers(now) or PreviewTimers(now)
-                             -> BuildDisplay: channel, target group (+ missing placeholders), self
+                             -> BuildDisplay: channel, target group (+ missing placeholders),
+                                other units' timers (showOthers; e.other), self. Bars.lua's Label
+                                adds "(name)" per unitNameMode (nameplates: never)
                              -> UpdateBar / DrawMissing (a "space" placeholder hides its bar)
          (every 0.1s)   -> CheckAlerts(now)   -> CheckTick / Warn / Expire / removed -> Alert
                                                  -> PlaySound (SOUNDKIT, "SPEAK", "F:<file>")
