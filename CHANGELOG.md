@@ -84,6 +84,8 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
 - Preview bars use all your tracked spells (up to 8), including your channel, and show missing
   spells between runs.
 ### Fixed
+- Bars of the same spell on several units swapped places on every redraw (they sorted equal, and
+  the sort doesn't keep equal ones in order); they're now in order of who they're on.
 - With "Your spells on other units" on, each HoT could show twice, with two timings: the game can
   give a cast's target with more than the unit's name (a realm, "Name-Realm", or another word,
   "Nit Pik" for a player named Nit), so Ticky didn't recognise them, kept the HoT under that name,

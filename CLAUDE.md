@@ -199,8 +199,10 @@ UNIT_SPELLCAST_CHANNEL_* (player) -> ReadChannel() -> channel timer (interval = 
 OnUpdate (every frame)  -> ns.UpdatePlates(now) -> per ns.plateUnits token: UnitTimers -> bars
                         -> ns.UpdateBars(now) -> ActiveTimers(now) or PreviewTimers(now)
                              -> BuildDisplay: channel, target group (+ missing placeholders),
-                                other units' timers (showOthers; e.other), self. Bars.lua's Label
-                                adds "(name)" per unitNameMode (nameplates: never)
+                                other units' timers (showOthers; e.other), self; each group sorted
+                                by byMode: sortMode's key, then spell, then unitName, then mob
+                                (table.sort isn't stable: ties swapped places every redraw).
+                                Bars.lua's Label adds "(name)" per unitNameMode (nameplates: never)
                              -> UpdateBar / DrawMissing (a "space" placeholder hides its bar)
          (every 0.1s)   -> CheckAlerts(now)   -> CheckTick / Warn / Expire / removed -> Alert
                                                  -> PlaySound (SOUNDKIT, "SPEAK", "F:<file>")

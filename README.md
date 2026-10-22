@@ -88,8 +88,8 @@ then goes missing for a few seconds, so you can see how missing spells look too.
   raid: no bars and no shading there; your main bars and your target's shading still work.
 - **General**: lock/unlock (drag the blue handle), channel bar, tracked auras on yourself,
   "Your spells on other units" (off by default: your HoTs and DoTs on anyone but your target get
-  bars too, after your target's, with who they're on; for keeping a HoT on someone or DoTs on
-  several mobs), hide out of combat, hide with no target, hide the main bars altogether (sounds, nameplate bars
+  bars too, after your target's, with who they're on, the same spell in order of who it's on; for
+  keeping a HoT on someone or DoTs on several mobs), hide out of combat, hide with no target, hide the main bars altogether (sounds, nameplate bars
   and the health bar overlay keep working), in/out of combat opacity, reset position, reset all
   settings.
 

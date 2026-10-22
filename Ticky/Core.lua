@@ -1136,8 +1136,13 @@ local function sortKey(e)
 end
 local function byMode(a, b)
   local ka, kb = sortKey(a), sortKey(b)
-  if ka == kb then return a.key < b.key end
-  return ka < kb
+  if ka ~= kb then return ka < kb end
+  if a.key ~= b.key then return a.key < b.key end
+  -- The same spell on several units ("Your spells on other units"): by who it's on. table.sort
+  -- isn't stable, so with nothing to tell them apart they swapped places on every redraw.
+  local ua, ub = a.unitName or "", b.unitName or ""
+  if ua ~= ub then return ua < ub end
+  return tostring(a.mob or "") < tostring(b.mob or "")
 end
 
 local function RefreshDisplay()

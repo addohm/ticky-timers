@@ -118,3 +118,23 @@ local line
 for _, l in ipairs(M.printed) do if l:find("Elsewhere") then line = l end end
 check(line and line:find("Renew %(Bob, GUID%)") and line:find("Renew %(%?, you%)"),
   "/ticky debug lists your spells on others and how they were found: " .. tostring(line))
+
+-- The same spell on several people keeps its places: by who it's on (it swapped around: table.sort
+-- isn't stable, and bars of one spell sorted equal, 2026-10-22).
+db.sortMode = "custom"
+for i, who in ipairs({ "Zed", "Amy", "Max", "Kim", "Lou" }) do
+  M.units["raid" .. i] = { guid = "Player-R" .. i, name = who, exists = true, canAssist = true, auras = {} }
+  M.cast(139, who)
+end
+local orders = {}
+for _ = 1, 8 do
+  M.update(0.15)
+  local seq = {}
+  for who in names():gmatch("Renew " .. GRAY .. "%((%a+)%)") do
+    if ({ Zed = 1, Amy = 1, Max = 1, Kim = 1, Lou = 1 })[who] then seq[#seq + 1] = who end
+  end
+  orders[table.concat(seq, ",")] = true
+end
+local seen = {}
+for k in pairs(orders) do seen[#seen + 1] = k end
+check(#seen == 1 and seen[1] == "Amy,Kim,Lou,Max,Zed", "in name order, every redraw: " .. table.concat(seen, " / "))
