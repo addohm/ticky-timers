@@ -10,7 +10,8 @@ it); "dev" or an older commit means the game is still running an old copy.
 
 ## To test
 
-1. **Your spells on other units** (b4f6e93). General tab, "Your spells on other units" on. Renew on a
+1. **Your spells on other units** (b4f6e93, doubled HoT bars fixed in 8a0d24a). One bar per HoT, on you or
+   anyone else, with one timing; if one still shows twice, send `/ticky debug` (its "Elsewhere" line). General tab, "Your spells on other units" on. Renew on a
    party member by clicking their party frame (with an enemy targeted): a bar "Renew (name)" after
    your target's bars, not "Renew (you)", running out when it falls off. DoTs on a mob you tabbed
    away from: named bars there too. Text & Ticks, "Who it's on": every bar / never. Nameplate bars
