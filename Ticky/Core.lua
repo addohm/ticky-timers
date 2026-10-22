@@ -425,15 +425,19 @@ local function NameOf(unit)
   if n and not Secret(n) then return n end
 end
 
--- A name as UNIT_SPELLCAST_SENT gives it may carry a realm ("Bob-Realm"); UnitName gives the
--- name and realm apart. These compare them either way.
+-- A name as UNIT_SPELLCAST_SENT gives it can carry more than the unit's name: a realm
+-- ("Bob-Realm"), or another word after a space (in game the target "Nit Pik" was a unit UnitName
+-- calls "Nit", 2026-10-22). UnitName gives the name and realm apart. A player's name is one word,
+-- so for them the first word is the name; NPC names ("Defias Thug") are compared whole.
 local function BareName(name) return name:match("^([^%-]+)") or name end
-local function NamesUnit(name, unit)
+local function FirstWord(name) return name:match("^([^%-%s]+)") or name end
+local function NamesUnit(name, unit, friendly)
   local ok, n, realm = pcall(UnitName, unit)
   if not ok or not n or Secret(n) then return false end
   if name == n then return true end
   if realm and not Secret(realm) and realm ~= "" and name == n .. "-" .. realm then return true end
-  return BareName(name) == n
+  if BareName(name) == n then return true end
+  return friendly and not n:find("%s") and FirstWord(name) == n
 end
 
 -- The nameplate token ("nameplate3") showing the mob behind `unit`, or nil.
@@ -820,21 +824,29 @@ local GROUP_UNITS = { "target", "focus", "mouseover" }
 for i = 1, 4 do GROUP_UNITS[#GROUP_UNITS + 1] = "party" .. i end
 for i = 1, 40 do GROUP_UNITS[#GROUP_UNITS + 1] = "raid" .. i end
 
+-- Where a cast at `name` goes: its mob key, and the name to show for it.
 local function MobForCast(spellID, name)
   local helpful = SpellKind(spellID) == "help"
-  if helpful and (not name or name == "" or NamesUnit(name, "player")) then return playerGUID end
+  if helpful and (not name or name == "" or NamesUnit(name, "player", true)) then return playerGUID end
   if name and name ~= "" then
     -- Your target, focus or mouseover, or (a heal clicked on a party or raid frame) a group member.
     for i, unit in ipairs(GROUP_UNITS) do
       if i > 3 and not helpful then break end
-      if NamesUnit(name, unit) then return MobKey(unit) end
+      if NamesUnit(name, unit, helpful) then return MobKey(unit), NameOf(unit) end
+    end
+    -- A player whose nameplate is up (player names are unique; NPCs' aren't).
+    if helpful then
+      for unit in pairs(ns.plateUnits) do
+        local ok, player = pcall(UnitIsPlayer, unit)
+        if ok and player == true and NamesUnit(name, unit, true) then return MobKey(unit), NameOf(unit) end
+      end
     end
     -- A friend Ticky can't see by any unit: kept under their name (it can't be read later, but
     -- its bar runs, and it isn't taken for one on you). Reading their auras later takes it over.
-    if helpful then return "name:" .. BareName(name) end
+    if helpful then return "name:" .. FirstWord(name), FirstWord(name) end
   end
   if helpful and not (HasTarget() and UnitCanAssist("player", "target") == true) then return playerGUID end
-  return HasTarget() and MobKey("target") or nil
+  if HasTarget() then return MobKey("target"), NameOf("target") end
 end
 
 -- How long a cast's aura will last. Everything that changes a spell counts (talents, gear, rank):
@@ -893,7 +905,7 @@ local function OnCast(castGUID, spellID)
   local t = {
     key = key, name = name, icon = icon or cfg.icon, spellID = spellID, castAt = now,
     start = now, expires = now + duration, interval = AuraPeriod(spellID), mob = mob,
-    unitName = mob ~= playerGUID and sent and sent.name and BareName(sent.name) or nil, -- for the bar text
+    unitName = mob ~= playerGUID and sent and sent.name or nil, -- who it's on, for the bar text
   }
   local list = timers[mob]
   local prev = list and list[key]
@@ -1633,7 +1645,8 @@ function TB:UNIT_SPELLCAST_SENT(_, name, castGUID, spellID)
     if now - s.at > 10 then sentTo[g] = nil end
   end
   local target = not Secret(name) and name or nil
-  sentTo[castGUID] = { mob = MobForCast(spellID, target), name = target, at = now }
+  local mob, shown = MobForCast(spellID, target)
+  sentTo[castGUID] = { mob = mob, name = shown or (target and BareName(target)), at = now }
 end
 
 function TB:UNIT_SPELLCAST_SUCCEEDED(_, castGUID, spellID)

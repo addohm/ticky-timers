@@ -94,6 +94,24 @@ M.units.target = { guid = "Player-5", name = "Dana", exists = true, canAssist = 
 M.fire("PLAYER_TARGET_CHANGED"); M.update(0.15)
 check(count(names(), "Renew") == 4 and names():find("^Renew |") and not names():find("%(Dana%)"),
   "targeted and read: her Renew once, as your target's: " .. names())
+-- The game gave a cast's target as "Nit Pik" for a player UnitName calls "Nit" (in game,
+-- 2026-10-22: two bars, "(Nit Pik, by name)" and "(Nit, GUID)"). Their nameplate is up: found at
+-- the cast. Not up: kept as "Nit", and reading their buffs from their nameplate later takes it over.
+M.units.target = nil; M.fire("PLAYER_TARGET_CHANGED"); M.update(0.15)
+M.units.nameplate5 = { guid = "Player-6", name = "Nit", exists = true, canAssist = true,
+  auras = { M.aura(139, 15, { harmful = false }) } }
+M.fire("NAME_PLATE_UNIT_ADDED", "nameplate5")
+M.cast(139, "Nit Pik"); M.update(0.15)
+check(count(names(), "%(Nit") == 1 and names():find("Renew " .. GRAY .. "%(Nit%)"),
+  "Nit Pik is Nit, whose nameplate is up: one bar, \"(Nit)\": " .. names())
+M.units.nameplate6 = nil
+M.cast(139, "Eve Longname"); M.update(0.15)
+check(names():find("Renew " .. GRAY .. "%(Eve%)"), "not seen anywhere: kept as Eve: " .. names())
+M.units.nameplate6 = { guid = "Player-7", name = "Eve", exists = true, canAssist = true,
+  auras = { M.aura(139, 15, { harmful = false }) } }
+M.fire("NAME_PLATE_UNIT_ADDED", "nameplate6"); M.update(0.15)
+check(count(names(), "%(Eve") == 1, "her nameplate read later: still one bar: " .. names())
+
 M.printed = {}
 SlashCmdList.TICKY("debug")
 local line

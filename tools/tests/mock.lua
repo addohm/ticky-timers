@@ -217,6 +217,10 @@ function UnitGUID(u)
 end
 function UnitName(u) return unitOf(u) and unitOf(u).name end
 function UnitIsUnit(a, b) return unitOf(a) ~= nil and unitOf(a) == unitOf(b) end
+function UnitIsPlayer(u)
+  local d = unitOf(u)
+  return d ~= nil and d.guid ~= nil and tostring(d.guid):find("^Player%-") ~= nil
+end
 function UnitIsDeadOrGhost(u) return unitOf(u) and unitOf(u).dead or false end
 function UnitCanAttack(_, u) return unitOf(u) and unitOf(u).canAttack or false end
 function UnitCanAssist(_, u) return unitOf(u) and unitOf(u).canAssist or false end
