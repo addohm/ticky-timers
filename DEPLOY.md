@@ -7,7 +7,7 @@ Ticky is a World of Warcraft addon, so nothing runs on a server. "Deploying" mea
 Source: https://github.com/addohm/ticky-timers
 
 Releases are planned for CurseForge and Wago Addons: the listing text, ready to paste, and a
-before-publishing list are in [docs/listing.md](docs/listing.md), the logo in
+before-publishing list are in [LISTING.md](LISTING.md), the logo in
 [art/](art). Release packages go in [release/](release) (see "Shipping a change").
 
 ## First-time setup

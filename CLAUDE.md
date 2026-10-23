@@ -44,10 +44,11 @@ tools/
   install_beta.cmd  (Windows) git pull, mirror Ticky/ into the beta client's AddOns folder, stamp
                     the installed Build.lua with the commit
 README.md CHANGELOG.md ROADMAP.md SECURITY.md DEPLOY.md CLAUDE.md
+LISTING.md        the CurseForge / Wago listing: basics, paste-ready description, screenshots,
+                  release notes, before publishing (same format as the owner's other addons)
 .github/ISSUE_TEMPLATE/  bug report (asks for build and /ticky debug) and idea templates; the repo is public
 TESTING.md        running list of what to check in the client (to test / confirmed / gaps)
 docs/health-shading-spark.md  the spark-hop investigation and how the owner's model ended it
-docs/listing.md   the CurseForge / Wago listing text (paste-ready) and a before-publishing list
 art/              the logo: ticky-icon-512/256/64.png, ticky-icon.svg, ticky-banner-1200x400.png
 release/          release packages (zips from tools/package.py), committed; upload these
 ```
