@@ -156,8 +156,8 @@ Wide, uncluttered screenshots read best on both sites; crop to the bars where yo
       All Rights Reserved) and add a `LICENSE` file.
 - [ ] **Version:** bump `## Version:` in `Ticky.toc` (for example to 0.6.0) and turn the
       changelog's Unreleased section into that version.
-- [ ] **Packaging:** zip so the archive contains the `Ticky` folder at the top level. Leave out
-      `tools/`, `docs/` and the repo's .md files; players only need `Ticky/`.
+- [ ] **Packaging:** `python tools/package.py` writes `release/Ticky-<version>-<commit>.zip`: the
+      `Ticky` folder alone at its top level, its Build.lua stamped with the commit. Upload that.
 - [ ] **Game version:** check that CurseForge and Wago list a Forever game version or flavor
       (Interface 16001) at launch (Nov 4, 2026), and pick it so Forever players find the addon.
 - [ ] **Description:** the README's opening line credits an old WeakAura; leave that out of the

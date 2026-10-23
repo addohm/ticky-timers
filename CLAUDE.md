@@ -38,6 +38,8 @@ tools/
   make_sounds.py  regenerates Ticky/Sounds/*.ogg (numpy, soundfile)
   make_logo.py    regenerates docs/images (Pillow; bold and semibold font files as arguments,
                   Inter in the repo's images)
+  package.py      writes release/Ticky-<version>-<commit>.zip (the Ticky folder alone, Build.lua
+                  stamped with the commit)
   tests/          behaviour tests: mock.lua (a stand-in Forever client), run.py, test_*.lua
   install_beta.cmd  (Windows) git pull, mirror Ticky/ into the beta client's AddOns folder, stamp
                     the installed Build.lua with the commit
@@ -47,6 +49,7 @@ TESTING.md        running list of what to check in the client (to test / confirm
 docs/health-shading-spark.md  the spark-hop investigation and how the owner's model ended it
 docs/listing.md   the CurseForge / Wago listing text (paste-ready) and a before-publishing list
 docs/images/      the logo: ticky-icon-512/256/64.png, ticky-icon.svg, ticky-banner-1200x400.png
+release/          release packages (zips from tools/package.py), committed; upload these
 ```
 
 ## Commands
@@ -56,6 +59,7 @@ pip install lupa                      # once; embedded Lua for the checker
 python tools/check_lua.py             # syntax + TOC check; run after every Lua change
 python tools/tests/run.py [name]      # behaviour tests in a mocked client (all, or test_<name>.lua)
 python tools/gen_data.py <csv dir> <build> Ticky/Data.lua   # regenerate spell data
+python tools/package.py               # release/Ticky-<version>-<commit>.zip from a clean checkout
 ```
 
 There is no build step: the `Ticky` folder is the release. Manual testing means copying it into
@@ -388,7 +392,8 @@ Game data (spell tables) for Forever is on wago.tools under product `wowf`; see
 - Add what a change needs checked in game to TESTING.md (with the commit), and move items the owner
   confirms to its Confirmed list.
 - After pushing, tell the owner plainly that it's pushed and the commit, so they can test it.
-- Releases: bump `## Version:` in `Ticky/Ticky.toc`, turn Unreleased into a dated version section.
+- Releases: bump `## Version:` in `Ticky/Ticky.toc`, turn Unreleased into a dated version section,
+  commit, then `python tools/package.py` and commit the zip in `release/`.
 - Before committing, confirm no secret-looking file is staged (`.gitignore` covers the usual ones).
   Never print credentials from git remotes.
 

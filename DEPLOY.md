@@ -8,7 +8,7 @@ Source: https://github.com/addohm/ticky-timers
 
 Releases are planned for CurseForge and Wago Addons: the listing text, ready to paste, and a
 before-publishing list are in [docs/listing.md](docs/listing.md), the logo in
-[docs/images](docs/images). No tags or release packages exist yet.
+[docs/images](docs/images). Release packages go in [release/](release) (see "Shipping a change").
 
 ## First-time setup
 
@@ -45,8 +45,13 @@ To run it in the game:
    into `## [x.y.z] - YYYY-MM-DD`, commit, and push to `main`.
 4. Test in the Forever client (ROADMAP item 1 is the checklist).
 
-TODO: should releases be tagged (`vX.Y.Z`)? For CurseForge and Wago, the package is a zip with the
-`Ticky` folder at its top level and nothing else (see docs/listing.md, "Before publishing").
+Packages: `python tools/package.py` (from a clean checkout of the commit to release) writes
+`release/Ticky-<version>-<commit>.zip`: the `Ticky` folder alone at its top level, as CurseForge,
+Wago and players unzipping into `Interface\AddOns` expect, with its `Build.lua` stamped with the
+commit so `/ticky debug` names it. Commit the zip to `release/` and upload it. The first one is
+`release/Ticky-0.5.0-0dd6318.zip`.
+
+TODO: should releases also be tagged (`vX.Y.Z`)?
 
 Keep non-addon files (docs, tools, CLAUDE.md) out of `Ticky/`: players copy that folder whole.
 

@@ -15,7 +15,8 @@ Forever build 1.60.1.70245.
 
 ## Install
 
-Copy the `Ticky` folder into `World of Warcraft\<Forever folder>\Interface\AddOns\`
+Unzip a release from [release/](release) (it holds the `Ticky` folder), or copy the repo's `Ticky`
+folder, into `World of Warcraft\<Forever folder>\Interface\AddOns\`
 (beta: `World of Warcraft\_classic_beta_\Interface\AddOns\`), then restart the client.
 Check the interface number with `/dump select(4, GetBuildInfo())`; the TOC says `16001`.
 For development on Windows, `tools\install_beta.cmd` pulls the latest code and copies it into the

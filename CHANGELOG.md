@@ -8,6 +8,8 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
 - `tools/check_lua.py`: syntax-checks the addon's Lua and the TOC file list.
 - DEPLOY.md: installing, releasing, rolling back, saved variables and troubleshooting.
 - TESTING.md: the running list of what needs checking in the game client.
+- `tools/package.py`: packages the addon as `release/Ticky-<version>-<commit>.zip` (the `Ticky`
+  folder alone, its Build.lua stamped with the commit); release packages are kept in `release/`.
 - docs/listing.md: the CurseForge / Wago listing, ready to paste, with a before-publishing list.
   The logo (docs/images: icon PNGs and SVG, a 1200x400 banner, made by `tools/make_logo.py`) is
   at the top of the README. The TOC's author is now addohm.
