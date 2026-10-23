@@ -2,7 +2,7 @@
 ## Title: Ticky
 ## Notes: Timer bars for your buffs and debuffs, with a marker for every tick of DoTs and HoTs.
 ## Author: addohm
-## Version: 0.5.0
+## Version: 0.6.0
 ## SavedVariables: TickyDB
 ## SavedVariablesPerCharacter: TickyCharDB
 ## IconTexture: Interface\AddOns\Ticky\Media\Icon

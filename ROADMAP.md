@@ -23,11 +23,14 @@
 9. The health bar overlay on the focus frame.
 
 ## Done
-- Unreleased: the health shading's spark holds still as DoT ticks land (the investigation:
+- 0.6.0: Ticky's own icon and a minimap button; your spells on other units, named; nothing on
+  nameplates in raids by default; GPLv3; a release package (`release/`) and the CurseForge / Wago
+  listing (LISTING.md).
+- 0.6.0: the health shading's spark holds still as DoT ticks land (the investigation:
   [docs/health-shading-spark.md](docs/health-shading-spark.md)).
-- Unreleased: timers from your casts (bars in combat), health bar overlay for DoTs and HoTs (target
+- 0.6.0: timers from your casts (bars in combat), health bar overlay for DoTs and HoTs (target
   and nameplates), bars on nameplates with their own look.
-- Unreleased: your own bar order (fixed slots, channel in its slot), missing-spell bars, sounds for
+- 0.6.0: your own bar order (fixed slots, channel in its slot), missing-spell bars, sounds for
   every event (apply, refresh, tick, warning, end, removed) per spell, text to speech, custom sound
   files, on-screen messages, and more bar/text styling.
 - 0.5.0: spell data generated for every class spell; any buff/debuff can be tracked.

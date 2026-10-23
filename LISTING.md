@@ -158,8 +158,10 @@ character names you're happy to show.
 > - Timer bars on nameplates, hidden in raids by default
 > - Your spells on other units, named
 > - Missing-spell bars, your own bar order
+> - Ticky's own icon, and a minimap button (left-click: options, right-click: lock the bars)
 > - Sounds for every event, per spell: game sounds, text-to-speech or your own files
 > - Misses, resists, dodges and parries drop the bar
+> - Free and open source under the GNU GPL v3
 
 ---
 

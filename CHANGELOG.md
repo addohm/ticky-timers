@@ -3,6 +3,11 @@
 All notable changes are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
+
+## [0.6.0] - 2026-10-23
+
+The first public release, for WoW: Forever.
+
 ### Added
 - A minimap button (General tab, on by default; `/ticky minimap` shows or hides it): Ticky's icon
   on the minimap's edge. Left-click opens the options, right-click locks or unlocks the bars,

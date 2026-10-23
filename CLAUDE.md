@@ -14,7 +14,7 @@ original-Azeroth content (level 60, vanilla-era spells, ranks and talents) runni
 **modern Mainline addon API** (12.x family), TOC interface **16001**. It is *not* Classic Era and
 *not* TBC. The owner's old TBC WeakAuras were inspiration only.
 
-Status: 0.5.0 plus unreleased work, tested by the owner in the Forever beta client: bars timed from
+Status: 0.6.0 (2026-10-23, the first public release), tested by the owner in the Forever beta client: bars timed from
 casts, sounds, misses/resists and the health bar shading are confirmed in game (TESTING.md's
 Confirmed list); the rest is checked with syntax checks and the mocked API (see Testing).
 

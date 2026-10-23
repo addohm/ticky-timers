@@ -7,7 +7,7 @@ timer bar for it. Spells that work over time (DoTs, HoTs, channels) also get a m
 tick. Switching targets shows that target's bars; your own buffs show below them.
 Inspired by Woat's Shadow Priest WeakAuras ([example](https://wago.io/AYC53i2vy)).
 
-**Status:** 0.5.0 plus unreleased changes, tested in the Forever beta client: bars timed from your
+**Status:** 0.6.0, the first public release, tested in the Forever beta client: bars timed from your
 casts, sounds, misses and resists, and the health bar shading work in game; the rest is checked
 against a stand-in for the Forever API (TESTING.md lists what's confirmed). Spell data
 covers all 1,928 class spells that leave a timed buff or debuff (598 of them tick), generated from
