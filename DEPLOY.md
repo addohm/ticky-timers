@@ -6,8 +6,9 @@ Ticky is a World of Warcraft addon, so nothing runs on a server. "Deploying" mea
 
 Source: https://github.com/addohm/ticky-timers
 
-TODO: where are releases published for players (GitHub Releases, CurseForge, Wago Addons,
-or just "copy from the repo")? No tags or release packages exist yet.
+Releases are planned for CurseForge and Wago Addons: the listing text, ready to paste, and a
+before-publishing list are in [docs/listing.md](docs/listing.md), the logo in
+[docs/images](docs/images). No tags or release packages exist yet.
 
 ## First-time setup
 
@@ -44,7 +45,8 @@ To run it in the game:
    into `## [x.y.z] - YYYY-MM-DD`, commit, and push to `main`.
 4. Test in the Forever client (ROADMAP item 1 is the checklist).
 
-TODO: should releases be tagged (`vX.Y.Z`) and packaged as a zip of the `Ticky` folder?
+TODO: should releases be tagged (`vX.Y.Z`)? For CurseForge and Wago, the package is a zip with the
+`Ticky` folder at its top level and nothing else (see docs/listing.md, "Before publishing").
 
 Keep non-addon files (docs, tools, CLAUDE.md) out of `Ticky/`: players copy that folder whole.
 

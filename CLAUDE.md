@@ -36,6 +36,8 @@ tools/
   gen_data.py     builds Ticky/Data.lua from wago.tools CSV exports
   check_lua.py    syntax-checks Ticky/*.lua and the TOC file list
   make_sounds.py  regenerates Ticky/Sounds/*.ogg (numpy, soundfile)
+  make_logo.py    regenerates docs/images (Pillow; bold and semibold font files as arguments,
+                  Inter in the repo's images)
   tests/          behaviour tests: mock.lua (a stand-in Forever client), run.py, test_*.lua
   install_beta.cmd  (Windows) git pull, mirror Ticky/ into the beta client's AddOns folder, stamp
                     the installed Build.lua with the commit
@@ -43,6 +45,8 @@ README.md CHANGELOG.md ROADMAP.md SECURITY.md DEPLOY.md CLAUDE.md
 .github/ISSUE_TEMPLATE/  bug report (asks for build and /ticky debug) and idea templates; the repo is public
 TESTING.md        running list of what to check in the client (to test / confirmed / gaps)
 docs/health-shading-spark.md  the spark-hop investigation and how the owner's model ended it
+docs/listing.md   the CurseForge / Wago listing text (paste-ready) and a before-publishing list
+docs/images/      the logo: ticky-icon-512/256/64.png, ticky-icon.svg, ticky-banner-1200x400.png
 ```
 
 ## Commands

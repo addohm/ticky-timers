@@ -8,6 +8,9 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
 - `tools/check_lua.py`: syntax-checks the addon's Lua and the TOC file list.
 - DEPLOY.md: installing, releasing, rolling back, saved variables and troubleshooting.
 - TESTING.md: the running list of what needs checking in the game client.
+- docs/listing.md: the CurseForge / Wago listing, ready to paste, with a before-publishing list.
+  The logo (docs/images: icon PNGs and SVG, a 1200x400 banner, made by `tools/make_logo.py`) is
+  at the top of the README. The TOC's author is now addohm.
 - docs/health-shading-spark.md: how the health bar shading's spark was made to hold still, and
   the long way there.
 - `tools/tests/`: behaviour tests against a stand-in Forever client (`python tools/tests/run.py`).
