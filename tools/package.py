@@ -1,4 +1,4 @@
-"""Package the addon for release: release/Ticky-<version>-<commit>.zip, with the Ticky folder at
+"""Package the addon for release: release/Ticky-<version>.zip, with the Ticky folder at
 its top level and nothing else (what CurseForge, Wago and players unzipping into
 Interface\\AddOns expect), plus the license (GPLv3) inside it as Ticky/LICENSE.txt. The packaged
 Build.lua says the commit it was made from, so /ticky debug in an installed copy names it; the
@@ -25,7 +25,7 @@ if git("status", "--porcelain", "--", "Ticky"):
 commit = git("rev-parse", "--short", "HEAD")
 version = next(line.split(":", 1)[1].strip() for line in (ADDON / "Ticky.toc").read_text().splitlines()
                if line.startswith("## Version:"))
-out = REPO / "release" / f"Ticky-{version}-{commit}.zip"
+out = REPO / "release" / f"Ticky-{version}.zip"  # the commit is inside, in Build.lua
 out.parent.mkdir(exist_ok=True)
 
 build = ('local ADDON, ns = ...\n\n'

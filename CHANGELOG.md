@@ -20,7 +20,7 @@ The first public release, for WoW: Forever.
 - `tools/check_lua.py`: syntax-checks the addon's Lua and the TOC file list.
 - DEPLOY.md: installing, releasing, rolling back, saved variables and troubleshooting.
 - TESTING.md: the running list of what needs checking in the game client.
-- `tools/package.py`: packages the addon as `release/Ticky-<version>-<commit>.zip` (the `Ticky`
+- `tools/package.py`: packages the addon as `release/Ticky-<version>.zip` (the `Ticky`
   folder alone, its Build.lua stamped with the commit); release packages are kept in `release/`.
 - LISTING.md: the CurseForge / Wago listing (basics, a paste-ready description, screenshots to
   take, release notes, before publishing).

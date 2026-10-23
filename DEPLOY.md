@@ -46,10 +46,11 @@ To run it in the game:
 4. Test in the Forever client (ROADMAP item 1 is the checklist).
 
 Packages: `python tools/package.py` (from a clean checkout of the commit to release) writes
-`release/Ticky-<version>-<commit>.zip`: the `Ticky` folder alone at its top level, as CurseForge,
+`release/Ticky-<version>.zip`: the `Ticky` folder alone at its top level, as CurseForge,
 Wago and players unzipping into `Interface\AddOns` expect, with its `Build.lua` stamped with the
 commit so `/ticky debug` names it, and the license (GPLv3) inside as `Ticky/LICENSE.txt`. Commit the zip to `release/` and upload it. The current one is
-`release/Ticky-0.6.0-694e496.zip` (0.6.0, the first public release).
+`release/Ticky-0.6.0.zip` (0.6.0, the first public release; its Build.lua says 694e496).
+Packaging the same version again replaces its zip.
 
 TODO: should releases also be tagged (`vX.Y.Z`)?
 

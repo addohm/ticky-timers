@@ -168,7 +168,7 @@ character names you're happy to show.
 ## Before publishing
 
 - Work through the open items in TESTING.md that matter for a first release.
-- Upload `release/Ticky-0.6.0-694e496.zip` (0.6.0, packaged by `tools/package.py`; see DEPLOY.md).
+- Upload `release/Ticky-0.6.0.zip` (0.6.0, packaged by `tools/package.py`; see DEPLOY.md).
   For a later version: bump `## Version` in `Ticky/Ticky.toc`, move the CHANGELOG entries under
   it, run `python tools/package.py` and commit the new zip.
 - Add the project IDs to `Ticky/Ticky.toc` (`## X-Curse-Project-ID`, `## X-Wago-ID`) once the

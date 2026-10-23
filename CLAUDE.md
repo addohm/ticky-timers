@@ -43,7 +43,7 @@ tools/
   make_sounds.py  regenerates Ticky/Sounds/*.ogg (numpy, soundfile)
   make_logo.py    regenerates art/ and Ticky/Media/Icon.tga (Pillow; bold and semibold font
                   files as arguments, Inter in the repo's images)
-  package.py      writes release/Ticky-<version>-<commit>.zip (the Ticky folder alone, Build.lua
+  package.py      writes release/Ticky-<version>.zip (the Ticky folder alone, Build.lua
                   stamped with the commit, LICENSE inside as Ticky/LICENSE.txt)
   tests/          behaviour tests: mock.lua (a stand-in Forever client), run.py, test_*.lua
   install_beta.cmd  (Windows) git pull, mirror Ticky/ into the beta client's AddOns folder, stamp
@@ -66,7 +66,7 @@ pip install lupa                      # once; embedded Lua for the checker
 python tools/check_lua.py             # syntax + TOC check; run after every Lua change
 python tools/tests/run.py [name]      # behaviour tests in a mocked client (all, or test_<name>.lua)
 python tools/gen_data.py <csv dir> <build> Ticky/Data.lua   # regenerate spell data
-python tools/package.py               # release/Ticky-<version>-<commit>.zip from a clean checkout
+python tools/package.py               # release/Ticky-<version>.zip from a clean checkout
 ```
 
 There is no build step: the `Ticky` folder is the release. Manual testing means copying it into
