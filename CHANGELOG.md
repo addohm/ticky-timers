@@ -11,7 +11,7 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
 - `tools/package.py`: packages the addon as `release/Ticky-<version>-<commit>.zip` (the `Ticky`
   folder alone, its Build.lua stamped with the commit); release packages are kept in `release/`.
 - docs/listing.md: the CurseForge / Wago listing, ready to paste, with a before-publishing list.
-  The logo (docs/images: icon PNGs and SVG, a 1200x400 banner, made by `tools/make_logo.py`) is
+  The logo (art/: icon PNGs and SVG, a 1200x400 banner, made by `tools/make_logo.py`) is
   at the top of the README. The TOC's author is now addohm.
 - docs/health-shading-spark.md: how the health bar shading's spark was made to hold still, and
   the long way there.

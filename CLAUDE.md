@@ -36,7 +36,7 @@ tools/
   gen_data.py     builds Ticky/Data.lua from wago.tools CSV exports
   check_lua.py    syntax-checks Ticky/*.lua and the TOC file list
   make_sounds.py  regenerates Ticky/Sounds/*.ogg (numpy, soundfile)
-  make_logo.py    regenerates docs/images (Pillow; bold and semibold font files as arguments,
+  make_logo.py    regenerates art/ (Pillow; bold and semibold font files as arguments,
                   Inter in the repo's images)
   package.py      writes release/Ticky-<version>-<commit>.zip (the Ticky folder alone, Build.lua
                   stamped with the commit)
@@ -48,7 +48,7 @@ README.md CHANGELOG.md ROADMAP.md SECURITY.md DEPLOY.md CLAUDE.md
 TESTING.md        running list of what to check in the client (to test / confirmed / gaps)
 docs/health-shading-spark.md  the spark-hop investigation and how the owner's model ended it
 docs/listing.md   the CurseForge / Wago listing text (paste-ready) and a before-publishing list
-docs/images/      the logo: ticky-icon-512/256/64.png, ticky-icon.svg, ticky-banner-1200x400.png
+art/              the logo: ticky-icon-512/256/64.png, ticky-icon.svg, ticky-banner-1200x400.png
 release/          release packages (zips from tools/package.py), committed; upload these
 ```
 

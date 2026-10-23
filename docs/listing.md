@@ -1,7 +1,7 @@
 # Ticky: CurseForge / Wago listing
 
 Everything below the "Description" heading is ready to paste (both sites take Markdown). The logo
-is in [images/](images): `ticky-icon-512.png` for the project avatar (`ticky-icon.svg` scales to any
+is in [art/](../art): `ticky-icon-512.png` for the project avatar (`ticky-icon.svg` scales to any
 size), `ticky-banner-1200x400.png` for a header image. `tools/make_logo.py` regenerates them.
 
 ---
@@ -16,14 +16,14 @@ size), `ticky-banner-1200x400.png` for a header image. `tools/make_logo.py` rege
 - **Author:** addohm
 - **Links:** source: https://github.com/addohm/ticky-timers; issues:
   https://github.com/addohm/ticky-timers/issues
-- **Avatar:** [images/ticky-icon-512.png](images/ticky-icon-512.png)
-- **Header image:** [images/ticky-banner-1200x400.png](images/ticky-banner-1200x400.png)
+- **Avatar:** [art/ticky-icon-512.png](../art/ticky-icon-512.png)
+- **Header image:** [art/ticky-banner-1200x400.png](../art/ticky-banner-1200x400.png)
 
 ---
 
 ## Description
 
-![Ticky](https://raw.githubusercontent.com/addohm/ticky-timers/main/docs/images/ticky-banner-1200x400.png)
+![Ticky](https://raw.githubusercontent.com/addohm/ticky-timers/main/art/ticky-banner-1200x400.png)
 
 ### Know every tick.
 

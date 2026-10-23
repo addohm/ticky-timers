@@ -8,7 +8,7 @@ Source: https://github.com/addohm/ticky-timers
 
 Releases are planned for CurseForge and Wago Addons: the listing text, ready to paste, and a
 before-publishing list are in [docs/listing.md](docs/listing.md), the logo in
-[docs/images](docs/images). Release packages go in [release/](release) (see "Shipping a change").
+[art/](art). Release packages go in [release/](release) (see "Shipping a change").
 
 ## First-time setup
 

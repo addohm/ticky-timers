@@ -1,4 +1,4 @@
-"""Generate Ticky's logo (docs/images): a ring timer draining like a cooldown, a white mark for
+"""Generate Ticky's logo (art/): a ring timer draining like a cooldown, a white mark for
 each tick, a spark where it ends, and a T. Writes the icon (512, 256 and 64 px PNGs and an SVG)
 and a 1200x400 banner with the wordmark and the tagline.
 
@@ -15,7 +15,7 @@ from PIL import Image, ImageDraw, ImageFilter, ImageFont
 if len(sys.argv) != 3:
     sys.exit(__doc__)
 FONT_BOLD, FONT_SEMI = sys.argv[1], sys.argv[2]
-OUT = pathlib.Path(__file__).resolve().parent.parent / "docs" / "images"
+OUT = pathlib.Path(__file__).resolve().parent.parent / "art"
 TOP, BOTTOM = (38, 16, 66), (9, 5, 16)
 VIOLET_A, VIOLET_B = (124, 58, 237), (205, 150, 255)
 TRACK = (54, 42, 76)

@@ -1,6 +1,6 @@
 # Ticky
 
-![Ticky: know every tick](docs/images/ticky-banner-1200x400.png)
+![Ticky: know every tick](art/ticky-banner-1200x400.png)
 
 A **World of Warcraft: Forever** addon. Pick any buff, debuff or channeled spell and Ticky shows a
 timer bar for it. Spells that work over time (DoTs, HoTs, channels) also get a marker for every
