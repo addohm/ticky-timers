@@ -24,7 +24,8 @@ beta client (see [DEPLOY.md](DEPLOY.md)).
 
 ## Options
 
-Open with `/ticky`, the minimap addon menu, or Game Menu > Options > AddOns > Ticky. Preview bars
+Open with `/ticky`, the minimap addon menu (Ticky's ring-timer icon), or Game Menu > Options >
+AddOns > Ticky. Preview bars
 loop while the window is open so you can see your changes. In the preview each tracked spell runs,
 then goes missing for a few seconds, so you can see how missing spells look too.
 

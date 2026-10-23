@@ -1,6 +1,8 @@
 """Generate Ticky's logo (art/): a ring timer draining like a cooldown, a white mark for
 each tick, a spark where it ends, and a T. Writes the icon (512, 256 and 64 px PNGs and an SVG)
-and a 1200x400 banner with the wordmark and the tagline.
+and a 1200x400 banner with the wordmark and the tagline, and the in-game icon,
+Ticky/Media/Icon.tga (128x128, 32-bit with alpha, uncompressed: the TOC's IconTexture, shown in
+the AddOns list and the minimap addon menu, and on the options window).
 
 usage: python tools/make_logo.py <bold font .ttf> <semibold font .ttf>
        (the images in the repo used Inter Bold and Inter SemiBold, free under the SIL OFL)
@@ -16,6 +18,7 @@ if len(sys.argv) != 3:
     sys.exit(__doc__)
 FONT_BOLD, FONT_SEMI = sys.argv[1], sys.argv[2]
 OUT = pathlib.Path(__file__).resolve().parent.parent / "art"
+GAME_ICON = pathlib.Path(__file__).resolve().parent.parent / "Ticky" / "Media" / "Icon.tga"
 TOP, BOTTOM = (38, 16, 66), (9, 5, 16)
 VIOLET_A, VIOLET_B = (124, 58, 237), (205, 150, 255)
 TRACK = (54, 42, 76)
@@ -205,6 +208,8 @@ icon(512).save(f"{OUT}/ticky-icon-512.png")
 icon(256).save(f"{OUT}/ticky-icon-256.png")
 icon(64).save(f"{OUT}/ticky-icon-64.png")
 banner(1200, 400).save(f"{OUT}/ticky-banner-1200x400.png")
+GAME_ICON.parent.mkdir(exist_ok=True)
+icon(128).save(GAME_ICON, format="TGA", rle=False)  # bottom-left origin, the classic layout
 with open(f"{OUT}/ticky-icon.svg", "w") as f:
     f.write(svg_icon())
 print("done")

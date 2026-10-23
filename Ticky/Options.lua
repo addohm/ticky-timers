@@ -936,8 +936,12 @@ local function Build()
 
   local close = CreateFrame("Button", nil, panel, "UIPanelCloseButton")
   close:SetPoint("TOPRIGHT", 2, 2)
+  local logo = panel:CreateTexture(nil, "ARTWORK")
+  logo:SetSize(26, 26)
+  logo:SetPoint("TOPLEFT", 12, -8)
+  logo:SetTexture("Interface\\AddOns\\Ticky\\Media\\Icon") -- the TOC's IconTexture too
   local title = W.Label(panel, "Ticky", "GameFontNormalLarge")
-  title:SetPoint("TOPLEFT", 16, -14)
+  title:SetPoint("LEFT", logo, "RIGHT", 6, 0)
   local version = C_AddOns.GetAddOnMetadata(ADDON, "Version")
   local sub = W.Label(panel, (version and ("v" .. version .. " (" .. tostring(ns.Build) .. ")  ") or "")
     .. "Buff and debuff timers with ticks",

@@ -4,6 +4,8 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
 
 ## [Unreleased]
 ### Added
+- Ticky's own icon in game: the ring-timer logo (`Ticky/Media/Icon.tga`) in the AddOns list, the
+  minimap addon menu and the options window's title, instead of Shadow Word: Pain's.
 - License: GNU General Public License version 3 (`LICENSE`; `## X-License: GPL-3.0` in the TOC;
   release packages carry it as `Ticky/LICENSE.txt`).
 - CLAUDE.md: guidance for coding assistants (repo, addon code and tools in one file).

@@ -170,5 +170,5 @@ character names you're happy to show.
   projects exist.
 - Check that CurseForge and Wago list a Forever game version (Interface 16001) at launch, Nov 4,
   2026.
-- Project icon: `art/ticky-icon-512.png`. In game the addon list keeps the Shadow Word: Pain icon
-  (`## IconTexture` in the TOC).
+- Project icon: `art/ticky-icon-512.png`. The same icon is the addon's in-game icon
+  (`Ticky/Media/Icon.tga`: the AddOns list, the minimap addon menu, the options window).

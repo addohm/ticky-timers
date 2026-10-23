@@ -5,7 +5,7 @@
 ## Version: 0.5.0
 ## SavedVariables: TickyDB
 ## SavedVariablesPerCharacter: TickyCharDB
-## IconTexture: Interface\Icons\Spell_Shadow_ShadowWordPain
+## IconTexture: Interface\AddOns\Ticky\Media\Icon
 ## AddonCompartmentFunc: Ticky_OnAddonCompartmentClick
 ## X-Website: https://github.com/addohm/ticky-timers
 ## X-License: GPL-3.0
