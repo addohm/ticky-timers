@@ -1,8 +1,9 @@
 """Generate Ticky's logo (art/): a ring timer draining like a cooldown, a white mark for
 each tick, a spark where it ends, and a T. Writes the icon (512, 256 and 64 px PNGs and an SVG)
-and a 1200x400 banner with the wordmark and the tagline, and the in-game icon,
-Ticky/Media/Icon.tga (128x128, 32-bit with alpha, uncompressed: the TOC's IconTexture, shown in
-the AddOns list and the minimap addon menu, and on the options window).
+and a 1200x400 banner with the wordmark and the tagline, and the in-game art: Ticky/Media/Icon.tga
+(128x128, 32-bit with alpha, uncompressed: the TOC's IconTexture, shown in the AddOns list and the
+minimap addon menu, and on the options window) and Ticky/Media/Minimap.tga (64x64, round with a
+rim: the minimap button).
 
 usage: python tools/make_logo.py <bold font .ttf> <semibold font .ttf>
        (the images in the repo used Inter Bold and Inter SemiBold, free under the SIL OFL)
@@ -109,6 +110,23 @@ def icon(px):
     return img.resize((px, px), Image.LANCZOS)
 
 
+def minimap_icon(px):
+    """Round, with a rim, for the minimap button (Forever's own minimap art is atlases, so the
+    button brings its own)."""
+    k = 4
+    s = px * k
+    disc = background(s, s, s // 2)          # a square's corners rounded all the way: a circle
+    d = ImageDraw.Draw(disc)
+    rim = s * 0.055
+    d.ellipse([rim / 2, rim / 2, s - rim / 2, s - rim / 2], outline=(150, 120, 205, 255), width=int(rim))
+    dial(disc, s / 2, s / 2, s * 0.30)
+    mask = Image.new("L", (s, s), 0)
+    ImageDraw.Draw(mask).ellipse([0, 0, s - 1, s - 1], fill=255)
+    out = Image.new("RGBA", (s, s), (0, 0, 0, 0))
+    out.paste(disc, (0, 0), mask)
+    return out.resize((px, px), Image.LANCZOS)
+
+
 def banner(w, h):
     k = 3
     W, H = w * k, h * k
@@ -210,6 +228,7 @@ icon(64).save(f"{OUT}/ticky-icon-64.png")
 banner(1200, 400).save(f"{OUT}/ticky-banner-1200x400.png")
 GAME_ICON.parent.mkdir(exist_ok=True)
 icon(128).save(GAME_ICON, format="TGA", rle=False)  # bottom-left origin, the classic layout
+minimap_icon(64).save(GAME_ICON.parent / "Minimap.tga", format="TGA", rle=False)
 with open(f"{OUT}/ticky-icon.svg", "w") as f:
     f.write(svg_icon())
 print("done")

@@ -104,10 +104,13 @@ DoTs will still take off, with a spark where the health will end up.
 - Textures, borders, backgrounds, colors (per spell too), fonts, outlines, icon side, spark, fill
   direction, time format, bar size, spacing, and opacity in and out of combat.
 - A live preview runs while the options window is open.
+- A minimap button with Ticky's icon: left-click for options, right-click to lock or unlock the
+  bars, drag it anywhere around the minimap.
 
 #### Commands
 
-- `/ticky`: the options window (also in the minimap addon menu).
+- `/ticky`: the options window (also on the minimap button and in the minimap addon menu).
+- `/ticky minimap`: show or hide the minimap button.
 - `/ticky lock`, `/ticky unlock`, `/ticky preview`
 - `/ticky add [spell]`, `/ticky remove [spell]`, `/ticky list`, `/ticky reset`
 - `/ticky debug`: a short report to paste when something looks wrong. `/ticky report`: where to

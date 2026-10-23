@@ -165,12 +165,18 @@ for _, n in ipairs({ "SetClipsChildren", "SetMovable", "SetClampedToScreen", "Re
   "EnableMouse", "SetTexCoord", "SetBlendMode", "SetJustifyH", "SetWordWrap", "SetShadowColor",
   "SetShadowOffset", "SetOrientation", "SetValueStep", "SetObeyStepOnDrag", "EnableMouseWheel",
   "SetThumbTexture", "SetHighlightTexture", "SetAutoFocus", "SetSpacing", "StartMoving",
-  "StopMovingOrSizing", "LockHighlight", "UnlockHighlight" }) do
+  "StopMovingOrSizing", "LockHighlight", "UnlockHighlight", "RegisterForClicks", "SetOwner", "AddLine" }) do
   methods[n] = function() end
 end
 
 -- Globals -------------------------------------------------------------------------
 UIParent = new("Frame", nil, "UIParent")
+-- The minimap: round, 140 wide, centred at (700, 500) in its own units; the cursor in screen pixels.
+Minimap = new("Frame", UIParent, "Minimap")
+Minimap.w, Minimap.h, Minimap.cx, Minimap.cy = 140, 140, 700, 500
+function methods:GetCenter() return self.cx, self.cy end
+M.cursor = { 0, 0 }
+function GetCursorPosition() return M.cursor[1], M.cursor[2] end
 GameTooltip = new("GameTooltip", UIParent, "GameTooltip")
 function CreateFrame(kind, name, parent, template)
   local f = new(kind, parent or UIParent, name)

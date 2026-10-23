@@ -811,10 +811,14 @@ local function BuildGeneralPage()
   Place(p, W.Check(p, "Hide bars when you have no target", g, s), 0, -150)
   g, s = S("hideMain")
   Place(p, W.Check(p, "Hide the main bars", g, s, "Your channel bar too. Sounds, nameplate bars and the health bar overlay keep working. The preview still shows them while this window is open."), 0, -176)
+  g, s = S("minimapButton")
+  Place(p, W.Check(p, "Show the minimap button", g, s,
+    "Left-click: options. Right-click: lock or unlock the bars. Drag it around the minimap's edge. "
+    .. "/ticky minimap also shows or hides it."), 0, -202)
   g, s = S("alpha")
-  Place(p, W.Slider(p, "Opacity in combat", 0.1, 1, 0.05, g, s, pct), 4, -210)
+  Place(p, W.Slider(p, "Opacity in combat", 0.1, 1, 0.05, g, s, pct), 4, -236)
   g, s = S("oocAlpha")
-  Place(p, W.Slider(p, "Opacity out of combat", 0.1, 1, 0.05, g, s, pct), 4, -250)
+  Place(p, W.Slider(p, "Opacity out of combat", 0.1, 1, 0.05, g, s, pct), 4, -276)
 
   W.Header(p, "Reset"):SetPoint("TOPLEFT", COL2, 0)
   W.Button(p, "Reset bar position", 160, ns.ResetPosition):SetPoint("TOPLEFT", COL2 + 4, -22)

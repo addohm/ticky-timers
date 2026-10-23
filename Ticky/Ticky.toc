@@ -18,3 +18,4 @@ Overlay.lua
 Plates.lua
 Widgets.lua
 Options.lua
+Minimap.lua

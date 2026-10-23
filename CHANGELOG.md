@@ -4,6 +4,9 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
 
 ## [Unreleased]
 ### Added
+- A minimap button (General tab, on by default; `/ticky minimap` shows or hides it): Ticky's icon
+  on the minimap's edge. Left-click opens the options, right-click locks or unlocks the bars,
+  dragging moves it around the edge; square minimaps work too.
 - Ticky's own icon in game: the ring-timer logo (`Ticky/Media/Icon.tga`) in the AddOns list, the
   minimap addon menu and the options window's title, instead of Shadow Word: Pain's.
 - License: GNU General Public License version 3 (`LICENSE`; `## X-License: GPL-3.0` in the TOC;

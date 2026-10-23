@@ -161,6 +161,7 @@ function ns.ApplyStyle()
   styleVersion = styleVersion + 1
   if anchor then LayoutAnchor() end
   if ns.LayoutPlates then ns.LayoutPlates() end
+  if ns.UpdateMinimapButton then ns.UpdateMinimapButton() end
 end
 
 ---------------------------------------------------------------------------

@@ -94,7 +94,9 @@ then goes missing for a few seconds, so you can see how missing spells look too.
   "Your spells on other units" (off by default: your HoTs and DoTs on anyone but your target get
   bars too, after your target's, with who they're on, the same spell in order of who it's on; for
   keeping a HoT on someone or DoTs on several mobs), hide out of combat, hide with no target, hide the main bars altogether (sounds, nameplate bars
-  and the health bar overlay keep working), in/out of combat opacity, reset position, reset all
+  and the health bar overlay keep working), the minimap button (Ticky's icon on the minimap's
+  edge: left-click for options, right-click to lock or unlock the bars, drag to move it; on by
+  default, `/ticky minimap` shows or hides it), in/out of combat opacity, reset position, reset all
   settings.
 
 A fixed stack, for example Shadow Word: Pain on top, Devouring Plague in the middle and Mind Flay
@@ -102,7 +104,7 @@ at the bottom: track the three, put them in that order on the Spells tab, set La
 by" to "Your order", and pick "Show a faded bar" (or "Keep its slot empty") for missing spells.
 Your channel then sits in its own slot instead of on top.
 
-Commands: `/ticky`, `/ticky lock | unlock`, `/ticky preview`, `/ticky add <spell>`,
+Commands: `/ticky`, `/ticky lock | unlock`, `/ticky minimap` (show or hide the minimap button), `/ticky preview`, `/ticky add <spell>`,
 `/ticky remove <spell>`, `/ticky list`, `/ticky reset`, `/ticky debug` (a short report, small
 enough to paste into a chat message: build, combat state, each spell's learned length and tick,
 the timers on your target and elsewhere, your last casts, the timing and size of the last tick on your target, and the

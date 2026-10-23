@@ -62,6 +62,7 @@ ns.DEFAULTS = {
   plateTickColor = { 1, 1, 1 }, plateFont = "Friz Quadrata", plateOutline = "OUTLINE",
   -- General
   hideMain = false, showChannel = true, showSelf = true, showOthers = false, unitNameMode = "others",
+  minimapButton = true, minimapAngle = 225,
   hideOutOfCombat = false, hideNoTarget = false,
   alpha = 1, oocAlpha = 1, showAll = false, previewInOptions = true,
 }
@@ -1541,6 +1542,7 @@ function TB:ADDON_LOADED(name)
   ns.CreateBars()
   ns.CreateOverlay()
   ns.CreatePlates()
+  ns.CreateMinimapButton()
 
   self:RegisterEvent("PLAYER_TARGET_CHANGED")
   self:RegisterEvent("PLAYER_REGEN_DISABLED")
@@ -1578,6 +1580,7 @@ end
 
 function TB:PLAYER_LOGIN()
   playerGUID = GuidOf("player")
+  ns.UpdateMinimapButton() -- in case the minimap wasn't there yet when Ticky loaded
   -- Nameplates already up after a /reload don't fire NAME_PLATE_UNIT_ADDED again.
   for i = 1, 40 do
     local unit = "nameplate" .. i
@@ -1971,6 +1974,10 @@ SlashCmdList.TICKY = function(msg)
     Print(m)
   elseif cmd == "list" then
     for key, cfg in pairs(cdb.spells) do Print(" - " .. cfg.name .. ": " .. ns.Describe(key)) end
+  elseif cmd == "minimap" then
+    db.minimapButton = not db.minimapButton
+    ns.UpdateMinimapButton()
+    Print(db.minimapButton and "Minimap button shown." or "Minimap button hidden (/ticky minimap brings it back).")
   elseif cmd == "preview" then
     ns.SetPreview(not ns.preview)
     Print(ns.preview and "Preview on." or "Preview off.")
@@ -1986,7 +1993,7 @@ SlashCmdList.TICKY = function(msg)
       .. " (include what /ticky debug shows right after it happens).")
     if ns.ShowReport then ns.ShowReport() end
   else
-    Print("/ticky [options | lock | unlock | add <spell> | remove <spell> | list | preview | reset | debug "
+    Print("/ticky [options | lock | unlock | minimap | add <spell> | remove <spell> | list | preview | reset | debug "
       .. "| report]")
   end
 end
