@@ -168,9 +168,9 @@ character names you're happy to show.
 ## Before publishing
 
 - Work through the open items in TESTING.md that matter for a first release.
-- Bump `## Version` in `Ticky/Ticky.toc` to 0.6.0 (the package in `release/` is 0.5.0), move the
-  CHANGELOG entries under the version, then `python tools/package.py` and commit the new zip in
-  `release/` (see DEPLOY.md).
+- Upload `release/Ticky-0.6.0-694e496.zip` (0.6.0, packaged by `tools/package.py`; see DEPLOY.md).
+  For a later version: bump `## Version` in `Ticky/Ticky.toc`, move the CHANGELOG entries under
+  it, run `python tools/package.py` and commit the new zip.
 - Add the project IDs to `Ticky/Ticky.toc` (`## X-Curse-Project-ID`, `## X-Wago-ID`) once the
   projects exist.
 - Check that CurseForge and Wago list a Forever game version (Interface 16001) at launch, Nov 4,
