@@ -8,6 +8,7 @@
 ## IconTexture: Interface\Icons\Spell_Shadow_ShadowWordPain
 ## AddonCompartmentFunc: Ticky_OnAddonCompartmentClick
 ## X-Website: https://github.com/addohm/ticky-timers
+## X-License: GPL-3.0
 
 Build.lua
 Data.lua

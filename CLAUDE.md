@@ -39,11 +39,12 @@ tools/
   make_logo.py    regenerates art/ (Pillow; bold and semibold font files as arguments,
                   Inter in the repo's images)
   package.py      writes release/Ticky-<version>-<commit>.zip (the Ticky folder alone, Build.lua
-                  stamped with the commit)
+                  stamped with the commit, LICENSE inside as Ticky/LICENSE.txt)
   tests/          behaviour tests: mock.lua (a stand-in Forever client), run.py, test_*.lua
   install_beta.cmd  (Windows) git pull, mirror Ticky/ into the beta client's AddOns folder, stamp
                     the installed Build.lua with the commit
 README.md CHANGELOG.md ROADMAP.md SECURITY.md DEPLOY.md CLAUDE.md
+LICENSE           GNU GPL v3 (the owner's choice, 2026-10-23); the TOC says ## X-License: GPL-3.0
 LISTING.md        the CurseForge / Wago listing: basics, paste-ready description, screenshots,
                   release notes, before publishing (same format as the owner's other addons)
 .github/ISSUE_TEMPLATE/  bug report (asks for build and /ticky debug) and idea templates; the repo is public

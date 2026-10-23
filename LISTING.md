@@ -12,7 +12,7 @@ Copy-paste material for the project pages. Placeholders are in [brackets].
 | Slug | `ticky-timers` |
 | Game version | WoW: Forever (Interface 16001, client 1.60.1) |
 | Author | addohm |
-| License | [choose: All Rights Reserved, MIT, ...] |
+| License | GNU General Public License version 3 (GPLv3) |
 | Source | https://github.com/addohm/ticky-timers |
 | Issues | https://github.com/addohm/ticky-timers/issues |
 
@@ -121,6 +121,7 @@ DoTs will still take off, with a spark where the health will end up.
   mid-fight forgets the timers from your casts until you cast again.
 - Display and sound only: Ticky never acts for you.
 - Everything stays on your computer in the game's own saved data. No network access, no libraries.
+- Free and open source under the GNU GPL v3: the code is on GitHub.
 - Found a problem? `/ticky report` gives the link; please include what `/ticky debug` shows.
 
 ---
@@ -162,7 +163,6 @@ character names you're happy to show.
 ## Before publishing
 
 - Work through the open items in TESTING.md that matter for a first release.
-- Choose a license and add a `LICENSE` file.
 - Bump `## Version` in `Ticky/Ticky.toc` to 0.6.0 (the package in `release/` is 0.5.0), move the
   CHANGELOG entries under the version, then `python tools/package.py` and commit the new zip in
   `release/` (see DEPLOY.md).

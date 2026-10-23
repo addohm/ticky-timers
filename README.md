@@ -181,3 +181,10 @@ Coding guidance is in [CLAUDE.md](CLAUDE.md). Check the Lua after changes with
 
 See [ROADMAP.md](ROADMAP.md), [TESTING.md](TESTING.md), [CHANGELOG.md](CHANGELOG.md), [SECURITY.md](SECURITY.md),
 [DEPLOY.md](DEPLOY.md) (installing, releasing, troubleshooting).
+
+## License
+
+Copyright (C) 2026 addohm. Ticky is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License, version 3 (GPLv3), as published by the Free Software
+Foundation. It is distributed in the hope that it will be useful, but without any warranty; see
+[LICENSE](LICENSE) for the full terms. Release packages carry a copy as `Ticky/LICENSE.txt`.

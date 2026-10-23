@@ -48,7 +48,7 @@ To run it in the game:
 Packages: `python tools/package.py` (from a clean checkout of the commit to release) writes
 `release/Ticky-<version>-<commit>.zip`: the `Ticky` folder alone at its top level, as CurseForge,
 Wago and players unzipping into `Interface\AddOns` expect, with its `Build.lua` stamped with the
-commit so `/ticky debug` names it. Commit the zip to `release/` and upload it. The first one is
+commit so `/ticky debug` names it, and the license (GPLv3) inside as `Ticky/LICENSE.txt`. Commit the zip to `release/` and upload it. The first one is
 `release/Ticky-0.5.0-0dd6318.zip`.
 
 TODO: should releases also be tagged (`vX.Y.Z`)?

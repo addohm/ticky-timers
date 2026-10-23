@@ -1,7 +1,8 @@
 """Package the addon for release: release/Ticky-<version>-<commit>.zip, with the Ticky folder at
 its top level and nothing else (what CurseForge, Wago and players unzipping into
-Interface\\AddOns expect). The packaged Build.lua says the commit it was made from, so
-/ticky debug in an installed copy names it; the repo's copy stays "dev".
+Interface\\AddOns expect), plus the license (GPLv3) inside it as Ticky/LICENSE.txt. The packaged
+Build.lua says the commit it was made from, so /ticky debug in an installed copy names it; the
+repo's copy stays "dev".
 
 usage: python tools/package.py    (from a clean checkout of the commit to release)
 """
@@ -41,4 +42,5 @@ with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
             z.writestr(name, build)
         else:
             z.write(path, name)
+    z.write(REPO / "LICENSE", "Ticky/LICENSE.txt")  # the GPL travels with the program
 print(f"{out.relative_to(REPO)} (build {commit}, version {version})")
